@@ -94,22 +94,7 @@ fun interpolateGreatCircle(start: LatLng, end: LatLng, fraction: Double): LatLng
 
 ---
 
-## 📸 스크린샷
-
-| 홈 | 비행 시작 | 비행 중 |
-|:---:|:---:|:---:|
-| 홈 화면 | 공항 선택 | 실시간 지도 추적 |
-
----
-
 ## 🔧 설정
-
-### .gitignore
-프로젝트에는 다음 파일이 포함되지 않습니다:
-- `local.properties` - SDK 경로, API 키 등 민감 정보
-- `build/` - 빌드 산출물
-- `.idea/` - IDE 설정
-- `.gradle/` - Gradle 캐시
 
 ### API 키 설정
 Google Maps API 키가 필요합니다. `local.properties` 에 추가하세요:
@@ -119,30 +104,9 @@ MAPS_API_KEY=your_api_key_here
 
 ---
 
-## 📦 빌드 및 실행
-
-```bash
-# 프로젝트 클론
-git clone https://github.com/Transient-Onlooker/openflight4and.git
-
-# Android Studio 에서 프로젝트 열기
-# Gradle Sync 실행
-
-# 앱 실행
-./gradlew installDebug
-```
-
----
-
 ## 🤝 기여
 
 이슈 및 PR 환영합니다!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ---
 
@@ -157,15 +121,3 @@ git clone https://github.com/Transient-Onlooker/openflight4and.git
 이 프로젝트는 **FocusFlight** 앱에서 영감을 받아 개발되었습니다.
 
 ---
-
-## 📬 연락처
-
-프로젝트 링크: [https://github.com/Transient-Onlooker/openflight4and](https://github.com/Transient-Onlooker/openflight4and)
-
----
-
-<div align="center">
-
-**Made with ❤️ by Transient-Onlooker**
-
-</div>
