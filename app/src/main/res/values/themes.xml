@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.OpenFlight" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 상태바 및 내비게이션바를 투명하게 설정하기 위한 기본 테마 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
