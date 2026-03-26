@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
+import com.example.openflight4and.service.FlightService
 import com.example.openflight4and.service.FlightStatusManager
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
@@ -91,6 +92,7 @@ fun InFlightScreen(
 
     // UI 상태: 경과 시간 (초)
     var secondsElapsed by remember { mutableStateOf(0L) }
+    var isServiceSynced by remember { mutableStateOf(false) }
 
     // 계산된 상태
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
@@ -105,24 +107,41 @@ fun InFlightScreen(
         showGiveUpDialog = true
     }
 
-    // 비행 시작 시 FlightStatusManager 초기화
+    // 앱 복귀 시 서비스 상태가 있으면 복구, 없으면 새로 시작
     LaunchedEffect(Unit) {
-        FlightStatusManager.startFlight(
-            originIata = draft.origin.iata,
-            destinationIata = draft.destination?.iata ?: "N/A",
-            originName = draft.origin.nameKo,
-            destinationName = draft.destination?.nameKo ?: "N/A",
-            totalSeconds = totalSeconds
-        )
+        if (FlightService.isServiceRunning()) {
+            val synced = FlightStatusManager.syncFromService()
+            if (synced) {
+                secondsElapsed = FlightService.getSecondsElapsed()
+                isServiceSynced = true
+            }
+        } else {
+            FlightStatusManager.startFlight(
+                originIata = draft.origin.iata,
+                destinationIata = draft.destination?.iata ?: "N/A",
+                originName = draft.origin.nameKo,
+                destinationName = draft.destination?.nameKo ?: "N/A",
+                totalSeconds = totalSeconds
+            )
+        }
     }
 
-    // UI 타이머: 1 초마다 경과 시간 증가
-    LaunchedEffect(isFlying) {
-        if (isFlying) {
+    // 서비스와 연결되지 않았을 때만 로컬 타이머를 증가시킴
+    LaunchedEffect(isFlying, isServiceSynced) {
+        if (isFlying && !isServiceSynced) {
             while (secondsElapsed < totalSeconds) {
                 delay(1000)
                 secondsElapsed++
                 // FlightStatusManager 와 동기화
+                FlightStatusManager.updateProgress(secondsElapsed)
+            }
+        } else if (isFlying && isServiceSynced) {
+            while (secondsElapsed < totalSeconds) {
+                delay(1000)
+                val serviceElapsed = FlightService.getSecondsElapsed()
+                if (serviceElapsed > secondsElapsed) {
+                    secondsElapsed = serviceElapsed
+                }
                 FlightStatusManager.updateProgress(secondsElapsed)
             }
         }

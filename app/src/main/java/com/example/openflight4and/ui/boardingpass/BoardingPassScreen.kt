@@ -1,7 +1,12 @@
 package com.example.openflight4and.ui.boardingpass
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +43,8 @@ import com.example.openflight4and.ui.theme.FlightGray
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,36 +52,93 @@ fun BoardingPassScreen(
     draft: FlightDraft,
     onNavigateBack: () -> Unit,
     onNavigateToSeatSelection: () -> Unit,
-    unitSystem: String // 파라미터 추가
+    unitSystem: String
 ) {
     val context = LocalContext.current
-    // repository.unitSystem 호출 제거 (파라미터 사용)
-    
     val density = LocalDensity.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator }
+
+    val tearLinePath = remember {
+        Path().apply {
+            val width = 1000f
+            val height = 8f
+            val zigzagCount = 80
+            moveTo(0f, height / 2)
+            for (i in 0..zigzagCount) {
+                val x = (i.toFloat() / zigzagCount) * width
+                val y = if (i % 2 == 0) 0f else height
+                lineTo(x, y)
+            }
+            lineTo(width, height / 2)
+        }
+    }
+
     val tearDistancePx = with(density) { 150.dp.toPx() }
     val offsetX = remember { Animatable(0f) }
     val offsetY = remember { Animatable(0f) }
     val rotation = remember { Animatable(0f) }
+    val wobbleX = remember { Animatable(0f) }
+    val wobbleRotation = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    
+
     var isTorn by remember { mutableStateOf(false) }
     var showGreeting by remember { mutableStateOf(false) }
+    var tearProgress by remember { mutableStateOf(0f) }
+
+    fun triggerHapticTick() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(15, VibrationEffect.DEFAULT_AMPLITUDE))
+        }
+    }
 
     val draggableState = rememberDraggableState { delta ->
         if (!isTorn) {
             scope.launch {
                 val newX = (offsetX.value + delta).coerceAtLeast(0f)
                 offsetX.snapTo(newX)
-                
+
                 val progress = (newX / tearDistancePx).coerceIn(0f, 1f)
-                
-                rotation.snapTo(progress * 45f)
-                offsetY.snapTo(progress * 300f)
-                
+                tearProgress = progress
+
+                rotation.snapTo(progress * 30f)
+                offsetY.snapTo(progress * 50f)
+
+                val currentHapticIndex = (progress * 8).toInt()
+                val prevHapticIndex = ((progress - 0.01f).coerceAtLeast(0f) * 8).toInt()
+                if (currentHapticIndex > prevHapticIndex && currentHapticIndex < 8) {
+                    triggerHapticTick()
+                }
+
                 if (newX > tearDistancePx) {
                     isTorn = true
                     showGreeting = true
-                    offsetX.animateTo(1000f, animationSpec = tween(300))
+
+                    launch {
+                        offsetX.animateTo(1000f, animationSpec = tween(400, easing = LinearEasing))
+                    }
+                    launch {
+                        offsetY.animateTo(2000f, animationSpec = tween(800, easing = LinearEasing))
+                    }
+                    launch {
+                        rotation.animateTo(-120f, animationSpec = tween(800, easing = LinearEasing))
+                    }
+                    launch {
+                        val shakeDuration = 800
+                        val shakeSteps = 20
+                        for (i in 0 until shakeSteps) {
+                            val t = i.toFloat() / shakeSteps
+                            val shake = (sin(t * PI * 4) * 30.0 * (1.0 - t.toDouble())).toFloat()
+                            wobbleX.snapTo(shake)
+                            val wobbleRot = (sin(t * PI * 6) * 15.0 * (1.0 - t.toDouble())).toFloat()
+                            wobbleRotation.snapTo(wobbleRot)
+                            delay((shakeDuration / shakeSteps).toLong())
+                        }
+                        wobbleX.snapTo(0f)
+                        wobbleRotation.snapTo(0f)
+                    }
+
                     delay(1500)
                     onNavigateToSeatSelection()
                 }
@@ -106,7 +171,6 @@ fun BoardingPassScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        // 1. Main Ticket (Upper)
                         Card(
                             modifier = Modifier.fillMaxWidth().zIndex(1f),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -145,26 +209,26 @@ fun BoardingPassScreen(
                             }
                         }
 
-                        // 2. Tear Line
-                        Canvas(modifier = Modifier.fillMaxWidth().height(2.dp).background(Color.White)) {
-                            drawLine(
+                        Canvas(modifier = Modifier.fillMaxWidth().height(10.dp)) {
+                            drawPath(
+                                path = tearLinePath,
                                 color = FlightGray.copy(alpha = 0.5f),
-                                start = Offset(0f, 0f),
-                                end = Offset(size.width, 0f),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f),
-                                strokeWidth = 2.dp.toPx()
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = 1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+                                )
                             )
                         }
 
-                        // 3. Stub (Lower)
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
-                                    translationX = offsetX.value
+                                    translationX = offsetX.value + wobbleX.value
                                     translationY = offsetY.value
-                                    rotationZ = rotation.value
+                                    rotationZ = rotation.value + wobbleRotation.value
                                     shadowElevation = if (offsetX.value > 0) 16.dp.toPx() else 0f
+                                    alpha = if (offsetY.value > 500) 1f - ((offsetY.value - 500) / 1500).coerceIn(0f, 1f) else 1f
                                 }
                                 .draggable(state = draggableState, orientation = Orientation.Horizontal),
                             shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
@@ -193,7 +257,6 @@ fun BoardingPassScreen(
                     }
                 }
 
-                // 인사말 오버레이
                 AnimatedVisibility(
                     visible = showGreeting,
                     enter = fadeIn(animationSpec = tween(500)),

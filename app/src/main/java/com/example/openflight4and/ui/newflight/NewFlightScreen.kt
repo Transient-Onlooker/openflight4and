@@ -258,8 +258,9 @@ fun NewFlightScreen(
                     )
 
                     val radiusText = if (searchRadiusKm >= 20000) "무제한" else "${searchRadiusKm}km"
+                    val durationText = if (searchRadiusKm >= 20000) "" else " • 약 ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
                     Text(
-                        text = "검색 반경: $radiusText",
+                        text = "검색 반경: $radiusText$durationText",
                         color = FlightPrimary,
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
