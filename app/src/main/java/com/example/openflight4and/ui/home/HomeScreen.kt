@@ -1,14 +1,30 @@
 package com.example.openflight4and.ui.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,16 +46,16 @@ fun HomeScreen(
     onNavigateToNewFlight: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToTrend: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    ticketBalance: Int,
+    onNavigateToTickets: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
-    
-    // DataStore & Room States
+
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)
-    
-    // Map Camera (Seoul Default)
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(37.5665, 126.9780), 10f)
     }
@@ -56,30 +72,61 @@ fun HomeScreen(
                     .systemBarsPadding(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header
-                Column {
-                    Text(
-                        text = "현재 위치",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = FlightGray
-                    )
-                    Text(
-                        text = "SEOUL, KOREA",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "총 ${totalFlights}회 비행 완료",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Current location",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = FlightGray
+                        )
+                        Text(
+                            text = "SEOUL, KOREA",
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Total completed flights: $totalFlights",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    GlassPanel(modifier = Modifier.clickable(onClick = onNavigateToTickets)) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ConfirmationNumber,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Tickets",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = FlightGray
+                                )
+                                Text(
+                                    text = "$ticketBalance",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // Actions
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     PrimaryFlightButton(
-                        text = "비행 시작",
+                        text = "Start Flight",
                         onClick = onNavigateToNewFlight
                     )
 
@@ -87,19 +134,19 @@ fun HomeScreen(
                         Column(modifier = Modifier.padding(vertical = 8.dp)) {
                             HomeMenuItem(
                                 icon = Icons.Default.History,
-                                title = "비행 기록",
+                                title = "Flight History",
                                 onClick = onNavigateToHistory
                             )
                             HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
                             HomeMenuItem(
                                 icon = Icons.Default.Timeline,
-                                title = "통계 및 추세",
+                                title = "Stats and Trends",
                                 onClick = onNavigateToTrend
                             )
                             HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
                             HomeMenuItem(
                                 icon = Icons.Default.Settings,
-                                title = "설정",
+                                title = "Settings",
                                 onClick = onNavigateToSettings
                             )
                         }

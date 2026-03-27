@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.trend
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.theme.FlightGray
 import com.example.openflight4and.utils.FlightUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,11 +31,13 @@ fun TrendScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
+    val scope = rememberCoroutineScope()
 
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)
     val totalDistanceKm by repository.totalDistance.collectAsState(initial = 0)
     val totalFocusMinutes by repository.totalFocusMinutes.collectAsState(initial = 0)
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
+    val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
     val sessions by repository.allSessions.collectAsState(initial = emptyList())
 
     val visitedAirportsCount = remember(sessions) {
@@ -46,6 +50,8 @@ fun TrendScreen(
     // 자유모드 언락 카운트 (누적 거리 5 번 클릭)
     var clickCount by remember { mutableStateOf(0) }
     var clickTimestamp by remember { mutableStateOf(0L) }
+    var focusClickCount by remember { mutableStateOf(0) }
+    var focusClickTimestamp by remember { mutableStateOf(0L) }
 
     FlightMapBackground {
         Scaffold(
@@ -80,7 +86,29 @@ fun TrendScreen(
                     StatCard(
                         label = "총 비행",
                         value = "${totalFlights}회",
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).clickable {
+                            val currentTime = System.currentTimeMillis()
+                            val elapsed = currentTime - focusClickTimestamp
+                            if (elapsed < 5000) {
+                                focusClickCount++
+                            } else {
+                                focusClickCount = 1
+                            }
+                            focusClickTimestamp = currentTime
+
+                            if (focusClickCount >= 5) {
+                                focusClickCount = 0
+                                val nextValue = !debugFlightMode
+                                scope.launch {
+                                    repository.setDebugFlightMode(nextValue)
+                                    Toast.makeText(
+                                        context,
+                                        if (nextValue) "Flight debug mode enabled" else "Flight debug mode disabled",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     StatCard(
@@ -118,7 +146,29 @@ fun TrendScreen(
                     StatCard(
                         label = "집중 시간",
                         value = FlightUtils.formatDuration(totalFocusMinutes ?: 0),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).clickable {
+                            val currentTime = System.currentTimeMillis()
+                            val elapsed = currentTime - focusClickTimestamp
+                            if (elapsed < 5000) {
+                                focusClickCount++
+                            } else {
+                                focusClickCount = 1
+                            }
+                            focusClickTimestamp = currentTime
+
+                            if (focusClickCount >= 5) {
+                                focusClickCount = 0
+                                val nextValue = !debugFlightMode
+                                scope.launch {
+                                    repository.setDebugFlightMode(nextValue)
+                                    Toast.makeText(
+                                        context,
+                                        if (nextValue) "Flight debug mode enabled" else "Flight debug mode disabled",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                     )
                 }
 

@@ -8,7 +8,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -17,26 +24,26 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import kotlinx.coroutines.launch
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.service.FlightService
-import com.example.openflight4and.service.FlightStatusManager
 import com.example.openflight4and.ui.boardingpass.BoardingPassScreen
 import com.example.openflight4and.ui.history.HistoryScreen
 import com.example.openflight4and.ui.home.HomeScreen
 import com.example.openflight4and.ui.inflight.InFlightScreen
 import com.example.openflight4and.ui.navigation.Screen
 import com.example.openflight4and.ui.newflight.NewFlightScreen
+import com.example.openflight4and.ui.sandbox.SandboxScreen
 import com.example.openflight4and.ui.seatselection.SeatSelectionScreen
 import com.example.openflight4and.ui.settings.SettingsScreen
-import com.example.openflight4and.ui.sandbox.SandboxScreen
+import com.example.openflight4and.ui.tickets.TicketCenterScreen
 import com.example.openflight4and.ui.trend.TrendScreen
 import com.example.openflight4and.utils.FlightUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen() {
@@ -49,29 +56,37 @@ fun MainScreen() {
     val airplaneModeCheckEnabled by repository.airplaneModeCheck.collectAsState(initial = true)
     val currentLocation by repository.currentLocation.collectAsState(initial = null)
     val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
-
-    val allAirports = remember { repository.getAirports() }
+    val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
     val recentSessions by repository.recentSessions.collectAsState(initial = emptyList())
 
-    // 현재 위치가 변경되면 자동으로 업데이트
+    val allAirports = remember { repository.getAirports() }
     val defaultOrigin = remember(currentLocation, recentSessions, allAirports) {
-        if (allAirports.isEmpty()) return@remember com.example.openflight4and.model.Airport("ICN", "인천국제공항", "Incheon Int'l", "인천/서울", "Incheon/Seoul", "KR", 37.46, 126.44)
+        if (allAirports.isEmpty()) {
+            return@remember Airport(
+                iata = "ICN",
+                nameKo = "Incheon Intl",
+                nameEn = "Incheon Intl",
+                cityKo = "Incheon Seoul",
+                cityEn = "Incheon Seoul",
+                country = "KR",
+                latitude = 37.46,
+                longitude = 126.44
+            )
+        }
 
-        // 1. 현재 위치가 설정되어 있으면 우선 사용
         currentLocation?.let { return@remember it }
 
-        // 2. 최근 세션의 도착지
         val lastDestIata = recentSessions.firstOrNull()?.destinationIata
         allAirports.find { it.iata == lastDestIata }
             ?: allAirports.find { it.iata == "ICN" }
             ?: allAirports.first()
     }
 
-    var currentDraft by remember {
-        mutableStateOf(FlightDraft(origin = defaultOrigin))
-    }
+    var currentDraft by remember { mutableStateOf(FlightDraft(origin = defaultOrigin)) }
+    var showAirplaneModeDialog by remember { mutableStateOf(false) }
+    var showTicketRequiredDialog by remember { mutableStateOf(false) }
+    var ticketDialogMessage by remember { mutableStateOf("Flights over 10 minutes require 1 ticket.") }
 
-    // 현재 위치가 변경되면 currentDraft 도 업데이트
     LaunchedEffect(currentLocation) {
         currentLocation?.let { airport ->
             Log.d("MainScreen", "Current location changed to: ${airport.iata}")
@@ -79,7 +94,37 @@ fun MainScreen() {
         }
     }
 
-    var showAirplaneModeDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val granted = repository.grantDailyTicketIfNeeded()
+        if (granted > 0) {
+            Toast.makeText(context, "Daily ticket granted.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun startFlight() {
+        scope.launch {
+            val spendResult = repository.canStartFlight(currentDraft.estimatedMinutes)
+            if (!spendResult.success) {
+                ticketDialogMessage = spendResult.message ?: "Not enough tickets."
+                showTicketRequiredDialog = true
+                return@launch
+            }
+
+            val intent = Intent(context, FlightService::class.java).apply {
+                putExtra("origin_iata", currentDraft.origin.iata)
+                putExtra("destination_iata", currentDraft.destination?.iata ?: "N/A")
+                putExtra("origin_name", currentDraft.origin.nameKo)
+                putExtra("destination_name", currentDraft.destination?.nameKo ?: "N/A")
+                putExtra("duration_minutes", currentDraft.estimatedMinutes)
+                putExtra("time_scale", sandboxTimeScale)
+            }
+            context.startForegroundService(intent)
+
+            navController.navigate(Screen.InFlight.route) {
+                popUpTo(Screen.Home.route) { inclusive = false }
+            }
+        }
+    }
 
     Scaffold { innerPadding ->
         NavHost(
@@ -90,14 +135,15 @@ fun MainScreen() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToNewFlight = {
-                        // 현재 위치가 설정되어 있으면 그 공항으로, 없으면 defaultOrigin
                         val origin = currentLocation ?: defaultOrigin
                         currentDraft = FlightDraft(origin = origin)
                         navController.navigate(Screen.NewFlight.route)
                     },
                     onNavigateToHistory = { navController.navigate(Screen.History.route) },
                     onNavigateToTrend = { navController.navigate(Screen.Trend.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    ticketBalance = ticketBalance,
+                    onNavigateToTickets = { navController.navigate(Screen.Tickets.route) }
                 )
             }
 
@@ -114,10 +160,9 @@ fun MainScreen() {
                     }
                 )
             ) { backStackEntry ->
-                // 샌드박스 모드인지 확인
                 val isSandboxMode = backStackEntry.arguments?.getString("sandboxMode") == "true"
                 val isSettingCurrentLocation = backStackEntry.arguments?.getString("isSettingCurrentLocation") == "true"
-                
+
                 NewFlightScreen(
                     currentDraft = currentDraft,
                     onAirportSelected = { destination ->
@@ -139,18 +184,13 @@ fun MainScreen() {
                     isSandboxMode = isSandboxMode,
                     isSettingCurrentLocation = isSettingCurrentLocation,
                     onSandboxAirportSelected = { origin, destination ->
-                        // 샌드박스로 결과 전달 - 현재 백스택의 Sandbox 엔트리를 찾음
                         val sandboxEntry = navController.getBackStackEntry(Screen.Sandbox.route)
                         sandboxEntry.savedStateHandle["selected_origin"] = origin.iata
                         sandboxEntry.savedStateHandle["selected_destination"] = destination?.iata
                         navController.popBackStack()
                     },
                     onCurrentLocationSet = { airport ->
-                        // 현재 위치 설정 - Sandbox 로 결과 전달
-                        val sandboxEntry = navController.getBackStackEntry(Screen.Sandbox.route)
-                        scope.launch {
-                            repository.setCurrentLocation(airport)
-                        }
+                        scope.launch { repository.setCurrentLocation(airport) }
                         navController.popBackStack()
                     }
                 )
@@ -172,77 +212,58 @@ fun MainScreen() {
                         currentDraft = currentDraft.copy(seatNumber = seat, focusCategory = category)
                     },
                     onFinish = {
-                        // Check for airplane mode if enabled
                         if (airplaneModeCheckEnabled && !FlightUtils.isAirplaneModeOn(context)) {
                             showAirplaneModeDialog = true
                         } else {
-                            // Start the FlightService
-                            val intent = Intent(context, FlightService::class.java).apply {
-                                val draft = currentDraft
-                                putExtra("origin_iata", draft.origin.iata)
-                                putExtra("destination_iata", draft.destination?.iata ?: "N/A")
-                                putExtra("origin_name", draft.origin.nameKo)
-                                putExtra("destination_name", draft.destination?.nameKo ?: "N/A")
-                                putExtra("duration_minutes", draft.estimatedMinutes)
-                                // 샌드박스에서 설정한 시간 배율 적용
-                                putExtra("time_scale", sandboxTimeScale)
-                            }
-                            context.startForegroundService(intent)
-
-                            // Navigate to the In-Flight screen
-                            navController.navigate(Screen.InFlight.route) {
-                                popUpTo(Screen.Home.route) { inclusive = false }
-                            }
+                            startFlight()
                         }
                     }
                 )
             }
-            
+
             composable(Screen.InFlight.route) {
                 InFlightScreen(
                     draft = currentDraft,
-                    onFlightEnd = {
-                        navController.popBackStack(Screen.Home.route, inclusive = false)
-                    }
+                    onFlightEnd = { navController.popBackStack(Screen.Home.route, inclusive = false) }
                 )
             }
 
             composable(Screen.History.route) {
                 HistoryScreen(onNavigateBack = { navController.popBackStack() })
             }
+
             composable(Screen.Trend.route) {
                 TrendScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToSandbox = { navController.navigate(Screen.Sandbox.route) }
                 )
             }
+
             composable(Screen.Settings.route) {
                 SettingsScreen(onNavigateBack = { navController.popBackStack() })
             }
-            composable(Screen.Sandbox.route) { sandboxEntry ->
-                // 현재 위치와 시간 배율
-                val currentLocation by repository.currentLocation.collectAsState(initial = null)
-                val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
-                
+
+            composable(Screen.Tickets.route) {
+                TicketCenterScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable(Screen.Sandbox.route) {
+                val sandboxLocation by repository.currentLocation.collectAsState(initial = null)
+                val currentTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
+
                 SandboxScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAirportSelection = { isSettingCurrentLocation ->
-                        // NewFlightScreen 으로 이동 (현재 위치 설정 모드)
                         navController.navigate(
                             "${Screen.NewFlight.route}?sandboxMode=true&isSettingCurrentLocation=$isSettingCurrentLocation"
                         )
                     },
-                    currentLocation = currentLocation,
-                    timeScale = sandboxTimeScale,
+                    currentLocation = sandboxLocation,
+                    timeScale = currentTimeScale,
                     onTimeScaleChanged = { newScale ->
-                        scope.launch {
-                            repository.setSandboxTimeScale(newScale)
-                        }
+                        scope.launch { repository.setSandboxTimeScale(newScale) }
                     },
-                    onSaveCompleted = {
-                        // 설정 완료 - 홈으로 이동
-                        navController.popBackStack()
-                    }
+                    onSaveCompleted = { navController.popBackStack() }
                 )
             }
         }
@@ -251,18 +272,43 @@ fun MainScreen() {
     if (showAirplaneModeDialog) {
         AlertDialog(
             onDismissRequest = { showAirplaneModeDialog = false },
-            title = { Text("비행기 모드 확인", color = Color.White) },
-            text = { Text("집중을 위해 비행기 모드를 켜는 것을 권장합니다. 시스템 설정에서 비행기 모드를 활성화해주세요.", color = Color.Gray) },
+            title = { Text("Airplane mode check", color = Color.White) },
+            text = {
+                Text(
+                    "Airplane mode is recommended for focus flights. You can still continue.",
+                    color = Color.Gray
+                )
+            },
             confirmButton = {
-                TextButton(onClick = { 
-                    showAirplaneModeDialog = false
-                    navController.navigate(Screen.InFlight.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
+                TextButton(
+                    onClick = {
+                        showAirplaneModeDialog = false
+                        startFlight()
                     }
-                }) { Text("그대로 시작") }
+                ) { Text("Start anyway") }
             },
             dismissButton = {
-                TextButton(onClick = { showAirplaneModeDialog = false }) { Text("취소") }
+                TextButton(onClick = { showAirplaneModeDialog = false }) { Text("Cancel") }
+            },
+            containerColor = Color(0xFF0D0000)
+        )
+    }
+
+    if (showTicketRequiredDialog) {
+        AlertDialog(
+            onDismissRequest = { showTicketRequiredDialog = false },
+            title = { Text("Not enough tickets", color = Color.White) },
+            text = { Text(ticketDialogMessage, color = Color.Gray) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showTicketRequiredDialog = false
+                        navController.navigate(Screen.Tickets.route)
+                    }
+                ) { Text("Manage tickets") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTicketRequiredDialog = false }) { Text("Close") }
             },
             containerColor = Color(0xFF0D0000)
         )

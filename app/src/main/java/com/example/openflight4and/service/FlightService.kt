@@ -39,11 +39,20 @@ class FlightService : Service() {
         @Volatile private var _secondsElapsed = 0L
         @Volatile private var _totalSeconds = 0L
         @Volatile private var _isRunning = false
+        @Volatile private var _ticketCharged = false
+        @Volatile private var _pendingJumpSeconds: Long? = null
 
         fun isServiceRunning(): Boolean = _isRunning
         fun getSecondsElapsed(): Long = _secondsElapsed
         fun getTotalSeconds(): Long = _totalSeconds
         fun getServiceInstance(): FlightService? = instance
+        fun isTicketCharged(): Boolean = _ticketCharged
+        fun markTicketCharged() {
+            _ticketCharged = true
+        }
+        fun jumpToElapsedSeconds(seconds: Long) {
+            _pendingJumpSeconds = seconds
+        }
     }
 
     override fun onCreate() {
@@ -76,6 +85,8 @@ class FlightService : Service() {
         _isRunning = true
         _totalSeconds = totalSeconds
         _secondsElapsed = 0L
+        _ticketCharged = false
+        _pendingJumpSeconds = null
 
         // 초기 알림과 함께 포그라운드 시작
         val initialContent = "$originIata ➔ $destinationIata | 비행 준비 중..."
@@ -104,6 +115,10 @@ class FlightService : Service() {
             while (secondsElapsed < totalSeconds) {
                 val delayMs = (1000 / timeScale).toLong()
                 delay(delayMs.coerceAtLeast(100)) // 최소 100ms (너무 빠른 업데이트 방지)
+                _pendingJumpSeconds?.let { jumpTarget ->
+                    secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
+                    _pendingJumpSeconds = null
+                }
                 secondsElapsed++
 
                 // 서비스 상태 업데이트 (UI 연동용)
@@ -260,6 +275,8 @@ class FlightService : Service() {
     override fun onDestroy() {
         Log.d(TAG, "Service onDestroy()")
         _isRunning = false
+        _ticketCharged = false
+        _pendingJumpSeconds = null
         instance = null
         timerJob?.cancel()
         serviceScope.cancel()

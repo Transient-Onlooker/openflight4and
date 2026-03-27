@@ -37,6 +37,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
+private const val TrackingTiltDegrees = 60f
+private const val TrackingZoom = 16f
+
 /**
  * 대권 보간 (Great Circle Interpolation)
  * 지구 곡면을 따른 두 지점 사이의 보간
@@ -86,6 +89,7 @@ fun InFlightScreen(
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
+    val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
 
     // 총 비행 시간 (초)
     val totalSeconds = (draft.estimatedMinutes * 60).toLong()
@@ -93,6 +97,10 @@ fun InFlightScreen(
     // UI 상태: 경과 시간 (초)
     var secondsElapsed by remember { mutableStateOf(0L) }
     var isServiceSynced by remember { mutableStateOf(false) }
+    var ticketCharged by remember { mutableStateOf(false) }
+    var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
+    var isDebugSliderDirty by remember { mutableStateOf(false) }
+    var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
 
     // 계산된 상태
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
@@ -114,6 +122,10 @@ fun InFlightScreen(
             if (synced) {
                 secondsElapsed = FlightService.getSecondsElapsed()
                 isServiceSynced = true
+                ticketCharged = FlightService.isTicketCharged()
+                if (!isDebugSliderDirty) {
+                    debugSliderSeconds = secondsElapsed.toFloat()
+                }
             }
         } else {
             FlightStatusManager.startFlight(
@@ -123,6 +135,9 @@ fun InFlightScreen(
                 destinationName = draft.destination?.nameKo ?: "N/A",
                 totalSeconds = totalSeconds
             )
+            if (!isDebugSliderDirty) {
+                debugSliderSeconds = 0f
+            }
         }
     }
 
@@ -134,6 +149,9 @@ fun InFlightScreen(
                 secondsElapsed++
                 // FlightStatusManager 와 동기화
                 FlightStatusManager.updateProgress(secondsElapsed)
+                if (!isDebugSliderDirty) {
+                    debugSliderSeconds = secondsElapsed.toFloat()
+                }
             }
         } else if (isFlying && isServiceSynced) {
             while (secondsElapsed < totalSeconds) {
@@ -143,11 +161,51 @@ fun InFlightScreen(
                     secondsElapsed = serviceElapsed
                 }
                 FlightStatusManager.updateProgress(secondsElapsed)
+                if (!isDebugSliderDirty) {
+                    debugSliderSeconds = secondsElapsed.toFloat()
+                }
             }
         }
     }
 
+    LaunchedEffect(isDebugSliderDirty, lastDebugSliderInteractionAt) {
+        if (!isDebugSliderDirty) {
+            return@LaunchedEffect
+        }
+
+        val interactionAt = lastDebugSliderInteractionAt
+        delay(10_000)
+        if (isDebugSliderDirty && lastDebugSliderInteractionAt == interactionAt) {
+            debugSliderSeconds = secondsElapsed.toFloat()
+            isDebugSliderDirty = false
+        }
+    }
+
+    LaunchedEffect(secondsElapsed, totalSeconds, ticketCharged) {
+        if (totalSeconds < 600 || ticketCharged || secondsElapsed < 600) {
+            return@LaunchedEffect
+        }
+
+        val spendResult = repository.consumeTicketForLongFlight()
+        if (spendResult.success) {
+            ticketCharged = true
+            FlightService.markTicketCharged()
+            Toast.makeText(context, "이용권이 차감되었습니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // 비행기 위치 및 회전 계산 (대권 보간 - Great Circle Interpolation)
+    fun applyDebugElapsed(targetSeconds: Long) {
+        val clampedSeconds = targetSeconds.coerceIn(0L, totalSeconds)
+        secondsElapsed = clampedSeconds
+        debugSliderSeconds = clampedSeconds.toFloat()
+        isDebugSliderDirty = false
+        FlightStatusManager.updateProgress(clampedSeconds)
+        if (FlightService.isServiceRunning()) {
+            FlightService.jumpToElapsedSeconds(clampedSeconds)
+        }
+    }
+
     val origin = draft.origin.location
     val dest = draft.destination?.location ?: origin
     val currentPos = remember(progress) {
@@ -159,7 +217,6 @@ fun InFlightScreen(
 
     // 카메라 추적 상태
     var isCameraTracking by remember { mutableStateOf(true) }
-    var lastZoomLevel by remember { mutableFloatStateOf(0f) }
     val cameraPositionState = rememberCameraPositionState()
 
     // 초기 카메라 위치 설정 (출발지 и 도착지를 모두 포함하는 줌 레벨)
@@ -180,7 +237,16 @@ fun InFlightScreen(
     // 카메라 추적 로직 (사용자가 직접 조작했을 때는 추적 중지)
     LaunchedEffect(currentPos, isCameraTracking) {
         if (isCameraTracking && !cameraPositionState.isMoving) {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLng(currentPos))
+            cameraPositionState.animate(
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder()
+                        .target(currentPos)
+                        .zoom(max(cameraPositionState.position.zoom, TrackingZoom))
+                        .tilt(TrackingTiltDegrees)
+                        .bearing(bearing)
+                        .build()
+                )
+            )
         }
     }
 
@@ -188,8 +254,6 @@ fun InFlightScreen(
         if (cameraPositionState.isMoving && cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE) {
             isCameraTracking = false
         }
-        // 줌 레벨 저장
-        lastZoomLevel = cameraPositionState.position.zoom
     }
 
     // 비행 완료 감지 및 저장
@@ -253,11 +317,72 @@ fun InFlightScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SmallFloatingActionButton(
-                            onClick = { isCameraTracking = true },
+                            onClick = {
+                                isCameraTracking = true
+                                scope.launch {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newCameraPosition(
+                                            CameraPosition.Builder()
+                                                .target(currentPos)
+                                                .zoom(max(cameraPositionState.position.zoom, TrackingZoom))
+                                                .tilt(TrackingTiltDegrees)
+                                                .bearing(bearing)
+                                                .build()
+                                        )
+                                    )
+                                }
+                            },
                             modifier = Modifier.align(Alignment.End),
                             containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else FlightBlack
                         ) {
                             Icon(Icons.Default.MyLocation, contentDescription = null)
+                        }
+
+                        if (debugFlightMode) {
+                            GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Flight Debug", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        "Elapsed: ${FlightUtils.formatTimer(debugSliderSeconds.toLong())}",
+                                        color = FlightGray,
+                                        fontSize = 12.sp
+                                    )
+                                    Slider(
+                                        value = debugSliderSeconds,
+                                        onValueChange = {
+                                            debugSliderSeconds = it
+                                            isDebugSliderDirty = true
+                                            lastDebugSliderInteractionAt = System.currentTimeMillis()
+                                        },
+                                        valueRange = 0f..totalSeconds.toFloat()
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { applyDebugElapsed(590L) },
+                                            modifier = Modifier.weight(1f),
+                                            enabled = totalSeconds >= 600
+                                        ) {
+                                            Text("9:50")
+                                        }
+                                        OutlinedButton(
+                                            onClick = { applyDebugElapsed(totalSeconds / 2) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("50%")
+                                        }
+                                        Button(
+                                            onClick = { applyDebugElapsed(debugSliderSeconds.toLong()) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Apply")
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         GlassPanel(modifier = Modifier.fillMaxWidth()) {
