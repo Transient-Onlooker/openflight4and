@@ -84,8 +84,6 @@ fun MainScreen() {
 
     var currentDraft by remember { mutableStateOf(FlightDraft(origin = defaultOrigin)) }
     var showAirplaneModeDialog by remember { mutableStateOf(false) }
-    var showTicketRequiredDialog by remember { mutableStateOf(false) }
-    var ticketDialogMessage by remember { mutableStateOf("Flights over 10 minutes require 1 ticket.") }
 
     LaunchedEffect(currentLocation) {
         currentLocation?.let { airport ->
@@ -94,28 +92,41 @@ fun MainScreen() {
         }
     }
 
+    LaunchedEffect(defaultOrigin.iata) {
+        if (currentLocation == null && currentDraft.origin.iata != defaultOrigin.iata) {
+            currentDraft = currentDraft.copy(origin = defaultOrigin)
+        }
+    }
+
     LaunchedEffect(Unit) {
         val granted = repository.grantDailyTicketIfNeeded()
         if (granted > 0) {
-            Toast.makeText(context, "Daily ticket granted.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "일일 비행권이 지급되었습니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
     fun startFlight() {
+        if (ticketBalance <= 0) {
+            Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         scope.launch {
             val spendResult = repository.canStartFlight(currentDraft.estimatedMinutes)
             if (!spendResult.success) {
-                ticketDialogMessage = spendResult.message ?: "Not enough tickets."
-                showTicketRequiredDialog = true
+                Toast.makeText(context, "티켓이 부족합니다.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
+            val draftToStart = currentDraft.copy(timeScale = sandboxTimeScale)
+            currentDraft = draftToStart
+
             val intent = Intent(context, FlightService::class.java).apply {
-                putExtra("origin_iata", currentDraft.origin.iata)
-                putExtra("destination_iata", currentDraft.destination?.iata ?: "N/A")
-                putExtra("origin_name", currentDraft.origin.nameKo)
-                putExtra("destination_name", currentDraft.destination?.nameKo ?: "N/A")
-                putExtra("duration_minutes", currentDraft.estimatedMinutes)
+                putExtra("origin_iata", draftToStart.origin.iata)
+                putExtra("destination_iata", draftToStart.destination?.iata ?: "N/A")
+                putExtra("origin_name", draftToStart.origin.nameKo)
+                putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
+                putExtra("duration_minutes", draftToStart.estimatedMinutes)
                 putExtra("time_scale", sandboxTimeScale)
             }
             context.startForegroundService(intent)
@@ -142,6 +153,7 @@ fun MainScreen() {
                     onNavigateToHistory = { navController.navigate(Screen.History.route) },
                     onNavigateToTrend = { navController.navigate(Screen.Trend.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    currentAirport = currentDraft.origin,
                     ticketBalance = ticketBalance,
                     onNavigateToTickets = { navController.navigate(Screen.Tickets.route) }
                 )
@@ -212,6 +224,11 @@ fun MainScreen() {
                         currentDraft = currentDraft.copy(seatNumber = seat, focusCategory = category)
                     },
                     onFinish = {
+                        if (ticketBalance <= 0) {
+                            Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
+                            return@SeatSelectionScreen
+                        }
+
                         if (airplaneModeCheckEnabled && !FlightUtils.isAirplaneModeOn(context)) {
                             showAirplaneModeDialog = true
                         } else {
@@ -272,10 +289,10 @@ fun MainScreen() {
     if (showAirplaneModeDialog) {
         AlertDialog(
             onDismissRequest = { showAirplaneModeDialog = false },
-            title = { Text("Airplane mode check", color = Color.White) },
+            title = { Text("비행기 모드 확인", color = Color.White) },
             text = {
                 Text(
-                    "Airplane mode is recommended for focus flights. You can still continue.",
+                    "집중 비행에는 비행기 모드 사용을 권장합니다. 그래도 계속할 수 있습니다.",
                     color = Color.Gray
                 )
             },
@@ -285,32 +302,13 @@ fun MainScreen() {
                         showAirplaneModeDialog = false
                         startFlight()
                     }
-                ) { Text("Start anyway") }
+                ) { Text("그대로 시작") }
             },
             dismissButton = {
-                TextButton(onClick = { showAirplaneModeDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showAirplaneModeDialog = false }) { Text("취소") }
             },
             containerColor = Color(0xFF0D0000)
         )
     }
 
-    if (showTicketRequiredDialog) {
-        AlertDialog(
-            onDismissRequest = { showTicketRequiredDialog = false },
-            title = { Text("Not enough tickets", color = Color.White) },
-            text = { Text(ticketDialogMessage, color = Color.Gray) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showTicketRequiredDialog = false
-                        navController.navigate(Screen.Tickets.route)
-                    }
-                ) { Text("Manage tickets") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTicketRequiredDialog = false }) { Text("Close") }
-            },
-            containerColor = Color(0xFF0D0000)
-        )
-    }
 }

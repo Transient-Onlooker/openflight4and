@@ -21,6 +21,7 @@ import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.theme.FlightGray
 import com.example.openflight4and.ui.theme.FlightPrimary
 import kotlinx.coroutines.launch
+import kotlin.math.ln
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +33,48 @@ fun SandboxScreen(
     onTimeScaleChanged: (Float) -> Unit,
     onSaveCompleted: () -> Unit
 ) {
+    val minTimeScale = 0.01f
+    val maxTimeScale = 100f
+    val minLog = ln(minTimeScale)
+    val maxLog = ln(maxTimeScale)
+    val oneXSliderPosition = ((ln(1f) - minLog) / (maxLog - minLog)).toFloat()
+    val oneXSnapWindow = 0.035f
+    val oneXMagnetWindow = 0.09f
+
+    fun snapSliderPosition(position: Float): Float {
+        val clamped = position.coerceIn(0f, 1f)
+        val distanceFromOneX = kotlin.math.abs(clamped - oneXSliderPosition)
+
+        return when {
+            distanceFromOneX <= oneXSnapWindow -> oneXSliderPosition
+            distanceFromOneX <= oneXMagnetWindow -> {
+                val ratio = (distanceFromOneX - oneXSnapWindow) / (oneXMagnetWindow - oneXSnapWindow)
+                val eased = ratio * ratio
+                oneXSliderPosition + (clamped - oneXSliderPosition) * eased
+            }
+            else -> clamped
+        }
+    }
+
+    val sliderPosition = remember(timeScale) {
+        snapSliderPosition(
+            ((ln(timeScale.coerceIn(minTimeScale, maxTimeScale)) - minLog) / (maxLog - minLog)).toFloat()
+        )
+    }
+    fun sliderToTimeScale(position: Float): Float {
+        val snappedPosition = snapSliderPosition(position)
+        val scale = kotlin.math.exp(minLog + (maxLog - minLog) * snappedPosition).toFloat()
+        return if (kotlin.math.abs(scale - 1f) < 0.12f) 1f else scale
+    }
+    fun formatTimeScale(scale: Float): String {
+        return when {
+            scale >= 100f -> "${scale.toInt()}x"
+            scale >= 10f -> "${"%.1f".format(scale)}x"
+            scale >= 1f -> "${"%.2f".format(scale)}x"
+            else -> "${"%.2f".format(scale)}x"
+        }
+    }
+
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
     val allAirports = remember { repository.getAirports() }
@@ -125,12 +168,16 @@ fun SandboxScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${timeScale.toInt()}x", color = FlightPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
+                            Text(
+                                formatTimeScale(timeScale),
+                                color = FlightPrimary,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
                             Slider(
-                                value = timeScale,
-                                onValueChange = onTimeScaleChanged,
-                                valueRange = 1f..100f,
-                                steps = 98,
+                                value = sliderPosition,
+                                onValueChange = { onTimeScaleChanged(sliderToTimeScale(it)) },
+                                valueRange = 0f..1f,
                                 modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
                             )
                             Text("100x", color = FlightGray, style = MaterialTheme.typography.bodySmall)

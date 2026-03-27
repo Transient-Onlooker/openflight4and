@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -83,13 +83,13 @@ fun TicketCenterScreen(
 
         repository.rewardTicketsFromAd()
         isWatchingAd = false
-        Toast.makeText(context, "Ad reward granted: 3 tickets.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "광고 보상으로 비행권 3개가 지급되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ticket Center", color = Color.White) },
+                title = { Text("비행권 센터", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -124,7 +124,7 @@ fun TicketCenterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Remaining tickets", color = FlightGray, style = MaterialTheme.typography.labelLarge)
+                            Text("남은 비행권", color = FlightGray, style = MaterialTheme.typography.labelLarge)
                             Text(
                                 text = "$ticketBalance",
                                 color = Color.White,
@@ -132,7 +132,7 @@ fun TicketCenterScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Flights over 10 minutes consume 1 ticket when started.",
+                                text = "10분 이상 비행하면 비행권 1개가 차감됩니다.",
                                 color = FlightGray,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -155,18 +155,18 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Watch ad for tickets",
+                            "광고 보고 비행권 받기",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "One 30-second ad gives 3 tickets.",
+                            "30초 광고 1개를 보면 비행권 3개를 받습니다.",
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )
                         PrimaryFlightButton(
-                            text = if (isWatchingAd) "Ad running..." else "Watch ad",
+                            text = if (isWatchingAd) "광고 재생 중..." else "광고 보기",
                             enabled = !isWatchingAd,
                             onClick = { isWatchingAd = true }
                         )
@@ -181,27 +181,27 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Redeem code",
+                            "리딤 코드",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text("Local test code: admin", color = FlightGray, style = MaterialTheme.typography.bodySmall)
+                        Text("테스트 코드: admin / admin10 / admin100", color = FlightGray, style = MaterialTheme.typography.bodySmall)
                         OutlinedTextField(
                             value = redeemCode,
                             onValueChange = { redeemCode = it },
-                            label = { Text("Enter code") },
+                            label = { Text("코드 입력") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
                         PrimaryFlightButton(
-                            text = "Redeem",
+                            text = "등록",
                             enabled = redeemCode.isNotBlank(),
                             onClick = {
                                 scope.launch {
                                     when (val result = repository.redeemCode(redeemCode)) {
                                         is RedeemCodeResult.Success -> {
-                                            Toast.makeText(context, "Redeemed ${result.amount} tickets.", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "비행권 ${result.amount}개가 지급되었습니다.", Toast.LENGTH_SHORT).show()
                                             redeemCode = ""
                                         }
                                         is RedeemCodeResult.Error -> {
@@ -217,7 +217,7 @@ fun TicketCenterScreen(
 
             item {
                 Text(
-                    text = "Ticket history",
+                    text = "비행권 사용 내역",
                     color = FlightGray,
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 8.dp)
@@ -228,12 +228,17 @@ fun TicketCenterScreen(
                 item {
                     GlassPanel(modifier = Modifier.fillMaxWidth()) {
                         Box(modifier = Modifier.padding(20.dp)) {
-                            Text("No ticket history yet.", color = FlightGray)
+                            Text("아직 비행권 내역이 없습니다.", color = FlightGray)
                         }
                     }
                 }
             } else {
-                items(ticketHistory, key = { it.id }) { entry ->
+                itemsIndexed(
+                    items = ticketHistory,
+                    key = { index, entry ->
+                        "${entry.id}-${entry.timestamp}-${entry.amount}-${entry.balanceAfter}-$index"
+                    }
+                ) { _, entry ->
                     TicketHistoryItem(entry = entry)
                 }
             }
@@ -247,7 +252,7 @@ fun TicketCenterScreen(
     if (isWatchingAd) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Ad running", color = Color.White) },
+            title = { Text("광고 재생 중", color = Color.White) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -259,14 +264,14 @@ fun TicketCenterScreen(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Text("Tickets will be granted after the timer ends.", color = FlightGray)
+                        Text("타이머가 끝나면 비행권이 지급됩니다.", color = FlightGray)
                     }
-                    Text("$adSecondsRemaining seconds left", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("${adSecondsRemaining}초 남음", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             confirmButton = {
                 TextButton(onClick = { isWatchingAd = false }) {
-                    Text("Stop")
+                    Text("중지")
                 }
             },
             containerColor = Color(0xFF0D0000)
@@ -302,7 +307,7 @@ private fun TicketHistoryItem(entry: FlightTicketHistoryEntry) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(formatter.format(Date(entry.timestamp)), color = FlightGray, style = MaterialTheme.typography.labelSmall)
-                Text("Balance ${entry.balanceAfter}", color = FlightGray, style = MaterialTheme.typography.labelSmall)
+                Text("잔여 ${entry.balanceAfter}", color = FlightGray, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

@@ -32,6 +32,8 @@ class FlightService : Service() {
         const val CHANNEL_ID = "flight_service_channel"
         const val NOTIFICATION_ID = 1001
         const val ACTION_STOP = "stop_flight"
+        const val ACTION_PAUSE = "pause_flight"
+        const val ACTION_RESUME = "resume_flight"
         private const val TAG = "FlightService"
 
         // UI 에서 서비스 상태를 읽기 위한 공개 변수
@@ -39,10 +41,12 @@ class FlightService : Service() {
         @Volatile private var _secondsElapsed = 0L
         @Volatile private var _totalSeconds = 0L
         @Volatile private var _isRunning = false
+        @Volatile private var _isPaused = false
         @Volatile private var _ticketCharged = false
         @Volatile private var _pendingJumpSeconds: Long? = null
 
         fun isServiceRunning(): Boolean = _isRunning
+        fun isPaused(): Boolean = _isPaused
         fun getSecondsElapsed(): Long = _secondsElapsed
         fun getTotalSeconds(): Long = _totalSeconds
         fun getServiceInstance(): FlightService? = instance
@@ -67,8 +71,21 @@ class FlightService : Service() {
 
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_PAUSE) {
+            Log.d(TAG, "Service pause requested")
+            _isPaused = true
+            return START_STICKY
+        }
+
+        if (intent?.action == ACTION_RESUME) {
+            Log.d(TAG, "Service resume requested")
+            _isPaused = false
+            return START_STICKY
         }
 
         val durationMinutes = intent?.getIntExtra("duration_minutes", 0) ?: 0
@@ -83,6 +100,7 @@ class FlightService : Service() {
 
         // 서비스 상태 초기화
         _isRunning = true
+        _isPaused = false
         _totalSeconds = totalSeconds
         _secondsElapsed = 0L
         _ticketCharged = false
@@ -113,7 +131,11 @@ class FlightService : Service() {
             var lastNotificationTime = System.currentTimeMillis()
 
             while (secondsElapsed < totalSeconds) {
-                val delayMs = (1000 / timeScale).toLong()
+                while (_isPaused) {
+                    delay(200)
+                }
+                val safeTimeScale = timeScale.coerceIn(0.001f, 1000f)
+                val delayMs = (1000f / safeTimeScale).toLong()
                 delay(delayMs.coerceAtLeast(100)) // 최소 100ms (너무 빠른 업데이트 방지)
                 _pendingJumpSeconds?.let { jumpTarget ->
                     secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
@@ -275,6 +297,7 @@ class FlightService : Service() {
     override fun onDestroy() {
         Log.d(TAG, "Service onDestroy()")
         _isRunning = false
+        _isPaused = false
         _ticketCharged = false
         _pendingJumpSeconds = null
         instance = null

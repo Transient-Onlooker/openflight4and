@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.model.Airport
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
@@ -47,6 +49,7 @@ fun HomeScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToTrend: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    currentAirport: Airport,
     ticketBalance: Int,
     onNavigateToTickets: () -> Unit
 ) {
@@ -57,7 +60,16 @@ fun HomeScreen(
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(37.5665, 126.9780), 10f)
+        position = CameraPosition.fromLatLngZoom(
+            LatLng(currentAirport.latitude, currentAirport.longitude),
+            10f
+        )
+    }
+    LaunchedEffect(currentAirport.iata, currentAirport.latitude, currentAirport.longitude) {
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(
+            LatLng(currentAirport.latitude, currentAirport.longitude),
+            10f
+        )
     }
 
     RealFlightMap(
@@ -79,18 +91,22 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Current location",
+                            text = "현재 위치",
                             style = MaterialTheme.typography.labelMedium,
                             color = FlightGray
                         )
                         Text(
-                            text = "SEOUL, KOREA",
+                            text = buildString {
+                                append(currentAirport.cityEn.uppercase())
+                                append(", ")
+                                append(currentAirport.country)
+                            },
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = "Total completed flights: $totalFlights",
+                            text = "총 완료 비행 수: $totalFlights",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -109,7 +125,7 @@ fun HomeScreen(
                             )
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Tickets",
+                                    text = "비행권",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = FlightGray
                                 )
@@ -126,7 +142,7 @@ fun HomeScreen(
 
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     PrimaryFlightButton(
-                        text = "Start Flight",
+                        text = "비행 시작",
                         onClick = onNavigateToNewFlight
                     )
 
@@ -134,19 +150,19 @@ fun HomeScreen(
                         Column(modifier = Modifier.padding(vertical = 8.dp)) {
                             HomeMenuItem(
                                 icon = Icons.Default.History,
-                                title = "Flight History",
+                                title = "비행 기록",
                                 onClick = onNavigateToHistory
                             )
                             HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
                             HomeMenuItem(
                                 icon = Icons.Default.Timeline,
-                                title = "Stats and Trends",
+                                title = "통계와 추세",
                                 onClick = onNavigateToTrend
                             )
                             HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
                             HomeMenuItem(
                                 icon = Icons.Default.Settings,
-                                title = "Settings",
+                                title = "설정",
                                 onClick = onNavigateToSettings
                             )
                         }

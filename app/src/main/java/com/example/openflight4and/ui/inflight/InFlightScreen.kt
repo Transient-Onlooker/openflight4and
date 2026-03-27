@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.inflight
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -39,6 +40,7 @@ import kotlin.math.*
 
 private const val TrackingTiltDegrees = 60f
 private const val TrackingZoom = 16f
+private const val MinTickDelayMillis = 100L
 
 /**
  * 대권 보간 (Great Circle Interpolation)
@@ -98,6 +100,7 @@ fun InFlightScreen(
     var secondsElapsed by remember { mutableStateOf(0L) }
     var isServiceSynced by remember { mutableStateOf(false) }
     var ticketCharged by remember { mutableStateOf(false) }
+    var isPaused by remember { mutableStateOf(false) }
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
     var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
@@ -106,6 +109,9 @@ fun InFlightScreen(
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
     val isFlying = secondsElapsed < totalSeconds
+    val localTickDelayMillis = remember(draft.timeScale) {
+        (1000f / draft.timeScale.coerceIn(0.001f, 1000f)).toLong().coerceAtLeast(MinTickDelayMillis)
+    }
 
     // 뒤로가기 다이얼로그 상태
     var showGiveUpDialog by remember { mutableStateOf(false) }
@@ -113,6 +119,37 @@ fun InFlightScreen(
     // 뒤로가기 버튼 핸들러
     BackHandler {
         showGiveUpDialog = true
+    }
+
+    fun pauseFlight() {
+        context.startService(
+            Intent(context, FlightService::class.java).apply {
+                action = FlightService.ACTION_PAUSE
+            }
+        )
+        isPaused = true
+        showGiveUpDialog = false
+    }
+
+    fun resumeFlight() {
+        context.startService(
+            Intent(context, FlightService::class.java).apply {
+                action = FlightService.ACTION_RESUME
+            }
+        )
+        isPaused = false
+    }
+
+    fun stopFlight() {
+        context.startService(
+            Intent(context, FlightService::class.java).apply {
+                action = FlightService.ACTION_STOP
+            }
+        )
+        FlightStatusManager.stopFlight()
+        isPaused = false
+        showGiveUpDialog = false
+        onFlightEnd()
     }
 
     // 앱 복귀 시 서비스 상태가 있으면 복구, 없으면 새로 시작
@@ -123,6 +160,7 @@ fun InFlightScreen(
                 secondsElapsed = FlightService.getSecondsElapsed()
                 isServiceSynced = true
                 ticketCharged = FlightService.isTicketCharged()
+                isPaused = FlightService.isPaused()
                 if (!isDebugSliderDirty) {
                     debugSliderSeconds = secondsElapsed.toFloat()
                 }
@@ -145,7 +183,20 @@ fun InFlightScreen(
     LaunchedEffect(isFlying, isServiceSynced) {
         if (isFlying && !isServiceSynced) {
             while (secondsElapsed < totalSeconds) {
-                delay(1000)
+                delay(localTickDelayMillis)
+                if (FlightService.isServiceRunning()) {
+                    val synced = FlightStatusManager.syncFromService()
+                    if (synced) {
+                        secondsElapsed = FlightService.getSecondsElapsed()
+                        ticketCharged = FlightService.isTicketCharged()
+                        isPaused = FlightService.isPaused()
+                        isServiceSynced = true
+                        if (!isDebugSliderDirty) {
+                            debugSliderSeconds = secondsElapsed.toFloat()
+                        }
+                        break
+                    }
+                }
                 secondsElapsed++
                 // FlightStatusManager 와 동기화
                 FlightStatusManager.updateProgress(secondsElapsed)
@@ -155,7 +206,11 @@ fun InFlightScreen(
             }
         } else if (isFlying && isServiceSynced) {
             while (secondsElapsed < totalSeconds) {
-                delay(1000)
+                delay(localTickDelayMillis)
+                isPaused = FlightService.isPaused()
+                if (isPaused) {
+                    continue
+                }
                 val serviceElapsed = FlightService.getSecondsElapsed()
                 if (serviceElapsed > secondsElapsed) {
                     secondsElapsed = serviceElapsed
@@ -203,6 +258,15 @@ fun InFlightScreen(
         FlightStatusManager.updateProgress(clampedSeconds)
         if (FlightService.isServiceRunning()) {
             FlightService.jumpToElapsedSeconds(clampedSeconds)
+        }
+    }
+
+    fun formatTimeScale(scale: Float): String {
+        return when {
+            scale >= 100f -> "${scale.toInt()}x"
+            scale >= 10f -> "${"%.1f".format(scale)}x"
+            scale >= 1f -> "${"%.2f".format(scale)}x"
+            else -> "${"%.3f".format(scale)}x"
         }
     }
 
@@ -397,11 +461,18 @@ fun InFlightScreen(
                                 Text("${(progress * 100).toInt()}% 비행 완료", color = FlightGray, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 
                                 // 자유 모드일 때 시간 배율 표시
-                                if (draft.timeScale > 1f) {
+                                if (draft.timeScale != 1f) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("시간 배율: ${draft.timeScale.toInt()}x", color = FlightPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    Text("시간 배율: ${formatTimeScale(draft.timeScale)}", color = FlightPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 }
                             }
+                        }
+
+                        OutlinedButton(
+                            onClick = { pauseFlight() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("일시정지")
                         }
 
                         PrimaryFlightButton(
@@ -413,6 +484,36 @@ fun InFlightScreen(
                 }
             }
         )
+
+        if (isPaused) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF1F1F1F))
+            ) {
+                GlassPanel(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("일시중지되었습니다.", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(
+                            "비행중에 잠깐의 휴식을 가지는 것도 좋죠.",
+                            color = FlightGray,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Button(onClick = { resumeFlight() }) {
+                            Text("비행 재개")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // 비행 포기 다이얼로그
@@ -424,8 +525,7 @@ fun InFlightScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        FlightStatusManager.stopFlight()
-                        onFlightEnd()
+                        stopFlight()
                     }
                 ) { Text("포기", color = MaterialTheme.colorScheme.error) }
             },

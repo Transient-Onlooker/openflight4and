@@ -93,7 +93,9 @@ class AppRepository(private val context: Context) {
         preferences[KEY_DEBUG_FLIGHT_MODE] ?: false
     }
     val ticketHistory: Flow<List<FlightTicketHistoryEntry>> = context.dataStore.data.map { preferences ->
-        decodeTicketHistory(preferences[KEY_TICKET_HISTORY]).sortedByDescending { it.timestamp }
+        decodeTicketHistory(preferences[KEY_TICKET_HISTORY])
+            .map(::localizeLegacyTicketHistoryEntry)
+            .sortedByDescending { it.timestamp }
     }
 
     suspend fun setUnitSystem(unit: String) {
@@ -150,8 +152,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = 1,
                     balanceAfter = updatedBalance,
-                    title = "Daily ticket",
-                    detail = "Granted 1 daily ticket."
+                    title = "일일 비행권",
+                    detail = "일일 비행권 1개가 지급되었습니다."
                 )
             )
             granted = 1
@@ -161,10 +163,6 @@ class AppRepository(private val context: Context) {
     }
 
     suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult {
-        if (estimatedMinutes < 10) {
-            return TicketSpendResult(success = true, spent = 0)
-        }
-
         val currentBalance = context.dataStore.data.map { preferences ->
             preferences[KEY_FLIGHT_TICKETS] ?: 0
         }
@@ -176,13 +174,13 @@ class AppRepository(private val context: Context) {
             TicketSpendResult(
                 success = false,
                 spent = 0,
-                message = "Flights over 10 minutes require 1 ticket."
+                message = "비행권이 부족합니다."
             )
         }
     }
 
     suspend fun consumeTicketForLongFlight(): TicketSpendResult {
-        var result = TicketSpendResult(success = false, spent = 0, message = "Not enough tickets.")
+        var result = TicketSpendResult(success = false, spent = 0, message = "비행권이 부족합니다.")
 
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
@@ -190,7 +188,7 @@ class AppRepository(private val context: Context) {
                 result = TicketSpendResult(
                     success = false,
                     spent = 0,
-                    message = "Flights over 10 minutes require 1 ticket."
+                    message = "비행권이 부족합니다."
                 )
                 return@edit
             }
@@ -202,8 +200,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = -1,
                     balanceAfter = updatedBalance,
-                    title = "Flight ticket used",
-                    detail = "Consumed 1 ticket for a flight over 10 minutes."
+                    title = "비행권 사용",
+                    detail = "10분 이상 비행으로 비행권 1개가 차감되었습니다."
                 )
             )
             result = TicketSpendResult(success = true, spent = 1)
@@ -223,8 +221,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "Ad reward",
-                    detail = "Granted 3 tickets from a 30-second ad."
+                    title = "광고 보상",
+                    detail = "30초 광고 보상으로 비행권 3개가 지급되었습니다."
                 )
             )
         }
@@ -234,25 +232,30 @@ class AppRepository(private val context: Context) {
     suspend fun redeemCode(code: String): RedeemCodeResult {
         val normalized = code.trim().lowercase()
         if (normalized.isBlank()) {
-            return RedeemCodeResult.Error("Enter a code.")
+            return RedeemCodeResult.Error("코드를 입력해 주세요.")
         }
 
-        var result: RedeemCodeResult = RedeemCodeResult.Error("Code is not valid.")
+        var result: RedeemCodeResult = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
+        val rewardAmount = when (normalized) {
+            "admin" -> 1
+            "admin10" -> 10
+            "admin100" -> 100
+            else -> null
+        }
 
         context.dataStore.edit { preferences ->
             val usedCodes = decodeStringList(preferences[KEY_USED_REDEEM_CODES]).toMutableSet()
 
             if (normalized in usedCodes) {
-                result = RedeemCodeResult.Error("Code already used.")
+                result = RedeemCodeResult.Error("이미 사용한 코드입니다.")
                 return@edit
             }
 
-            if (normalized != "admin") {
-                result = RedeemCodeResult.Error("Code is not valid.")
+            if (rewardAmount == null) {
+                result = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
                 return@edit
             }
 
-            val rewardAmount = 100
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
             val updatedBalance = currentBalance + rewardAmount
 
@@ -264,8 +267,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "Redeem code",
-                    detail = "Granted 100 tickets with code ${normalized.uppercase()}."
+                    title = "리딤 코드",
+                    detail = "${normalized.uppercase()} 코드로 비행권 ${rewardAmount}개가 지급되었습니다."
                 )
             )
             result = RedeemCodeResult.Success(rewardAmount)
@@ -302,6 +305,60 @@ class AppRepository(private val context: Context) {
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    private fun localizeLegacyTicketHistoryEntry(entry: FlightTicketHistoryEntry): FlightTicketHistoryEntry {
+        val localizedTitle = when (entry.title.trim()) {
+            "Daily ticket" -> "일일 비행권"
+            "Flight ticket used" -> "비행권 사용"
+            "Ad reward" -> "광고 보상"
+            "Redeem code" -> "리딤 코드"
+            else -> entry.title
+        }
+
+        val localizedDetail = localizeLegacyTicketHistoryDetail(entry.detail)
+
+        return if (localizedTitle == entry.title && localizedDetail == entry.detail) {
+            entry
+        } else {
+            entry.copy(title = localizedTitle, detail = localizedDetail)
+        }
+    }
+
+    private fun localizeLegacyTicketHistoryDetail(detail: String): String {
+        val trimmed = detail.trim()
+        if (trimmed.isEmpty()) return detail
+
+        if (trimmed.equals("Daily ticket granted.", ignoreCase = true)) {
+            return "일일 비행권 1개가 지급되었습니다."
+        }
+
+        if (
+            trimmed.equals("Consumed 1 ticket for a 10+ minute flight.", ignoreCase = true) ||
+            trimmed.equals("Consumed 1 ticket for a flight over 10 minutes.", ignoreCase = true) ||
+            trimmed.equals("Consumed 1 ticket.", ignoreCase = true)
+        ) {
+            return "10분 이상 비행으로 비행권 1개가 차감되었습니다."
+        }
+
+        if (
+            trimmed.equals("Rewarded 3 tickets from ad reward.", ignoreCase = true) ||
+            trimmed.equals("Earned 3 tickets by watching an ad.", ignoreCase = true)
+        ) {
+            return "30초 광고 보상으로 비행권 3개가 지급되었습니다."
+        }
+
+        val redeemMatch = Regex(
+            pattern = """Redeemed\s+(\d+)\s+tickets?\s+with\s+([A-Za-z0-9_-]+)\s+code\.?""",
+            option = RegexOption.IGNORE_CASE
+        ).matchEntire(trimmed)
+        if (redeemMatch != null) {
+            val amount = redeemMatch.groupValues[1]
+            val code = redeemMatch.groupValues[2].uppercase()
+            return "${code} 코드로 비행권 ${amount}개가 지급되었습니다."
+        }
+
+        return detail
     }
 }
 
