@@ -223,6 +223,10 @@ fun MainScreen() {
                     onSeatSelected = { seat, category ->
                         currentDraft = currentDraft.copy(seatNumber = seat, focusCategory = category)
                     },
+                    hasTickets = ticketBalance > 0,
+                    onTicketRequired = {
+                        Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
+                    },
                     onFinish = {
                         if (ticketBalance <= 0) {
                             Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()

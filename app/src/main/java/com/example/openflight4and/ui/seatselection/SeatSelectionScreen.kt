@@ -29,7 +29,9 @@ import kotlinx.coroutines.launch
 fun SeatSelectionScreen(
     onNavigateBack: () -> Unit,
     onSeatSelected: (String, String) -> Unit,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    hasTickets: Boolean,
+    onTicketRequired: () -> Unit
 ) {
     var selectedSeat by remember { mutableStateOf<String?>(null) }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -169,6 +171,11 @@ fun SeatSelectionScreen(
                             }
                             Button(
                                 onClick = {
+                                    if (!hasTickets) {
+                                        onTicketRequired()
+                                        return@Button
+                                    }
+
                                     // FlightStatusManager 초기화 후 서비스 시작
                                     // 실제 호출부(MainScreen)에서 onFinish를 호출하므로, 
                                     // 여기서 직접 서비스를 켜기보다 onFinish 이전에 실행하거나 MainScreen에서 처리하는 것이 좋음.

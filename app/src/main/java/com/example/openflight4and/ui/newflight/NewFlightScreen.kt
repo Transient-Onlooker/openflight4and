@@ -44,6 +44,13 @@ import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private data class QuickFlightSuggestion(
+    val targetMinutes: Int,
+    val airport: Airport,
+    val durationMinutes: Int,
+    val distanceKm: Double
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewFlightScreen(
@@ -70,6 +77,7 @@ fun NewFlightScreen(
     var selectedDestination by remember { mutableStateOf(currentDraft.destination) }
     var searchRadiusKm by remember { mutableIntStateOf(1000) }
     var showSameAirportDialog by remember { mutableStateOf(false) }
+    var showQuickFlightDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     
     // 카메라 상태 (초기 위치: 출발 공항)
@@ -81,6 +89,9 @@ fun NewFlightScreen(
     val mapCenter = cameraPositionState.position.target
     val sortedAirports = remember(mapCenter, searchRadiusKm, allAirports, searchQuery) {
         val query = searchQuery.trim().lowercase()
+        val targetFlightMinutes = query.toDoubleOrNull()
+            ?.takeIf { it > 0.0 }
+            ?.let { it * 60.0 }
         allAirports
             .map { airport ->
                 val distFromCenter = FlightUtils.calculateDistance(
@@ -96,15 +107,25 @@ fun NewFlightScreen(
             .filter { (airport, distFromCenter, distFromOrigin) ->
                 // 1. 검색 필터
                 if (query.isNotEmpty()) {
-                    val matchesSearch = 
-                        airport.iata.lowercase().contains(query) ||
-                        airport.cityKo.lowercase().contains(query) ||
-                        airport.cityEn.lowercase().contains(query) ||
-                        airport.nameKo.lowercase().contains(query) ||
-                        airport.nameEn.lowercase().contains(query) ||
-                        airport.country.lowercase().contains(query)
-                    
-                    if (!matchesSearch) return@filter false
+                    if (targetFlightMinutes != null) {
+                        val durationMinutes = FlightUtils.estimateDurationMinutes(distFromOrigin)
+                        val toleranceMinutes = targetFlightMinutes * 0.1
+                        val lowerBound = targetFlightMinutes - toleranceMinutes
+                        val upperBound = targetFlightMinutes + toleranceMinutes
+                        if (airport.iata != originIata && durationMinutes !in lowerBound..upperBound) {
+                            return@filter false
+                        }
+                    } else {
+                        val matchesSearch =
+                            airport.iata.lowercase().contains(query) ||
+                            airport.cityKo.lowercase().contains(query) ||
+                            airport.cityEn.lowercase().contains(query) ||
+                            airport.nameKo.lowercase().contains(query) ||
+                            airport.nameEn.lowercase().contains(query) ||
+                            airport.country.lowercase().contains(query)
+
+                        if (!matchesSearch) return@filter false
+                    }
                 }
                 
                 // 2. 거리 필터
@@ -132,6 +153,19 @@ fun NewFlightScreen(
                 if (airport.iata == originIata) -1.0 else distFromCenter
             }
             .map { it.first }
+    }
+    val quickFlightSuggestions = remember(allAirports, originAirport.iata) {
+        buildQuickFlightSuggestions(originAirport, allAirports)
+    }
+
+    fun selectDestination(airport: Airport) {
+        selectedDestination = airport
+        onAirportSelected(airport)
+        scope.launch {
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
+            )
+        }
     }
 
     // Map Snapping
@@ -233,7 +267,7 @@ fun NewFlightScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp),
-                        placeholder = { Text("공항 검색 (IATA, 도시, 공항명)", color = FlightGray) },
+                        placeholder = { Text("공항 검색 또는 시간 검색 (예: 1, 1.5)", color = FlightGray) },
                         leadingIcon = {
                             Icon(Icons.Default.Search, contentDescription = null, tint = FlightGray)
                         },
@@ -293,18 +327,12 @@ fun NewFlightScreen(
                             isSelected = isSelected,
                             isOrigin = isOrigin,
                             unitSystem = unitSystem,
-                            onClick = {
-                                if (!isOrigin) {
-                                    selectedDestination = airport
-                                    onAirportSelected(airport)
-                                    scope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
-                                        )
-                                    }
-                                }
-                            }
-                        )
+                             onClick = {
+                                 if (!isOrigin) {
+                                     selectDestination(airport)
+                                 }
+                             }
+                         )
                     }
                 }
 
@@ -427,17 +455,11 @@ fun NewFlightScreen(
                             state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
                             icon = markerIcon,
                             zIndex = if (isSelected) 2f else 1f,
-                            onClick = {
-                                selectedDestination = airport
-                                onAirportSelected(airport)
-                                scope.launch {
-                                    cameraPositionState.animate(
-                                        CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
-                                    )
-                                }
-                                true
-                            }
-                        )
+                                 onClick = {
+                                     selectDestination(airport)
+                                     true
+                                 }
+                             )
                         return@forEach
                     }
                     
@@ -455,17 +477,11 @@ fun NewFlightScreen(
                                 state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
                                 icon = markerIcon,
                                 zIndex = if (isSelected) 2f else 1f,
-                                onClick = {
-                                    selectedDestination = airport
-                                    onAirportSelected(airport)
-                                    scope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
-                                        )
-                                    }
-                                    true
-                                }
-                            )
+                                 onClick = {
+                                     selectDestination(airport)
+                                     true
+                                 }
+                             )
                         }
                     } else {
                         // 테두리 안쪽만 표시 (테두리부터 -300km 구간)
@@ -485,17 +501,11 @@ fun NewFlightScreen(
                                 state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
                                 icon = markerIcon,
                                 zIndex = if (isSelected) 2f else 1f,
-                                onClick = {
-                                    selectedDestination = airport
-                                    onAirportSelected(airport)
-                                    scope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
-                                        )
-                                    }
-                                    true
-                                }
-                            )
+                                 onClick = {
+                                     selectDestination(airport)
+                                     true
+                                 }
+                             )
                         }
                     }
                 }
@@ -531,9 +541,36 @@ fun NewFlightScreen(
                 }
             }
 
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+            ) {
+                TextButton(
+                    onClick = { showQuickFlightDialog = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                ) {
+                    Text("빠른 비행", fontWeight = FontWeight.Bold)
+                }
+            }
+
             // Same Airport Dialog
             if (showSameAirportDialog) {
                 SameAirportDialog(onDismiss = { showSameAirportDialog = false })
+            }
+
+            if (showQuickFlightDialog) {
+                QuickFlightDialog(
+                    suggestions = quickFlightSuggestions,
+                    unitSystem = unitSystem,
+                    onDismiss = { showQuickFlightDialog = false },
+                    onSelect = { airport ->
+                        showQuickFlightDialog = false
+                        selectDestination(airport)
+                    }
+                )
             }
         }
     }
@@ -625,6 +662,101 @@ fun SameAirportDialog(
         text = { Text("출발지와 목적지가 같습니다.\n다른 공항를 선택해주세요.", color = FlightGray) },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("확인") }
+        },
+        containerColor = Color(0xFF0D0000)
+    )
+}
+
+private fun buildQuickFlightSuggestions(
+    origin: Airport,
+    airports: List<Airport>
+): List<QuickFlightSuggestion> {
+    val remaining = airports
+        .filter { it.iata != origin.iata }
+        .toMutableList()
+    val suggestions = mutableListOf<QuickFlightSuggestion>()
+
+    for (targetMinutes in listOf(60, 120, 180)) {
+        val bestAirport = remaining.minByOrNull { airport ->
+            val distanceKm = FlightUtils.calculateDistance(origin, airport)
+            val durationMinutes = FlightUtils.estimateDurationMinutes(distanceKm)
+            kotlin.math.abs(durationMinutes - targetMinutes)
+        } ?: continue
+
+        val distanceKm = FlightUtils.calculateDistance(origin, bestAirport)
+        val durationMinutes = FlightUtils.estimateDurationMinutes(distanceKm)
+        suggestions += QuickFlightSuggestion(
+            targetMinutes = targetMinutes,
+            airport = bestAirport,
+            durationMinutes = durationMinutes,
+            distanceKm = distanceKm
+        )
+        remaining.remove(bestAirport)
+    }
+
+    return suggestions
+}
+
+@Composable
+private fun QuickFlightDialog(
+    suggestions: List<QuickFlightSuggestion>,
+    unitSystem: String,
+    onDismiss: () -> Unit,
+    onSelect: (Airport) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("빠른 비행", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "1시간, 2시간, 3시간에 가장 가까운 비행 시간을 가진 공항입니다.",
+                    color = FlightGray
+                )
+                suggestions.forEach { suggestion ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(suggestion.airport) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = FlightPrimary.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            FlightPrimary.copy(alpha = 0.28f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                "${suggestion.targetMinutes / 60}시간 추천",
+                                color = FlightPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "${suggestion.airport.nameKo} (${suggestion.airport.iata})",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "${suggestion.airport.cityKo}, ${suggestion.airport.country}",
+                                color = FlightGray,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)} • 약 ${FlightUtils.formatDuration(suggestion.durationMinutes)}",
+                                color = FlightGray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
         },
         containerColor = Color(0xFF0D0000)
     )

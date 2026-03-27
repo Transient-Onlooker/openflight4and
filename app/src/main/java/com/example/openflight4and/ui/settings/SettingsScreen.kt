@@ -37,6 +37,7 @@ fun SettingsScreen(
     // DataStore States
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
+    val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
@@ -92,6 +93,26 @@ fun SettingsScreen(
                         ) { Text(label) }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                SectionHeader("버튼 대비")
+                val overlayStyles = listOf("dark" to "어두움", "light" to "밝음")
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    overlayStyles.forEachIndexed { index, (id, label) ->
+                        SegmentedButton(
+                            selected = mapOverlayStyle == id,
+                            onClick = { scope.launch { repository.setMapOverlayStyle(id) } },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = overlayStyles.size)
+                        ) { Text(label) }
+                    }
+                }
+                Text(
+                    text = "지도 위 버튼과 글자색을 밝게 또는 어둡게 바꿉니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 

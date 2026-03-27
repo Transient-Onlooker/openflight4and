@@ -38,6 +38,7 @@ import com.example.openflight4and.model.Airport
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
+import com.example.openflight4and.ui.components.rememberMapOverlayPalette
 import com.example.openflight4and.ui.theme.FlightGray
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -57,7 +58,9 @@ fun HomeScreen(
     val repository = remember { AppRepository(context) }
 
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
+    val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)
+    val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
@@ -93,7 +96,7 @@ fun HomeScreen(
                         Text(
                             text = "현재 위치",
                             style = MaterialTheme.typography.labelMedium,
-                            color = FlightGray
+                            color = overlayPalette.secondaryText
                         )
                         Text(
                             text = buildString {
@@ -103,16 +106,20 @@ fun HomeScreen(
                             },
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = overlayPalette.primaryText
                         )
                         Text(
                             text = "총 완료 비행 수: $totalFlights",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = overlayPalette.accentText
                         )
                     }
 
-                    GlassPanel(modifier = Modifier.clickable(onClick = onNavigateToTickets)) {
+                    GlassPanel(
+                        modifier = Modifier.clickable(onClick = onNavigateToTickets),
+                        backgroundColor = overlayPalette.panelBackground,
+                        borderColor = overlayPalette.panelBorder
+                    ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -121,19 +128,19 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.ConfirmationNumber,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = overlayPalette.accentText
                             )
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     text = "비행권",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = FlightGray
+                                    color = overlayPalette.secondaryText
                                 )
                                 Text(
                                     text = "$ticketBalance",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = overlayPalette.primaryText
                                 )
                             }
                         }
@@ -146,24 +153,37 @@ fun HomeScreen(
                         onClick = onNavigateToNewFlight
                     )
 
-                    GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                    GlassPanel(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = overlayPalette.panelBackground,
+                        borderColor = overlayPalette.panelBorder
+                    ) {
                         Column(modifier = Modifier.padding(vertical = 8.dp)) {
                             HomeMenuItem(
                                 icon = Icons.Default.History,
                                 title = "비행 기록",
-                                onClick = onNavigateToHistory
+                                onClick = onNavigateToHistory,
+                                textColor = overlayPalette.primaryText,
+                                iconTint = overlayPalette.iconTint,
+                                chevronTint = overlayPalette.secondaryText
                             )
-                            HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
+                            HorizontalDivider(color = overlayPalette.divider)
                             HomeMenuItem(
                                 icon = Icons.Default.Timeline,
                                 title = "통계와 추세",
-                                onClick = onNavigateToTrend
+                                onClick = onNavigateToTrend,
+                                textColor = overlayPalette.primaryText,
+                                iconTint = overlayPalette.iconTint,
+                                chevronTint = overlayPalette.secondaryText
                             )
-                            HorizontalDivider(color = FlightGray.copy(alpha = 0.2f))
+                            HorizontalDivider(color = overlayPalette.divider)
                             HomeMenuItem(
                                 icon = Icons.Default.Settings,
                                 title = "설정",
-                                onClick = onNavigateToSettings
+                                onClick = onNavigateToSettings,
+                                textColor = overlayPalette.primaryText,
+                                iconTint = overlayPalette.iconTint,
+                                chevronTint = overlayPalette.secondaryText
                             )
                         }
                     }
@@ -177,7 +197,10 @@ fun HomeScreen(
 fun HomeMenuItem(
     icon: ImageVector,
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    textColor: Color,
+    iconTint: Color,
+    chevronTint: Color
 ) {
     Row(
         modifier = Modifier
@@ -191,20 +214,20 @@ fun HomeMenuItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = FlightGray,
+                tint = iconTint,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White
+                color = textColor
             )
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = FlightGray.copy(alpha = 0.5f)
+            tint = chevronTint
         )
     }
 }

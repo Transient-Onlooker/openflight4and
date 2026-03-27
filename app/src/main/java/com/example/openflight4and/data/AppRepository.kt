@@ -52,6 +52,7 @@ class AppRepository(private val context: Context) {
     companion object {
         val KEY_UNIT_SYSTEM = stringPreferencesKey("unit_system")
         val KEY_MAP_STYLE = stringPreferencesKey("map_style")
+        val KEY_MAP_OVERLAY_STYLE = stringPreferencesKey("map_overlay_style")
         val KEY_AIRPLANE_MODE_CHECK = booleanPreferencesKey("airplane_mode_check")
         val KEY_NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
         val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
@@ -66,6 +67,7 @@ class AppRepository(private val context: Context) {
 
     val unitSystem: Flow<String> = context.dataStore.data.map { it[KEY_UNIT_SYSTEM] ?: "km" }
     val mapStyle: Flow<String> = context.dataStore.data.map { it[KEY_MAP_STYLE] ?: "standard" }
+    val mapOverlayStyle: Flow<String> = context.dataStore.data.map { it[KEY_MAP_OVERLAY_STYLE] ?: "dark" }
     val airplaneModeCheck: Flow<Boolean> = context.dataStore.data.map { it[KEY_AIRPLANE_MODE_CHECK] ?: true }
     val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_NOTIFICATIONS] ?: true }
     val lockLevel: Flow<String> = context.dataStore.data.map { it[KEY_LOCK_LEVEL] ?: "soft" }
@@ -104,6 +106,10 @@ class AppRepository(private val context: Context) {
 
     suspend fun setMapStyle(style: String) {
         context.dataStore.edit { it[KEY_MAP_STYLE] = style }
+    }
+
+    suspend fun setMapOverlayStyle(style: String) {
+        context.dataStore.edit { it[KEY_MAP_OVERLAY_STYLE] = style }
     }
 
     suspend fun setAirplaneModeCheck(enabled: Boolean) {

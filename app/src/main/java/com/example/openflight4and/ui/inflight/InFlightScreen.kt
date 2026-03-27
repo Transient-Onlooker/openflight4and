@@ -25,6 +25,7 @@ import com.example.openflight4and.service.FlightStatusManager
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
+import com.example.openflight4and.ui.components.rememberMapOverlayPalette
 import com.example.openflight4and.ui.theme.FlightBlack
 import com.example.openflight4and.ui.theme.FlightGray
 import com.example.openflight4and.ui.theme.FlightPrimary
@@ -91,7 +92,9 @@ fun InFlightScreen(
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
+    val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
+    val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
 
     // 총 비행 시간 (초)
     val totalSeconds = (draft.estimatedMinutes * 60).toLong()
@@ -354,27 +357,31 @@ fun InFlightScreen(
                     modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                    GlassPanel(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = overlayPalette.panelBackground,
+                        borderColor = overlayPalette.panelBorder
+                    ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column {
-                                    Text("비행 중", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-                                    Text(draft.flightNumber, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                    Text("비행 중", color = overlayPalette.accentText, fontSize = 12.sp)
+                                    Text(draft.flightNumber, color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("남은 시간", color = FlightGray, fontSize = 12.sp)
-                                    Text(FlightUtils.formatTimer(remainingSeconds), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                    Text("남은 시간", color = overlayPalette.secondaryText, fontSize = 12.sp)
+                                    Text(FlightUtils.formatTimer(remainingSeconds), color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                            HorizontalDivider(color = overlayPalette.divider)
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(draft.origin.iata, color = FlightGray, fontWeight = FontWeight.Bold)
+                                Text(draft.origin.iata, color = overlayPalette.secondaryText, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Flight, contentDescription = null, tint = FlightGray, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Flight, contentDescription = null, tint = overlayPalette.iconTint, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(draft.destination?.iata ?: "---", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(draft.destination?.iata ?: "---", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -397,19 +404,24 @@ fun InFlightScreen(
                                 }
                             },
                             modifier = Modifier.align(Alignment.End),
-                            containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else FlightBlack
+                            containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
+                            contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
                         ) {
                             Icon(Icons.Default.MyLocation, contentDescription = null)
                         }
 
                         if (debugFlightMode) {
-                            GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                            GlassPanel(
+                                modifier = Modifier.fillMaxWidth(),
+                                backgroundColor = overlayPalette.panelBackground,
+                                borderColor = overlayPalette.panelBorder
+                            ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Flight Debug", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text("Flight Debug", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         "Elapsed: ${FlightUtils.formatTimer(debugSliderSeconds.toLong())}",
-                                        color = FlightGray,
+                                        color = overlayPalette.secondaryText,
                                         fontSize = 12.sp
                                     )
                                     Slider(
@@ -428,13 +440,15 @@ fun InFlightScreen(
                                         OutlinedButton(
                                             onClick = { applyDebugElapsed(590L) },
                                             modifier = Modifier.weight(1f),
-                                            enabled = totalSeconds >= 600
+                                            enabled = totalSeconds >= 600,
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                         ) {
                                             Text("9:50")
                                         }
                                         OutlinedButton(
                                             onClick = { applyDebugElapsed(totalSeconds / 2) },
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                         ) {
                                             Text("50%")
                                         }
@@ -449,28 +463,33 @@ fun InFlightScreen(
                             }
                         }
 
-                        GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                        GlassPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = overlayPalette.panelBackground,
+                            borderColor = overlayPalette.panelBorder
+                        ) {
                             Column(modifier = Modifier.padding(20.dp)) {
                                 LinearProgressIndicator(
                                     progress = { progress },
                                     modifier = Modifier.fillMaxWidth().height(6.dp),
                                     color = MaterialTheme.colorScheme.primary,
-                                    trackColor = Color.White.copy(alpha = 0.1f)
+                                    trackColor = overlayPalette.trackColor
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("${(progress * 100).toInt()}% 비행 완료", color = FlightGray, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                Text("${(progress * 100).toInt()}% 비행 완료", color = overlayPalette.secondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 
                                 // 자유 모드일 때 시간 배율 표시
                                 if (draft.timeScale != 1f) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("시간 배율: ${formatTimeScale(draft.timeScale)}", color = FlightPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    Text("시간 배율: ${formatTimeScale(draft.timeScale)}", color = overlayPalette.accentText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 }
                             }
                         }
 
                         OutlinedButton(
                             onClick = { pauseFlight() },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                         ) {
                             Text("일시정지")
                         }
@@ -494,17 +513,19 @@ fun InFlightScreen(
                 GlassPanel(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(24.dp)
+                        .padding(24.dp),
+                    backgroundColor = overlayPalette.panelBackground,
+                    borderColor = overlayPalette.panelBorder
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("일시중지되었습니다.", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("일시중지되었습니다.", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                         Text(
                             "비행중에 잠깐의 휴식을 가지는 것도 좋죠.",
-                            color = FlightGray,
+                            color = overlayPalette.secondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Button(onClick = { resumeFlight() }) {
