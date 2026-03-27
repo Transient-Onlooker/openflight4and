@@ -1,6 +1,7 @@
 package com.example.openflight4and.ui.inflight
 
 import android.content.Intent
+import android.location.Location
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -40,47 +41,82 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 private const val TrackingTiltDegrees = 60f
-private const val TrackingZoom = 16f
 private const val MinTickDelayMillis = 100L
+private const val Perspective2D = "2d"
+private const val Perspective2_5D = "2_5d"
+private const val GreatCircleBearingStep = 0.001
+private const val GreatCircleRouteSegments = 256
 
 /**
- * 대권 보간 (Great Circle Interpolation)
- * 지구 곡면을 따른 두 지점 사이의 보간
+ * ??????????⑤벡瑜?????(Great Circle Interpolation)
+ * ????븐뼐???????????????????????곕츥??????????????녳븢????????븐뼐???????????????????⑤벡瑜?????
  */
 fun interpolateGreatCircle(start: LatLng, end: LatLng, fraction: Double): LatLng {
     if (fraction == 0.0) return start
     if (fraction == 1.0) return end
     
-    // 위도, 경도를 라디안으로 변환
+    // ??????袁⑸즴筌?씛彛??? ??癲됱빖???嶺???????椰꾧퀡逾???????ｋ즲??????????????????롮쾸?椰?嚥▲굧???븍툖?????????⑤벡瑜????
     val lat1 = Math.toRadians(start.latitude)
     val lon1 = Math.toRadians(start.longitude)
     val lat2 = Math.toRadians(end.latitude)
     val lon2 = Math.toRadians(end.longitude)
     
-    // 두 지점 사이의 각거리 (angular distance)
+    // ??????븐뼐????????????????????ル??????????꿔꺂?????(angular distance)
     val dLat = lat2 - lat1
     val dLon = lon2 - lon1
     
     val a = sin(dLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(dLon / 2).pow(2)
     val c = 2 * atan2(sqrt(a), sqrt(1 - a))
     
-    // fraction 이 0 이거나 1 이면 시작/도착 지점 반환
+    // fraction ??0 ?????????1 ????????耀붾굝?????傭?끆????椰???????袁⑸즴筌?씛彛???돗????⑸뻿??????븐뼐?????????????獄쏅챶留덌┼???????
     if (c == 0.0) return start
     
-    // 보간 계수 계산
+    // ??????⑤벡瑜?????????????????????????????
     val A = sin((1 - fraction) * c) / sin(c)
     val B = sin(fraction * c) / sin(c)
     
-    // 직교 좌표계로 변환
+    // ????븐뼐?????????????亦껋꼦維??????????????????????몃┛???????⑤벡瑜????
     val x = A * cos(lat1) * cos(lon1) + B * cos(lat2) * cos(lon2)
     val y = A * cos(lat1) * sin(lon1) + B * cos(lat2) * sin(lon2)
     val z = A * sin(lat1) + B * sin(lat2)
     
-    // 위도, 경도로 다시 변환
+    // ??????袁⑸즴筌?씛彛??? ??癲됱빖???嶺???????椰꾧퀡逾??┑?λ쳹???怨멸텛?????????????袁④뎬????????⑤벡瑜????
     val latN = atan2(z, sqrt(x.pow(2) + y.pow(2)))
     val lonN = atan2(y, x)
     
     return LatLng(Math.toDegrees(latN), Math.toDegrees(lonN))
+}
+
+fun calculateGreatCircleBearing(start: LatLng, end: LatLng, fraction: Double): Float {
+    val clampedFraction = fraction.coerceIn(0.0, 1.0)
+    val fromFraction = (clampedFraction - GreatCircleBearingStep).coerceAtLeast(0.0)
+    val toFraction = (clampedFraction + GreatCircleBearingStep).coerceAtMost(1.0)
+    val fromPoint = interpolateGreatCircle(start, end, fromFraction)
+    val toPoint = interpolateGreatCircle(start, end, toFraction)
+
+    val fromLocation = Location("great_circle_from").apply {
+        latitude = fromPoint.latitude
+        longitude = fromPoint.longitude
+    }
+    val toLocation = Location("great_circle_to").apply {
+        latitude = toPoint.latitude
+        longitude = toPoint.longitude
+    }
+
+    return fromLocation.bearingTo(toLocation)
+}
+
+fun planeMarkerRotationForBearing(bearing: Float): Float {
+    // ic_flight_marker is drawn facing north already, which matches Google Maps marker
+    // rotation semantics where 0 degrees points north.
+    return ((bearing % 360f) + 360f) % 360f
+}
+
+fun buildGreatCircleRoutePoints(start: LatLng, end: LatLng, segments: Int = GreatCircleRouteSegments): List<LatLng> {
+    if (segments <= 1) return listOf(start, end)
+    return List(segments + 1) { index ->
+        interpolateGreatCircle(start, end, index.toDouble() / segments.toDouble())
+    }
 }
 
 @Composable
@@ -93,13 +129,14 @@ fun InFlightScreen(
     val scope = rememberCoroutineScope()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
+    val mapPerspective by repository.mapPerspective.collectAsState(initial = Perspective2_5D)
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
     val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
 
-    // 총 비행 시간 (초)
+    // ???????轅붽틓???????????(??
     val totalSeconds = (draft.estimatedMinutes * 60).toLong()
 
-    // UI 상태: 경과 시간 (초)
+    // UI ??????椰???? ??癲됱빖???嶺??????????(??
     var secondsElapsed by remember { mutableStateOf(0L) }
     var isServiceSynced by remember { mutableStateOf(false) }
     var ticketCharged by remember { mutableStateOf(false) }
@@ -108,7 +145,7 @@ fun InFlightScreen(
     var isDebugSliderDirty by remember { mutableStateOf(false) }
     var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
 
-    // 계산된 상태
+    // ???????????????????椰????
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
     val isFlying = secondsElapsed < totalSeconds
@@ -116,10 +153,10 @@ fun InFlightScreen(
         (1000f / draft.timeScale.coerceIn(0.001f, 1000f)).toLong().coerceAtLeast(MinTickDelayMillis)
     }
 
-    // 뒤로가기 다이얼로그 상태
+    // ????겾??좊읈??????源낇꼧???⑥??????ㅺ컼??
     var showGiveUpDialog by remember { mutableStateOf(false) }
 
-    // 뒤로가기 버튼 핸들러
+    // ??살쨮揶쎛疫?甕곌쑵???紐껊굶??
     BackHandler {
         showGiveUpDialog = true
     }
@@ -155,7 +192,7 @@ fun InFlightScreen(
         onFlightEnd()
     }
 
-    // 앱 복귀 시 서비스 상태가 있으면 복구, 없으면 새로 시작
+    // ????????⑤벡瑜??꿔꺂??????????썹땟??? ?????耀붾굝??????????嶺????????椰?????癲?濾곌풝源?????????쎛 ???????롮쾸?椰?嚥▲굧???븍툖??????????⑤벡瑜??꿔꺂??????????썹땟???? ?????????대첉??轅붽틓?????獒뺣폍???????????耀붾굝?????傭?끆????椰?
     LaunchedEffect(Unit) {
         if (FlightService.isServiceRunning()) {
             val synced = FlightStatusManager.syncFromService()
@@ -182,7 +219,7 @@ fun InFlightScreen(
         }
     }
 
-    // 서비스와 연결되지 않았을 때만 로컬 타이머를 증가시킴
+    // ???耀붾굝??????????嶺??? ????????산뭐????? ??????μ떜媛?걫?????????????????????????????傭?끆????ш끽維??????븐뼐????傭?끆?????Β?ｊ콞???癲??????
     LaunchedEffect(isFlying, isServiceSynced) {
         if (isFlying && !isServiceSynced) {
             while (secondsElapsed < totalSeconds) {
@@ -201,8 +238,7 @@ fun InFlightScreen(
                     }
                 }
                 secondsElapsed++
-                // FlightStatusManager 와 동기화
-                FlightStatusManager.updateProgress(secondsElapsed)
+                // FlightStatusManager ?? ??????????                FlightStatusManager.updateProgress(secondsElapsed)
                 if (!isDebugSliderDirty) {
                     debugSliderSeconds = secondsElapsed.toFloat()
                 }
@@ -248,11 +284,11 @@ fun InFlightScreen(
         if (spendResult.success) {
             ticketCharged = true
             FlightService.markTicketCharged()
-            Toast.makeText(context, "이용권이 차감되었습니다.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "????????살몖?亦껋꼦維뽬뜎?????????遺얘턁????怨뚮옩?????椰????誘⑸쿋????????????", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // 비행기 위치 및 회전 계산 (대권 보간 - Great Circle Interpolation)
+    // ?????轅붽틓??????饔낅떽???????????袁⑸즴筌?씛彛?????????????????????(??????????⑤벡瑜?????- Great Circle Interpolation)
     fun applyDebugElapsed(targetSeconds: Long) {
         val clampedSeconds = targetSeconds.coerceIn(0L, totalSeconds)
         secondsElapsed = clampedSeconds
@@ -276,41 +312,67 @@ fun InFlightScreen(
     val origin = draft.origin.location
     val dest = draft.destination?.location ?: origin
     val currentPos = remember(progress) {
-        // 대권 보간: 지구 곡면을 따른 최단 거리 경로
+        // ??????????⑤벡瑜????? ????븐뼐???????????????????????곕츥??????????????녳븢??????븐뼐??????????????븐뼐?곭춯?竊????????癲됱빖???嶺?????????
         interpolateGreatCircle(origin, dest, progress.toDouble())
     }
-    val bearing = remember { FlightUtils.calculateBearing(draft.origin, draft.destination ?: draft.origin) }
+    val bearing = remember(progress, origin, dest) {
+        calculateGreatCircleBearing(origin, dest, progress.toDouble())
+    }
+    val routePoints = remember(origin, dest) {
+        buildGreatCircleRoutePoints(origin, dest)
+    }
+    val trackingTilt = if (mapPerspective == Perspective2D) 0f else TrackingTiltDegrees
+    val trackingBearing = if (mapPerspective == Perspective2D) 0f else bearing
+    val planeRotation = remember(bearing) { planeMarkerRotationForBearing(bearing) }
     val planeMarker = remember { MapBitmapUtils.createPlaneMarkerBitmap(context) }
 
-    // 카메라 추적 상태
+    // ?????筌뤾퍓愿???????????熬곣몿??????????椰????
     var isCameraTracking by remember { mutableStateOf(true) }
     val cameraPositionState = rememberCameraPositionState()
 
-    // 초기 카메라 위치 설정 (출발지 и 도착지를 모두 포함하는 줌 레벨)
+    suspend fun updateCameraPerspective(
+        perspective: String,
+        keepTrackingTarget: Boolean
+    ) {
+        val target = if (keepTrackingTarget) currentPos else cameraPositionState.position.target
+        val updatedTilt = if (perspective == Perspective2D) 0f else TrackingTiltDegrees
+        val updatedBearing = if (perspective == Perspective2D) 0f else bearing
+        cameraPositionState.move(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder(cameraPositionState.position)
+                    .target(target)
+                    .tilt(updatedTilt)
+                    .bearing(updatedBearing)
+                    .build()
+            )
+        )
+    }
+
+    // ??????嶺뚮∥?????????筌뤾퍓愿???????????袁⑸즴筌?씛彛?????????롮쾸?椰???(???????????????곗뵰??? ????????袁⑸즴筌?씛彛???돗????⑸뻿????????嚥싲갭큔?????????븐뼐???????????븐뼔???????????뀀맩鍮??????룸챶猷??????????????
     LaunchedEffect(Unit) {
-        // LatLngBounds 계산하여 경로가 화면에 꽉 차도록 설정
+        // LatLngBounds ??????????????耀붾굝??????????癲됱빖???嶺??????????????? ????癲?傭?????????븐뼐??????⑤슢?????壤굿??띾??????猷고??鶯ㅺ동???볥궚??????????롮쾸?椰???
         val boundsBuilder = com.google.android.gms.maps.model.LatLngBounds.Builder()
         boundsBuilder.include(origin)
         boundsBuilder.include(dest)
         val bounds = boundsBuilder.build()
         
-        // 화면 패딩을 고려한 줌 레벨 계산
-        val padding = 200 // 픽셀 단위 패딩
+        // ????癲?傭????????꿔꺂????癒?떴?????????????????????????????????
+        val padding = 200 // ??? ????????⑤벡苑???????꿔꺂????癒?떴?
         cameraPositionState.animate(
             CameraUpdateFactory.newLatLngBounds(bounds, padding)
         )
     }
 
-    // 카메라 추적 로직 (사용자가 직접 조작했을 때는 추적 중지)
-    LaunchedEffect(currentPos, isCameraTracking) {
+    // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
+    LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
         if (isCameraTracking && !cameraPositionState.isMoving) {
             cameraPositionState.animate(
                 CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder()
                         .target(currentPos)
-                        .zoom(max(cameraPositionState.position.zoom, TrackingZoom))
-                        .tilt(TrackingTiltDegrees)
-                        .bearing(bearing)
+                        .zoom(cameraPositionState.position.zoom)
+                        .tilt(trackingTilt)
+                        .bearing(trackingBearing)
                         .build()
                 )
             )
@@ -323,7 +385,7 @@ fun InFlightScreen(
         }
     }
 
-    // 비행 완료 감지 및 저장
+    // ?????轅붽틓???????????袁⑸즴筌?씛彛?????????ル???? ??????
     LaunchedEffect(secondsElapsed, totalSeconds) {
         if (secondsElapsed >= totalSeconds && totalSeconds > 0) {
             saveAndExit(repository, draft, 1f, true, System.currentTimeMillis() - (draft.estimatedMinutes * 60 * 1000), onFlightEnd, context)
@@ -337,22 +399,23 @@ fun InFlightScreen(
             isInteractive = true,
             useDarkOverlay = false,
             mapContent = {
-                // 지도 콘텐츠 (GoogleMap 내부에서 렌더링)
+                // ????븐뼐??????????????꾩룆梨띰쭕??????(GoogleMap ????????????????
                 Polyline(
-                    points = listOf(origin, dest),
+                    points = routePoints,
                     color = Color.White.copy(alpha = 0.6f),
                     width = 5f,
-                    geodesic = true // 대원 곡선 (현실적 비행 경로)
+                    geodesic = false
                 )
                 Marker(
                     state = MarkerState(position = currentPos),
                     icon = planeMarker,
-                    rotation = bearing,
+                    rotation = planeRotation,
+                    flat = true,
                     anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                 )
             },
             overlayContent = {
-                // UI Overlay (Canvas 오버레이 위에 렌더링)
+                // UI Overlay (Canvas ????????源낆┸????????롮쾸?椰???⑤챷寃?┼???????袁⑸즴筌?씛彛?????????
                 Column(
                     modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
                     verticalArrangement = Arrangement.SpaceBetween
@@ -365,11 +428,11 @@ fun InFlightScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column {
-                                    Text("비행 중", color = overlayPalette.accentText, fontSize = 12.sp)
+                                    Text("\uBE44\uD589 \uC911", color = overlayPalette.accentText, fontSize = 12.sp)
                                     Text(draft.flightNumber, color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("남은 시간", color = overlayPalette.secondaryText, fontSize = 12.sp)
+                                    Text("\uB0A8\uC740 \uC2DC\uAC04", color = overlayPalette.secondaryText, fontSize = 12.sp)
                                     Text(FlightUtils.formatTimer(remainingSeconds), color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                                 }
                             }
@@ -389,15 +452,40 @@ fun InFlightScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SmallFloatingActionButton(
                             onClick = {
+                                scope.launch {
+                                    val nextPerspective = if (mapPerspective == Perspective2D) {
+                                        Perspective2_5D
+                                    } else {
+                                        Perspective2D
+                                    }
+                                    updateCameraPerspective(
+                                        perspective = nextPerspective,
+                                        keepTrackingTarget = isCameraTracking
+                                    )
+                                    repository.setMapPerspective(nextPerspective)
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.End),
+                            containerColor = overlayPalette.floatingButtonContainer,
+                            contentColor = overlayPalette.floatingButtonContent
+                        ) {
+                            Text(
+                                text = if (mapPerspective == Perspective2D) "2D" else "2.5D",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+
+                        SmallFloatingActionButton(
+                            onClick = {
                                 isCameraTracking = true
                                 scope.launch {
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newCameraPosition(
                                             CameraPosition.Builder()
                                                 .target(currentPos)
-                                                .zoom(max(cameraPositionState.position.zoom, TrackingZoom))
-                                                .tilt(TrackingTiltDegrees)
-                                                .bearing(bearing)
+                                                .zoom(cameraPositionState.position.zoom)
+                                                .tilt(trackingTilt)
+                                                .bearing(trackingBearing)
                                                 .build()
                                         )
                                     )
@@ -476,12 +564,11 @@ fun InFlightScreen(
                                     trackColor = overlayPalette.trackColor
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("${(progress * 100).toInt()}% 비행 완료", color = overlayPalette.secondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-                                
-                                // 자유 모드일 때 시간 배율 표시
+                                Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = overlayPalette.secondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+
                                 if (draft.timeScale != 1f) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("시간 배율: ${formatTimeScale(draft.timeScale)}", color = overlayPalette.accentText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = overlayPalette.accentText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 }
                             }
                         }
@@ -491,11 +578,11 @@ fun InFlightScreen(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                         ) {
-                            Text("일시정지")
+                            Text("\uC77C\uC2DC\uC815\uC9C0")
                         }
 
                         PrimaryFlightButton(
-                            text = "여정 중단",
+                            text = "\uC5EC\uC815 \uC911\uB2E8",
                             onClick = { showGiveUpDialog = true },
                             isDestructive = true
                         )
@@ -508,13 +595,13 @@ fun InFlightScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF1F1F1F))
+                    .background(Color(0x331F1F1F))
             ) {
                 GlassPanel(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(24.dp),
-                    backgroundColor = overlayPalette.panelBackground,
+                    backgroundColor = Color.Transparent,
                     borderColor = overlayPalette.panelBorder
                 ) {
                     Column(
@@ -522,14 +609,14 @@ fun InFlightScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("일시중지되었습니다.", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("\uC77C\uC2DC\uC911\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                         Text(
-                            "비행중에 잠깐의 휴식을 가지는 것도 좋죠.",
+                            "\uBE44\uD589\uC911\uC5D0 \uC7A0\uAE50\uC758 \uD734\uC2DD\uC744 \uAC00\uC9C0\uB294 \uAC83\uB3C4 \uC88B\uC8E0.",
                             color = overlayPalette.secondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Button(onClick = { resumeFlight() }) {
-                            Text("비행 재개")
+                            Text("\uBE44\uD589 \uC7AC\uAC1C")
                         }
                     }
                 }
@@ -537,21 +624,20 @@ fun InFlightScreen(
         }
     }
 
-    // 비행 포기 다이얼로그
     if (showGiveUpDialog) {
         AlertDialog(
             onDismissRequest = { showGiveUpDialog = false },
-            title = { Text("비행 포기", color = Color.White) },
-            text = { Text("현재 비행을 포기하시겠습니까?\n기록이 저장되지 않습니다.", color = FlightGray) },
+            title = { Text("\uBE44\uD589 \uD3EC\uAE30", color = Color.White) },
+            text = { Text("\uD604\uC7AC \uBE44\uD589\uC744 \uD3EC\uAE30\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAE30\uB85D\uC774 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", color = FlightGray) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         stopFlight()
                     }
-                ) { Text("포기", color = MaterialTheme.colorScheme.error) }
+                ) { Text("\uD3EC\uAE30", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showGiveUpDialog = false }) { Text("계속 비행") }
+                TextButton(onClick = { showGiveUpDialog = false }) { Text("\uACC4\uC18D \uBE44\uD589") }
             },
             containerColor = Color(0xFF0D0000)
         )
@@ -584,3 +670,4 @@ private suspend fun saveAndExit(
     repository.saveSession(session)
     onExit()
 }
+

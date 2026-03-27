@@ -38,6 +38,7 @@ fun SettingsScreen(
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
+    val mapPerspective by repository.mapPerspective.collectAsState(initial = "2_5d")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")

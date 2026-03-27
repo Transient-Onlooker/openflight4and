@@ -87,7 +87,7 @@ fun SandboxScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text("자유 모드", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = { Text("?�유 모드", color = Color.White, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -107,60 +107,23 @@ fun SandboxScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "집중모드 설정",
+                    text = "집중모드 ?�정",
                     color = Color.White,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "집중모드 시작 시 적용될 설정을 구성하세요.",
+                    text = "집중모드 ?�작 ???�용???�정??구성?�세??",
                     color = FlightGray,
                     style = MaterialTheme.typography.bodySmall
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 현재 위치 설정 섹션
+                // ?�간 배율 ?�션
                 GlassPanel(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("내 현재 위치", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                val locationText = if (currentLocation != null) {
-                                    "${currentLocation.iata} - ${currentLocation.nameKo}"
-                                } else {
-                                    "설정되지 않음"
-                                }
-                                Text(
-                                    text = locationText,
-                                    color = FlightGray,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            TextButton(onClick = { onNavigateToAirportSelection(true) }) {
-                                Text("변경", color = FlightPrimary)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "집중모드 시작 시 이 공항이 기본 출발지로 설정됩니다.",
-                            color = FlightGray,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 시간 배율 섹션
-                GlassPanel(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text("시간 배율", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("?�간 배율", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(
@@ -186,9 +149,9 @@ fun SandboxScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         when {
-                            timeScale < 10f -> Text("실시간에 가깝게 진행됩니다.", color = FlightGray, style = MaterialTheme.typography.bodySmall)
-                            timeScale < 50f -> Text("빠르게 진행됩니다.", color = FlightGray, style = MaterialTheme.typography.bodySmall)
-                            else -> Text("매우 빠르게 진행됩니다!", color = FlightGray, style = MaterialTheme.typography.bodySmall)
+                            timeScale < 10f -> Text("?�시간에 가깝게 진행?�니??", color = FlightGray, style = MaterialTheme.typography.bodySmall)
+                            timeScale < 50f -> Text("빠르�?진행?�니??", color = FlightGray, style = MaterialTheme.typography.bodySmall)
+                            else -> Text("매우 빠르�?진행?�니??", color = FlightGray, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -196,7 +159,7 @@ fun SandboxScreen(
                 Spacer(modifier = Modifier.height(48.dp))
                 
                 Text(
-                    text = "설정을 완료한 후 홈에서 집중모드를 시작하세요.",
+                    text = "?�정???�료?????�에??집중모드�??�작?�세??",
                     color = FlightGray,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.fillMaxWidth(),
@@ -205,9 +168,9 @@ fun SandboxScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                // 설정 완료 버튼
+                // ?�정 ?�료 버튼
                 PrimaryFlightButton(
-                    text = "설정 완료",
+                    text = "?�정 ?�료",
                     onClick = onSaveCompleted,
                     isDestructive = false
                 )

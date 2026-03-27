@@ -112,7 +112,7 @@ fun NewFlightScreen(
                         val toleranceMinutes = targetFlightMinutes * 0.1
                         val lowerBound = targetFlightMinutes - toleranceMinutes
                         val upperBound = targetFlightMinutes + toleranceMinutes
-                        if (airport.iata != originIata && durationMinutes !in lowerBound..upperBound) {
+                        if (airport.iata != originIata && durationMinutes.toDouble() !in lowerBound..upperBound) {
                             return@filter false
                         }
                     } else {
