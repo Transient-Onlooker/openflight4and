@@ -192,7 +192,7 @@ class AppRepository(private val context: Context) {
         return granted
     }
 
-    suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult {
+    suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult {
         val currentBalance = context.dataStore.data.map { preferences ->
             preferences[KEY_FLIGHT_TICKETS] ?: 0
         }
@@ -317,7 +317,7 @@ class AppRepository(private val context: Context) {
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
                     title = "리딤 코드",
-                    detail = "${normalized.uppercase()} 코드로 비행권 ${rewardAmount}개가 지급되었습니다."
+                    detail = "${normalized.uppercase()} 코드로 비행권 $rewardAmount개가 지급되었습니다."
                 )
             )
             result = RedeemCodeResult.Success(rewardAmount)
@@ -404,7 +404,7 @@ class AppRepository(private val context: Context) {
         if (redeemMatch != null) {
             val amount = redeemMatch.groupValues[1]
             val code = redeemMatch.groupValues[2].uppercase()
-            return "${code} 코드로 비행권 ${amount}개가 지급되었습니다."
+            return "$code 코드로 비행권 $amount개가 지급되었습니다."
         }
 
         return detail
