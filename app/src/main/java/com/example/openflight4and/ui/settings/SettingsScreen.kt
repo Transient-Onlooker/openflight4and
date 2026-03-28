@@ -41,6 +41,7 @@ fun SettingsScreen(
     val mapPerspective by repository.mapPerspective.collectAsState(initial = "2_5d")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
+    val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
 
     FlightMapBackground {
@@ -134,6 +135,26 @@ fun SettingsScreen(
                 )
 
                 // 배터리 최적화 제외 설정
+                if (notificationsEnabled) {
+                    SectionHeader("\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30")
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val notificationIntervals = listOf(1, 2, 3, 5, 10, 20, 30)
+                    notificationIntervals.forEachIndexed { index, seconds ->
+                        SegmentedButton(
+                            selected = notificationUpdateSeconds == seconds,
+                            onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = notificationIntervals.size)
+                        ) { Text("${seconds}s") }
+                    }
+                }
+                    Text(
+                    text = "\uAE30\uBCF8\uAC12 10\uCD08. \uBE44\uD589 \uC911 \uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    )
+                }
+
                 BatteryOptimizationItem()
 
                 Spacer(modifier = Modifier.height(24.dp))

@@ -8,13 +8,26 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.example.openflight4and.ui.MainScreen
 import com.example.openflight4and.ui.theme.OpenFlightTheme
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_OPEN_INFLIGHT = "open_inflight"
+        const val EXTRA_ORIGIN_IATA = "origin_iata"
+        const val EXTRA_DESTINATION_IATA = "destination_iata"
+        const val EXTRA_DURATION_MINUTES = "duration_minutes"
+    }
+
+    private var inflightLaunchRequest by mutableStateOf<InFlightLaunchRequest?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        inflightLaunchRequest = intent.toInFlightLaunchRequest()
 
         // 알림 권한 요청 (Android 13+)
         requestNotificationPermission()
@@ -24,9 +37,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             OpenFlightTheme {
-                MainScreen()
+                MainScreen(
+                    inflightLaunchRequest = inflightLaunchRequest,
+                    onInflightLaunchHandled = { inflightLaunchRequest = null }
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        inflightLaunchRequest = intent.toInFlightLaunchRequest()
     }
 
     private fun requestNotificationPermission() {
@@ -51,4 +73,22 @@ class MainActivity : ComponentActivity() {
             // 하지만 비행 기능은 계속 작동함 (포그라운드 서비스)
         }
     }
+
+    private fun android.content.Intent?.toInFlightLaunchRequest(): InFlightLaunchRequest? {
+        if (this?.getBooleanExtra(EXTRA_OPEN_INFLIGHT, false) != true) {
+            return null
+        }
+
+        return InFlightLaunchRequest(
+            originIata = getStringExtra(EXTRA_ORIGIN_IATA),
+            destinationIata = getStringExtra(EXTRA_DESTINATION_IATA),
+            durationMinutes = getIntExtra(EXTRA_DURATION_MINUTES, 0)
+        )
+    }
 }
+
+data class InFlightLaunchRequest(
+    val originIata: String?,
+    val destinationIata: String?,
+    val durationMinutes: Int
+)

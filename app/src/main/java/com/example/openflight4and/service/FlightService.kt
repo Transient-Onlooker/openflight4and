@@ -1,4 +1,4 @@
-package com.example.openflight4and.service
+﻿package com.example.openflight4and.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -36,7 +36,7 @@ class FlightService : Service() {
         const val ACTION_RESUME = "resume_flight"
         private const val TAG = "FlightService"
 
-        // UI 에서 서비스 상태를 읽기 위한 공개 변수
+        // UI ?먯꽌 ?쒕퉬???곹깭瑜??쎄린 ?꾪븳 怨듦컻 蹂??
         @Volatile private var instance: FlightService? = null
         @Volatile private var _secondsElapsed = 0L
         @Volatile private var _totalSeconds = 0L
@@ -44,6 +44,7 @@ class FlightService : Service() {
         @Volatile private var _isPaused = false
         @Volatile private var _ticketCharged = false
         @Volatile private var _pendingJumpSeconds: Long? = null
+        @Volatile private var _isInFlightScreenVisible = false
 
         fun isServiceRunning(): Boolean = _isRunning
         fun isPaused(): Boolean = _isPaused
@@ -57,7 +58,14 @@ class FlightService : Service() {
         fun jumpToElapsedSeconds(seconds: Long) {
             _pendingJumpSeconds = seconds
         }
+        fun setInFlightScreenVisible(isVisible: Boolean) {
+            _isInFlightScreenVisible = isVisible
+            instance?.handleInFlightScreenVisibilityChanged(isVisible)
+        }
     }
+
+    private var currentOriginIata: String = "N/A"
+    private var currentDestinationIata: String = "N/A"
 
     override fun onCreate() {
         super.onCreate()
@@ -95,23 +103,46 @@ class FlightService : Service() {
         val originName = intent?.getStringExtra("origin_name") ?: ""
         val destinationName = intent?.getStringExtra("destination_name") ?: ""
         val timeScale = intent?.getFloatExtra("time_scale", 1f) ?: 1f
+        val notificationUpdateSeconds =
+            (intent?.getIntExtra("notification_update_seconds", 10) ?: 10).coerceIn(1, 30)
 
-        Log.d(TAG, "Starting flight: $originIata -> $destinationIata, Duration: $durationMinutes min, TimeScale: $timeScale")
+        Log.d(
+            TAG,
+            "Starting flight: $originIata -> $destinationIata, Duration: $durationMinutes min, TimeScale: $timeScale, NotificationUpdateSeconds: $notificationUpdateSeconds"
+        )
 
-        // 서비스 상태 초기화
+        // ?쒕퉬???곹깭 珥덇린??
         _isRunning = true
         _isPaused = false
         _totalSeconds = totalSeconds
         _secondsElapsed = 0L
         _ticketCharged = false
         _pendingJumpSeconds = null
+        _isInFlightScreenVisible = false
+        currentOriginIata = originIata
+        currentDestinationIata = destinationIata
 
-        // 초기 알림과 함께 포그라운드 시작
-        val initialContent = "$originIata ➔ $destinationIata | 비행 준비 중..."
+        // 珥덇린 ?뚮┝怨??④퍡 ?ш렇?쇱슫???쒖옉
+        val initialContent = "$originIata ??$destinationIata | 鍮꾪뻾 以鍮?以?.."
         startForeground(NOTIFICATION_ID, createNotification(initialContent, originIata, destinationIata))
         Log.d(TAG, "Foreground service started with notification ID: $NOTIFICATION_ID")
+        updateNotification(
+            createNotification(
+                "$originIata -> $destinationIata | ${FlightUtils.formatTimer(totalSeconds)}",
+                originIata,
+                destinationIata
+            )
+        )
 
-        startTimer(totalSeconds, originIata, destinationIata, originName, destinationName, timeScale)
+        startTimer(
+            totalSeconds,
+            originIata,
+            destinationIata,
+            originName,
+            destinationName,
+            timeScale,
+            notificationUpdateSeconds
+        )
         return START_STICKY
     }
 
@@ -121,7 +152,8 @@ class FlightService : Service() {
         destinationIata: String,
         originName: String,
         destinationName: String,
-        timeScale: Float = 1f
+        timeScale: Float = 1f,
+        notificationUpdateSeconds: Int = 10
     ) {
         Log.d(TAG, "Timer started: $totalSeconds seconds, TimeScale: $timeScale")
 
@@ -136,32 +168,32 @@ class FlightService : Service() {
                 }
                 val safeTimeScale = timeScale.coerceIn(0.001f, 1000f)
                 val delayMs = (1000f / safeTimeScale).toLong()
-                delay(delayMs.coerceAtLeast(100)) // 최소 100ms (너무 빠른 업데이트 방지)
+                delay(delayMs.coerceAtLeast(100)) // 理쒖냼 100ms (?덈Т 鍮좊Ⅸ ?낅뜲?댄듃 諛⑹?)
                 _pendingJumpSeconds?.let { jumpTarget ->
                     secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
                     _pendingJumpSeconds = null
                 }
                 secondsElapsed++
 
-                // 서비스 상태 업데이트 (UI 연동용)
+                // ?쒕퉬???곹깭 ?낅뜲?댄듃 (UI ?곕룞??
                 _secondsElapsed = secondsElapsed
                 FlightStatusManager.updateProgress(secondsElapsed)
 
-                // 알림창 갱신 (실제 시간 기준 30 초마다만 업데이트 - 성능 최적화)
+                // ?뚮┝李?媛깆떊 (?ㅼ젣 ?쒓컙 湲곗? 30 珥덈쭏?ㅻ쭔 ?낅뜲?댄듃 - ?깅뒫 理쒖쟻??
                 val currentTime = System.currentTimeMillis()
                 val remaining = totalSeconds - secondsElapsed
 
-                // 남은 시간이 0 이면 즉시 완료 처리
+                // ?⑥? ?쒓컙??0 ?대㈃ 利됱떆 ?꾨즺 泥섎━
                 if (remaining <= 0) {
                     Log.d(TAG, "Flight completed! Remaining: 0")
                     FlightStatusManager.stopFlight()
-                    val completedText = "$originIata ➔ $destinationIata | 비행 완료!"
+                    val completedText = "$originIata ??$destinationIata | 鍮꾪뻾 ?꾨즺!"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
-                    // 도착지를 현재 위치로 저장 (다음 비행을 위한 출발지)
+                    // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
                     saveDestinationAsCurrentLocation(destinationIata)
 
-                    // 알림 제거 (완료 후 5 초 후 자동 삭제)
+                    // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
                     withContext(Dispatchers.IO) {
                         delay(5000)
                         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -174,25 +206,28 @@ class FlightService : Service() {
                     return@launch
                 }
 
-                if (currentTime - lastNotificationTime >= 30000) { // 30 초
+                if (
+                    !_isInFlightScreenVisible &&
+                    currentTime - lastNotificationTime >= notificationUpdateSeconds * 1000L
+                ) {
                     val remainingText = FlightUtils.formatTimer(remaining)
-                    val contentText = "$originIata ➔ $destinationIata | 남은 시간: $remainingText"
+                    val contentText = "$originIata -> $destinationIata | $remainingText"
                     updateNotification(createNotification(contentText, originIata, destinationIata))
                     Log.d(TAG, "Notification updated: $remainingText remaining")
                     lastNotificationTime = currentTime
                 }
             }
 
-            // 루프 완료 후 처리 (안전장치)
+            // 猷⑦봽 ?꾨즺 ??泥섎━ (?덉쟾?μ튂)
             Log.d(TAG, "Flight completed! (loop finished)")
             FlightStatusManager.stopFlight()
-            val completedText = "$originIata ➔ $destinationIata | 비행 완료!"
+            val completedText = "$originIata ??$destinationIata | 鍮꾪뻾 ?꾨즺!"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
-            // 도착지를 현재 위치로 저장 (다음 비행을 위한 출발지)
+            // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
             saveDestinationAsCurrentLocation(destinationIata)
 
-            // 알림 제거 (완료 후 5 초 후 자동 삭제)
+            // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
             withContext(Dispatchers.IO) {
                 delay(5000)
                 val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -205,12 +240,22 @@ class FlightService : Service() {
         }
     }
 
+    private fun handleInFlightScreenVisibilityChanged(isVisible: Boolean) {
+        if (isVisible || !_isRunning || _totalSeconds <= 0L) {
+            return
+        }
+
+        val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
+        val contentText = "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}"
+        updateNotification(createNotification(contentText, currentOriginIata, currentDestinationIata))
+    }
+
     /**
-     * 도착지를 현재 위치로 저장 (DataStore)
+     * ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(DataStore)
      */
     private fun saveDestinationAsCurrentLocation(destinationIata: String) {
         try {
-            // 공항 목록에서 도착지 찾기
+            // 怨듯빆 紐⑸줉?먯꽌 ?꾩갑吏 李얘린
             val inputStream = applicationContext.assets.open("airports.json")
             val reader = BufferedReader(InputStreamReader(inputStream))
             val jsonString = reader.use { it.readText() }
@@ -219,7 +264,7 @@ class FlightService : Service() {
             val destinationAirport = allAirports.find { it.iata == destinationIata }
 
             if (destinationAirport != null) {
-                // DataStore 에 저장 - AppRepository 와 동일한 키 사용
+                // DataStore ?????- AppRepository ? ?숈씪?????ъ슜
                 val key = com.example.openflight4and.data.AppRepository.KEY_CURRENT_LOCATION
                 Log.d(TAG, "Saving current location with key: $key")
                 runBlocking {
@@ -244,27 +289,24 @@ class FlightService : Service() {
         destinationIata: String,
         isCompleted: Boolean = false
     ): Notification {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_OPEN_INFLIGHT, true)
+            putExtra(MainActivity.EXTRA_ORIGIN_IATA, originIata)
+            putExtra(MainActivity.EXTRA_DESTINATION_IATA, destinationIata)
+            putExtra(MainActivity.EXTRA_DURATION_MINUTES, (_totalSeconds / 60L).toInt())
+        }
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val stopIntent = Intent(this, FlightService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 1, stopIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(if (isCompleted) "비행 완료 ✈️" else "현재 비행 중입니다 ✈️")
+            .setContentTitle(if (isCompleted) "\uBE44\uD589 \uC644\uB8CC" else "\uD604\uC7AC \uBE44\uD589 \uC911")
             .setContentText(content)
-            .setSubText("$originIata ➔ $destinationIata")
+            .setSubText("$originIata -> $destinationIata")
             .setSmallIcon(android.R.drawable.ic_dialog_map)
             .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "비행 중단", stopPendingIntent)
             .setOngoing(!isCompleted)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -281,10 +323,10 @@ class FlightService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "비행 상태 알림",
+                "\uBE44\uD589 \uC0C1\uD0DC \uC54C\uB9BC",
                 NotificationManager.IMPORTANCE_HIGH
             )
-            channel.description = "비행 중 상태와 남은 시간을 표시합니다"
+            channel.description = "\uBE44\uD589 \uC911 \uC0C1\uD0DC\uC640 \uB0A8\uC740 \uC2DC\uAC04\uC744 \uD45C\uC2DC\uD569\uB2C8\uB2E4."
             channel.enableLights(true)
             channel.enableVibration(false)
             val manager = getSystemService(NotificationManager::class.java)
@@ -300,6 +342,7 @@ class FlightService : Service() {
         _isPaused = false
         _ticketCharged = false
         _pendingJumpSeconds = null
+        _isInFlightScreenVisible = false
         instance = null
         timerJob?.cancel()
         serviceScope.cancel()
@@ -307,3 +350,4 @@ class FlightService : Service() {
         super.onDestroy()
     }
 }
+

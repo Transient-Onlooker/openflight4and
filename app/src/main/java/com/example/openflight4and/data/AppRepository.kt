@@ -56,6 +56,7 @@ class AppRepository(private val context: Context) {
         val KEY_MAP_PERSPECTIVE = stringPreferencesKey("map_perspective")
         val KEY_AIRPLANE_MODE_CHECK = booleanPreferencesKey("airplane_mode_check")
         val KEY_NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
+        val KEY_NOTIFICATION_UPDATE_SECONDS = intPreferencesKey("notification_update_seconds")
         val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
         val KEY_CURRENT_LOCATION = stringPreferencesKey("current_location")
         val KEY_SANDBOX_TIME_SCALE = stringPreferencesKey("sandbox_time_scale")
@@ -72,6 +73,9 @@ class AppRepository(private val context: Context) {
     val mapPerspective: Flow<String> = context.dataStore.data.map { it[KEY_MAP_PERSPECTIVE] ?: "2_5d" }
     val airplaneModeCheck: Flow<Boolean> = context.dataStore.data.map { it[KEY_AIRPLANE_MODE_CHECK] ?: true }
     val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_NOTIFICATIONS] ?: true }
+    val notificationUpdateSeconds: Flow<Int> = context.dataStore.data.map {
+        (it[KEY_NOTIFICATION_UPDATE_SECONDS] ?: 10).coerceIn(1, 30)
+    }
     val lockLevel: Flow<String> = context.dataStore.data.map { it[KEY_LOCK_LEVEL] ?: "soft" }
     val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[KEY_CURRENT_LOCATION]
@@ -124,6 +128,12 @@ class AppRepository(private val context: Context) {
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NOTIFICATIONS] = enabled }
+    }
+
+    suspend fun setNotificationUpdateSeconds(seconds: Int) {
+        context.dataStore.edit {
+            it[KEY_NOTIFICATION_UPDATE_SECONDS] = seconds.coerceIn(1, 30)
+        }
     }
 
     suspend fun setLockLevel(level: String) {

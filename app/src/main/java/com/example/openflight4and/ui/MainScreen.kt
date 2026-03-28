@@ -24,6 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
@@ -46,7 +47,10 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    inflightLaunchRequest: InFlightLaunchRequest? = null,
+    onInflightLaunchHandled: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
@@ -57,6 +61,7 @@ fun MainScreen() {
     val currentLocation by repository.currentLocation.collectAsState(initial = null)
     val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
     val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
+    val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val recentSessions by repository.recentSessions.collectAsState(initial = emptyList())
 
     val allAirports = remember { repository.getAirports() }
@@ -105,6 +110,42 @@ fun MainScreen() {
         }
     }
 
+    LaunchedEffect(inflightLaunchRequest, allAirports) {
+        val request = inflightLaunchRequest ?: return@LaunchedEffect
+
+        if (!FlightService.isServiceRunning()) {
+            onInflightLaunchHandled()
+            return@LaunchedEffect
+        }
+
+        val origin = request.originIata?.let { requestedIata ->
+            allAirports.find { it.iata == requestedIata }
+        } ?: currentDraft.origin
+        val destination = request.destinationIata
+            ?.takeUnless { it == "N/A" }
+            ?.let { requestedIata -> allAirports.find { it.iata == requestedIata } }
+            ?: currentDraft.destination
+        val estimatedMinutes = request.durationMinutes
+            .takeIf { it > 0 }
+            ?: (FlightService.getTotalSeconds() / 60L).toInt()
+        val distanceKm = destination
+            ?.let { FlightUtils.calculateDistance(origin, it).toInt() }
+            ?: currentDraft.distanceKm
+
+        currentDraft = currentDraft.copy(
+            origin = origin,
+            destination = destination,
+            estimatedMinutes = estimatedMinutes,
+            distanceKm = distanceKm
+        )
+
+        navController.navigate(Screen.InFlight.route) {
+            launchSingleTop = true
+            popUpTo(Screen.Home.route) { inclusive = false }
+        }
+        onInflightLaunchHandled()
+    }
+
     fun startFlight() {
         if (ticketBalance <= 0) {
             Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
@@ -128,6 +169,7 @@ fun MainScreen() {
                 putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
                 putExtra("duration_minutes", draftToStart.estimatedMinutes)
                 putExtra("time_scale", sandboxTimeScale)
+                putExtra("notification_update_seconds", notificationUpdateSeconds)
             }
             context.startForegroundService(intent)
 
