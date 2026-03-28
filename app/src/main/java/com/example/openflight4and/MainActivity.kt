@@ -1,6 +1,7 @@
 package com.example.openflight4and
 
 import android.Manifest
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -12,8 +13,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.MainScreen
 import com.example.openflight4and.ui.theme.OpenFlightTheme
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -28,6 +33,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inflightLaunchRequest = intent.toInFlightLaunchRequest()
+        observeScreenOrientationPreference()
 
         // 알림 권한 요청 (Android 13+)
         requestNotificationPermission()
@@ -49,6 +55,19 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         inflightLaunchRequest = intent.toInFlightLaunchRequest()
+    }
+
+    private fun observeScreenOrientationPreference() {
+        val repository = AppRepository(this)
+        lifecycleScope.launch {
+            repository.screenOrientationMode.collect { mode ->
+                requestedOrientation = when (mode) {
+                    "portrait" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    else -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+                }
+            }
+        }
     }
 
     private fun requestNotificationPermission() {

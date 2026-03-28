@@ -58,6 +58,7 @@ class AppRepository(private val context: Context) {
         val KEY_NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
         val KEY_NOTIFICATION_UPDATE_SECONDS = intPreferencesKey("notification_update_seconds")
         val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
+        val KEY_SCREEN_ORIENTATION_MODE = stringPreferencesKey("screen_orientation_mode")
         val KEY_CURRENT_LOCATION = stringPreferencesKey("current_location")
         val KEY_SANDBOX_TIME_SCALE = stringPreferencesKey("sandbox_time_scale")
         val KEY_FLIGHT_TICKETS = intPreferencesKey("flight_tickets")
@@ -77,6 +78,9 @@ class AppRepository(private val context: Context) {
         (it[KEY_NOTIFICATION_UPDATE_SECONDS] ?: 10).coerceIn(1, 30)
     }
     val lockLevel: Flow<String> = context.dataStore.data.map { it[KEY_LOCK_LEVEL] ?: "soft" }
+    val screenOrientationMode: Flow<String> = context.dataStore.data.map {
+        it[KEY_SCREEN_ORIENTATION_MODE] ?: "auto"
+    }
     val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[KEY_CURRENT_LOCATION]
         Log.d("AppRepository", "Reading current location from DataStore: $json")
@@ -140,6 +144,10 @@ class AppRepository(private val context: Context) {
         context.dataStore.edit { it[KEY_LOCK_LEVEL] = level }
     }
 
+    suspend fun setScreenOrientationMode(mode: String) {
+        context.dataStore.edit { it[KEY_SCREEN_ORIENTATION_MODE] = mode }
+    }
+
     suspend fun setCurrentLocation(airport: Airport) {
         context.dataStore.edit { preferences ->
             preferences[KEY_CURRENT_LOCATION] = Json.encodeToString(Airport.serializer(), airport)
@@ -175,7 +183,7 @@ class AppRepository(private val context: Context) {
                     amount = 1,
                     balanceAfter = updatedBalance,
                     title = "일일 비행권",
-                    detail = "?쇱씪 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."
+                    detail = "일일 비행권 1개가 지급되었습니다."
                 )
             )
             granted = 1
@@ -196,13 +204,13 @@ class AppRepository(private val context: Context) {
             TicketSpendResult(
                 success = false,
                 spent = 0,
-                message = "鍮꾪뻾沅뚯씠 遺議깊빀?덈떎."
+                message = "비행권이 부족합니다."
             )
         }
     }
 
     suspend fun consumeTicketForLongFlight(): TicketSpendResult {
-        var result = TicketSpendResult(success = false, spent = 0, message = "鍮꾪뻾沅뚯씠 遺議깊빀?덈떎.")
+        var result = TicketSpendResult(success = false, spent = 0, message = "비행권이 부족합니다.")
 
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
@@ -210,7 +218,7 @@ class AppRepository(private val context: Context) {
                 result = TicketSpendResult(
                     success = false,
                     spent = 0,
-                    message = "鍮꾪뻾沅뚯씠 遺議깊빀?덈떎."
+                    message = "비행권이 부족합니다."
                 )
                 return@edit
             }
@@ -222,8 +230,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = -1,
                     balanceAfter = updatedBalance,
-                    title = "鍮꾪뻾沅??ъ슜",
-                    detail = "10遺??댁긽 鍮꾪뻾?쇰줈 鍮꾪뻾沅?1媛쒓? 李④컧?섏뿀?듬땲??"
+                    title = "비행권 사용",
+                    detail = "10분 이상 비행으로 비행권 1개가 차감되었습니다."
                 )
             )
             result = TicketSpendResult(success = true, spent = 1)
@@ -243,7 +251,7 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "愿묎퀬 蹂댁긽",
+                    title = "광고 보상",
                     detail = "30초 광고 보상으로 비행권 1개가 지급되었습니다."
                 )
             )
@@ -262,8 +270,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "愿묎퀬 蹂댁긽",
-                    detail = "鍮꾪뻾 以?30珥?愿묎퀬 蹂댁긽?쇰줈 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."
+                    title = "광고 보상",
+                    detail = "비행 중 30초 광고 보상으로 비행권 1개가 지급되었습니다."
                 )
             )
         }
@@ -273,10 +281,10 @@ class AppRepository(private val context: Context) {
     suspend fun redeemCode(code: String): RedeemCodeResult {
         val normalized = code.trim().lowercase()
         if (normalized.isBlank()) {
-            return RedeemCodeResult.Error("肄붾뱶瑜??낅젰??二쇱꽭??")
+            return RedeemCodeResult.Error("코드를 입력해 주세요.")
         }
 
-        var result: RedeemCodeResult = RedeemCodeResult.Error("?좏슚?섏? ?딆? 肄붾뱶?낅땲??")
+        var result: RedeemCodeResult = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
         val rewardAmount = when (normalized) {
             "admin" -> 1
             "admin10" -> 10
@@ -288,12 +296,12 @@ class AppRepository(private val context: Context) {
             val usedCodes = decodeStringList(preferences[KEY_USED_REDEEM_CODES]).toMutableSet()
 
             if (normalized in usedCodes) {
-                result = RedeemCodeResult.Error("?대? ?ъ슜??肄붾뱶?낅땲??")
+                result = RedeemCodeResult.Error("이미 사용한 코드입니다.")
                 return@edit
             }
 
             if (rewardAmount == null) {
-                result = RedeemCodeResult.Error("?좏슚?섏? ?딆? 肄붾뱶?낅땲??")
+                result = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
                 return@edit
             }
 
@@ -308,8 +316,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "由щ뵥 肄붾뱶",
-                    detail = "${normalized.uppercase()} 肄붾뱶濡?鍮꾪뻾沅?${rewardAmount}媛쒓? 吏湲됰릺?덉뒿?덈떎."
+                    title = "리딤 코드",
+                    detail = "${normalized.uppercase()} 코드로 비행권 ${rewardAmount}개가 지급되었습니다."
                 )
             )
             result = RedeemCodeResult.Success(rewardAmount)
@@ -351,9 +359,9 @@ class AppRepository(private val context: Context) {
     private fun localizeLegacyTicketHistoryEntry(entry: FlightTicketHistoryEntry): FlightTicketHistoryEntry {
         val localizedTitle = when (entry.title.trim()) {
             "Daily ticket" -> "일일 비행권"
-            "Flight ticket used" -> "鍮꾪뻾沅??ъ슜"
-            "Ad reward" -> "愿묎퀬 蹂댁긽"
-            "Redeem code" -> "由щ뵥 肄붾뱶"
+            "Flight ticket used" -> "비행권 사용"
+            "Ad reward" -> "광고 보상"
+            "Redeem code" -> "리딤 코드"
             else -> entry.title
         }
 
@@ -371,7 +379,7 @@ class AppRepository(private val context: Context) {
         if (trimmed.isEmpty()) return detail
 
         if (trimmed.equals("Daily ticket granted.", ignoreCase = true)) {
-            return "?쇱씪 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."
+            return "일일 비행권 1개가 지급되었습니다."
         }
 
         if (
@@ -379,14 +387,14 @@ class AppRepository(private val context: Context) {
             trimmed.equals("Consumed 1 ticket for a flight over 10 minutes.", ignoreCase = true) ||
             trimmed.equals("Consumed 1 ticket.", ignoreCase = true)
         ) {
-            return "10遺??댁긽 鍮꾪뻾?쇰줈 鍮꾪뻾沅?1媛쒓? 李④컧?섏뿀?듬땲??"
+            return "10분 이상 비행으로 비행권 1개가 차감되었습니다."
         }
 
         if (
             trimmed.equals("Rewarded 3 tickets from ad reward.", ignoreCase = true) ||
             trimmed.equals("Earned 3 tickets by watching an ad.", ignoreCase = true)
         ) {
-            return "30珥?愿묎퀬 蹂댁긽?쇰줈 鍮꾪뻾沅?3媛쒓? 吏湲됰릺?덉뒿?덈떎."
+            return "30초 광고 보상으로 비행권 3개가 지급되었습니다."
         }
 
         val redeemMatch = Regex(
@@ -396,7 +404,7 @@ class AppRepository(private val context: Context) {
         if (redeemMatch != null) {
             val amount = redeemMatch.groupValues[1]
             val code = redeemMatch.groupValues[2].uppercase()
-            return "${code} 肄붾뱶濡?鍮꾪뻾沅?${amount}媛쒓? 吏湲됰릺?덉뒿?덈떎."
+            return "${code} 코드로 비행권 ${amount}개가 지급되었습니다."
         }
 
         return detail

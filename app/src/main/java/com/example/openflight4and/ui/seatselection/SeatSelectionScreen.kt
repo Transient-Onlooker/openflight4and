@@ -115,6 +115,7 @@ fun SeatSelectionScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(horizontal = 24.dp)
+                    .widthIn(max = 460.dp)
             ) {
                 // Scrollable Seat Grid
                 LazyColumn(
@@ -204,7 +205,11 @@ fun SeatSelectionScreen(
                 contentColor = Color.White
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 460.dp)
+                        .padding(24.dp)
+                        .padding(bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text("집중 항목을 선택하세요", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

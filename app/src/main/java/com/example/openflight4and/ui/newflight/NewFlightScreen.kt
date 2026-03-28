@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,8 @@ fun NewFlightScreen(
     onCurrentLocationSet: (Airport) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val scope = rememberCoroutineScope()
     val repository = remember { AppRepository(context) }
     
@@ -210,7 +213,7 @@ fun NewFlightScreen(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 220.dp,
+        sheetPeekHeight = if (isLandscape) 0.dp else 220.dp,
         sheetContainerColor = FlightDarkGray,
         sheetContentColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -556,13 +559,53 @@ fun NewFlightScreen(
                 }
             }
 
+            if (isLandscape) {
+                NewFlightLandscapePanel(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(top = 72.dp, end = 16.dp, bottom = 16.dp)
+                        .width(340.dp)
+                        .fillMaxHeight(),
+                    selectedDestination = selectedDestination,
+                    originAirport = originAirport,
+                    originIata = originIata,
+                    unitSystem = unitSystem,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    searchRadiusKm = searchRadiusKm,
+                    onSearchRadiusChange = { searchRadiusKm = it },
+                    sortedAirports = sortedAirports,
+                    onAirportClick = { airport ->
+                        if (airport.iata != originIata) {
+                            selectDestination(airport)
+                        }
+                    },
+                    isSandboxMode = isSandboxMode,
+                    isSettingCurrentLocation = isSettingCurrentLocation,
+                    onConfirm = {
+                        if (selectedDestination?.iata == originIata) {
+                            showSameAirportDialog = true
+                        } else {
+                            if (isSandboxMode) {
+                                onSandboxAirportSelected(originAirport, selectedDestination)
+                            } else if (isSettingCurrentLocation) {
+                                onCurrentLocationSet(originAirport)
+                            } else {
+                                onNavigateToBoardingPass()
+                            }
+                        }
+                    }
+                )
+            }
+
             // Same Airport Dialog
             if (showSameAirportDialog) {
                 SameAirportDialog(onDismiss = { showSameAirportDialog = false })
             }
 
             if (showQuickFlightDialog) {
-                QuickFlightDialog(
+                QuickFlightDialogCards(
                     suggestions = quickFlightSuggestions,
                     unitSystem = unitSystem,
                     onDismiss = { showQuickFlightDialog = false },
@@ -665,6 +708,240 @@ fun SameAirportDialog(
         },
         containerColor = Color(0xFF0D0000)
     )
+}
+
+@Composable
+private fun QuickFlightDialogCards(
+    suggestions: List<QuickFlightSuggestion>,
+    unitSystem: String,
+    onDismiss: () -> Unit,
+    onSelect: (Airport) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("\uBE60\uB978 \uBE44\uD589", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "1\uC2DC\uAC04, 2\uC2DC\uAC04, 3\uC2DC\uAC04\uC5D0 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uBE44\uD589 \uC2DC\uAC04\uC758 \uACF5\uD56D\uC785\uB2C8\uB2E4.",
+                    color = FlightGray
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    suggestions.forEach { suggestion ->
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onSelect(suggestion.airport) },
+                            shape = RoundedCornerShape(14.dp),
+                            color = FlightPrimary.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                FlightPrimary.copy(alpha = 0.28f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    "${suggestion.targetMinutes / 60}\uC2DC\uAC04 \uCD94\uCC9C",
+                                    color = FlightPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "${suggestion.airport.nameKo} (${suggestion.airport.iata})",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "${suggestion.airport.cityKo}, ${suggestion.airport.country}",
+                                    color = FlightGray,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)}  |  ${FlightUtils.formatDuration(suggestion.durationMinutes)}",
+                                    color = FlightGray,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("\uB2EB\uAE30")
+            }
+        },
+        containerColor = Color(0xFF0D0000)
+    )
+}
+
+@Composable
+private fun NewFlightLandscapePanel(
+    modifier: Modifier,
+    selectedDestination: Airport?,
+    originAirport: Airport,
+    originIata: String,
+    unitSystem: String,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    searchRadiusKm: Int,
+    onSearchRadiusChange: (Int) -> Unit,
+    sortedAirports: List<Airport>,
+    onAirportClick: (Airport) -> Unit,
+    isSandboxMode: Boolean,
+    isSettingCurrentLocation: Boolean,
+    onConfirm: () -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        color = FlightDarkGray.copy(alpha = 0.94f),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = selectedDestination?.let {
+                        "\uB3C4\uCC29: ${it.cityKo} (${it.iata})"
+                    } ?: "\uC9C0\uB3C4\uC5D0\uC11C \uACF5\uD56D \uC120\uD0DD",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                if (selectedDestination != null) {
+                    val distKm = FlightUtils.calculateDistance(originAirport, selectedDestination)
+                    Text(
+                        text = "${FlightUtils.formatDistance(distKm, unitSystem)}  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = FlightPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    Text(
+                        text = "\uC9C0\uB3C4\uB97C \uC774\uB3D9\uD558\uAC70\uB098 \uC544\uB798 \uBAA9\uB85D\uC5D0\uC11C \uC120\uD0DD\uD558\uC138\uC694.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = FlightGray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                placeholder = {
+                    Text(
+                        "\uACF5\uD56D \uAC80\uC0C9 \uB610\uB294 \uC2DC\uAC04 \uAC80\uC0C9 (\uC608: 1, 1.5)",
+                        color = FlightGray
+                    )
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = FlightGray)
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "\uAC80\uC0C9 \uCD08\uAE30\uD654", tint = FlightGray)
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = FlightPrimary,
+                    unfocusedBorderColor = FlightGray.copy(alpha = 0.3f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedPlaceholderColor = FlightGray,
+                    unfocusedPlaceholderColor = FlightGray,
+                    cursorColor = FlightPrimary
+                )
+            )
+
+            val radiusText = if (searchRadiusKm >= 20000) "\uBB34\uC81C\uD55C" else "${searchRadiusKm}km"
+            val durationText = if (searchRadiusKm >= 20000) "" else "  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+            Text(
+                text = "\uAC80\uC0C9 \uBC18\uACBD: $radiusText$durationText",
+                color = FlightPrimary,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            )
+
+            RulerPicker(
+                initialValue = searchRadiusKm,
+                minRequest = 100,
+                maxRequest = 20000,
+                step = 100,
+                onValueChange = onSearchRadiusChange
+            )
+
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.1f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(sortedAirports) { airport ->
+                    AirportListItem(
+                        airport = airport,
+                        origin = originAirport,
+                        isSelected = airport == selectedDestination,
+                        isOrigin = airport.iata == originIata,
+                        unitSystem = unitSystem,
+                        onClick = { onAirportClick(airport) }
+                    )
+                }
+            }
+
+            Button(
+                onClick = onConfirm,
+                enabled = selectedDestination != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FlightPrimary,
+                    disabledContainerColor = FlightGray.copy(alpha = 0.3f),
+                    contentColor = FlightBlack
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(56.dp)
+            ) {
+                Text(
+                    text = when {
+                        isSettingCurrentLocation -> "\uD604\uC7AC \uC704\uCE58\uB85C \uC124\uC815"
+                        isSandboxMode -> "\uACF5\uD56D \uC120\uD0DD \uC644\uB8CC"
+                        else -> "\uBAA9\uC801\uC9C0 \uD655\uC815"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        }
+    }
 }
 
 private fun buildQuickFlightSuggestions(

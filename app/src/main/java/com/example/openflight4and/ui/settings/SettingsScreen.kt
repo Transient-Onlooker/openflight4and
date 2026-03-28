@@ -2,28 +2,62 @@ package com.example.openflight4and.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.SectionHeader
-import com.example.openflight4and.ui.components.GlassPanel
-import com.example.openflight4and.ui.theme.FlightBlack
 import com.example.openflight4and.ui.theme.FlightGray
 import kotlinx.coroutines.launch
+
+private const val TITLE_SETTINGS = "\uC124\uC815"
+private const val TITLE_UNIT_SYSTEM = "\uCE21\uC815 \uB2E8\uC704"
+private const val TITLE_SCREEN_ORIENTATION = "\uD654\uBA74 \uBC29\uD5A5"
+private const val TITLE_MAP_STYLE = "\uC9C0\uB3C4 \uC2A4\uD0C0\uC77C"
+private const val TITLE_OVERLAY_CONTRAST = "\uBC84\uD2BC \uB300\uBE44"
+private const val TITLE_AIRPLANE_MODE_CHECK = "\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778"
+private const val TITLE_NOTIFICATIONS = "\uC54C\uB9BC"
+private const val TITLE_NOTIFICATION_INTERVAL = "\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30"
+private const val TITLE_FOCUS_LOCK = "\uC9D1\uC911 \uC7A0\uAE08 \uAC15\uB3C4"
+private const val TITLE_BATTERY_OPT_OUT = "\uBC30\uD130\uB9AC \uCD5C\uC801\uD654 \uC608\uC678"
+private const val LABEL_AUTO = "\uC790\uB3D9"
+private const val LABEL_PORTRAIT = "\uC138\uB85C"
+private const val LABEL_LANDSCAPE = "\uAC00\uB85C"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,25 +68,28 @@ fun SettingsScreen(
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
 
-    // DataStore States
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
-    val mapPerspective by repository.mapPerspective.collectAsState(initial = "2_5d")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
+    val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
 
     FlightMapBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text("설정", color = Color.White) },
+                    title = { Text(TITLE_SETTINGS, color = Color.White) },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -66,8 +103,7 @@ fun SettingsScreen(
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // 1. 측정 단위
-                SectionHeader("측정 단위")
+                SectionHeader(TITLE_UNIT_SYSTEM)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = unitSystem == "km",
@@ -81,11 +117,38 @@ fun SettingsScreen(
                     ) { Text("Miles (mi)") }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                // 2. 지도 스타일
-                SectionHeader("홈 지도 스타일")
-                val styles = listOf("standard" to "일반", "satellite" to "위성", "hybrid" to "하이브리드")
+                SectionHeader(TITLE_SCREEN_ORIENTATION)
+                val orientationModes = listOf(
+                    "auto" to LABEL_AUTO,
+                    "portrait" to LABEL_PORTRAIT,
+                    "landscape" to LABEL_LANDSCAPE
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    orientationModes.forEachIndexed { index, (id, label) ->
+                        SegmentedButton(
+                            selected = screenOrientationMode == id,
+                            onClick = { scope.launch { repository.setScreenOrientationMode(id) } },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = orientationModes.size)
+                        ) { Text(label) }
+                    }
+                }
+                Text(
+                    text = "\uC790\uB3D9\uC740 \uAE30\uAE30 \uD68C\uC804\uC5D0 \uB9DE\uCDB0 \uBC14\uB00C\uACE0, \uC138\uB85C/\uAC00\uB85C\uB294 \uD574\uB2F9 \uBC29\uD5A5\uC73C\uB85C \uACE0\uC815\uB429\uB2C8\uB2E4.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.padding(top = 24.dp))
+
+                SectionHeader(TITLE_MAP_STYLE)
+                val styles = listOf(
+                    "standard" to "\uC77C\uBC18",
+                    "satellite" to "\uC704\uC131",
+                    "hybrid" to "\uD558\uC774\uBE0C\uB9AC\uB4DC"
+                )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     styles.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
@@ -96,10 +159,13 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                SectionHeader("버튼 대비")
-                val overlayStyles = listOf("dark" to "어두움", "light" to "밝음")
+                SectionHeader(TITLE_OVERLAY_CONTRAST)
+                val overlayStyles = listOf(
+                    "dark" to "\uC5B4\uB450\uC6C0",
+                    "light" to "\uBC1D\uC74C"
+                )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     overlayStyles.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
@@ -110,57 +176,53 @@ fun SettingsScreen(
                     }
                 }
                 Text(
-                    text = "지도 위 버튼과 글자색을 밝게 또는 어둡게 바꿉니다.",
+                    text = "\uC9C0\uB3C4 \uC704 \uBC84\uD2BC\uACFC \uAE00\uC790 \uC0C9\uC0C1 \uB300\uBE44\uB97C \uC870\uC808\uD569\uB2C8\uB2E4.",
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                // 3. 비행기 모드 확인
                 ToggleSettingItem(
-                    title = "비행기 모드 확인",
-                    description = "세션 시작 전 비행기 모드 활성 여부를 체크합니다.",
+                    title = TITLE_AIRPLANE_MODE_CHECK,
+                    description = "\uC138\uC158 \uC2DC\uC791 \uC804 \uBE44\uD589\uAE30 \uBAA8\uB4DC \uD65C\uC131\uD654 \uC5EC\uBD80\uB97C \uD655\uC778\uD569\uB2C8\uB2E4.",
                     checked = airplaneModeCheck,
                     onCheckedChange = { scope.launch { repository.setAirplaneModeCheck(it) } }
                 )
 
-                // 4. 알림 설정
                 ToggleSettingItem(
-                    title = "알림",
-                    description = "세션 완료 및 중요 알림을 받습니다.",
+                    title = TITLE_NOTIFICATIONS,
+                    description = "\uC138\uC158 \uC644\uB8CC \uBC0F \uC911\uC694 \uC54C\uB9BC\uC744 \uBC1B\uC2B5\uB2C8\uB2E4.",
                     checked = notificationsEnabled,
                     onCheckedChange = { scope.launch { repository.setNotificationsEnabled(it) } }
                 )
 
-                // 배터리 최적화 제외 설정
                 if (notificationsEnabled) {
-                    SectionHeader("\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30")
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val notificationIntervals = listOf(1, 2, 3, 5, 10, 20, 30)
-                    notificationIntervals.forEachIndexed { index, seconds ->
-                        SegmentedButton(
-                            selected = notificationUpdateSeconds == seconds,
-                            onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = notificationIntervals.size)
-                        ) { Text("${seconds}s") }
+                    SectionHeader(TITLE_NOTIFICATION_INTERVAL)
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val notificationIntervals = listOf(1, 2, 3, 5, 10, 20, 30)
+                        notificationIntervals.forEachIndexed { index, seconds ->
+                            SegmentedButton(
+                                selected = notificationUpdateSeconds == seconds,
+                                onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = notificationIntervals.size)
+                            ) { Text("${seconds}s") }
+                        }
                     }
-                }
                     Text(
-                    text = "\uAE30\uBCF8\uAC12 10\uCD08. \uBE44\uD589 \uC911 \uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = FlightGray,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                        text = "\uAE30\uBCF8\uAC12 10\uCD08. \uBE44\uD589 \uC911 \uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
                     )
                 }
 
                 BatteryOptimizationItem()
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                // 5. 집중 잠금 강도
-                SectionHeader("집중 잠금 강도")
+                SectionHeader(TITLE_FOCUS_LOCK)
                 val levels = listOf("soft" to "Soft", "strong" to "Strong", "hardcore" to "Hardcore")
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     levels.forEachIndexed { index, (id, label) ->
@@ -172,28 +234,27 @@ fun SettingsScreen(
                     }
                 }
                 Text(
-                    text = when(lockLevel) {
-                        "soft" -> "이탈 시 경고만 표시합니다."
-                        "strong" -> "다른 앱 사용을 제한하고 복귀를 유도합니다."
-                        else -> "비행기 모드 및 모든 방해 요소를 강력히 차단합니다."
+                    text = when (lockLevel) {
+                        "soft" -> "\uC774\uD0C8 \uC2DC \uACBD\uACE0\uB9CC \uD45C\uC2DC\uD569\uB2C8\uB2E4."
+                        "strong" -> "\uB2E4\uB978 \uC571 \uC0AC\uC6A9\uC744 \uC81C\uD55C\uD558\uACE0 \uBCF5\uADC0\uB97C \uC720\uB3C4\uD569\uB2C8\uB2E4."
+                        else -> "\uBE44\uD589\uAE30 \uBAA8\uB4DC\uC640 \uBC29\uD574 \uC694\uC18C\uB97C \uAC00\uB2A5\uD55C \uD55C \uCC28\uB2E8\uD569\uB2C8\uB2E4."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp)
                 )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.padding(top = 48.dp))
 
-                // 6. 앱 정보
                 Text(
-                    text = "버전 1.2",
+                    text = "\uBC84\uC804 1.2",
                     style = MaterialTheme.typography.labelSmall,
                     color = FlightGray,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                
-                Spacer(modifier = Modifier.height(32.dp))
+
+                Spacer(modifier = Modifier.padding(top = 32.dp))
             }
         }
     }
@@ -214,8 +275,17 @@ fun ToggleSettingItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = description, color = FlightGray, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = FlightGray,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
         Switch(
             checked = checked,
@@ -242,10 +312,8 @@ fun BatteryOptimizationItem() {
             .padding(vertical = 12.dp)
             .clickable {
                 val intent = if (isIgnoring) {
-                    // 이미 제외된 경우, 설정 목록을 보여줌
                     android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                 } else {
-                    // 제외되지 않은 경우, 직접 추가 요청
                     android.content.Intent(
                         android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                         android.net.Uri.parse("package:${context.packageName}")
@@ -253,8 +321,7 @@ fun BatteryOptimizationItem() {
                 }
                 try {
                     context.startActivity(intent)
-                } catch (e: Exception) {
-                    // Fallback: 일반 설정 화면으로
+                } catch (_: Exception) {
                     context.startActivity(
                         android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                     )
@@ -266,7 +333,7 @@ fun BatteryOptimizationItem() {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "배터리 최적화 제외",
+                    text = TITLE_BATTERY_OPT_OUT,
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -287,7 +354,7 @@ fun BatteryOptimizationItem() {
                 }
             }
             Text(
-                text = "백그라운드에서 비행이 중단되지 않도록 설정합니다.",
+                text = "\uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C\uB3C4 \uBE44\uD589\uC774 \uC911\uB2E8\uB418\uC9C0 \uC54A\uB3C4\uB85D \uC124\uC815\uD569\uB2C8\uB2E4.",
                 color = FlightGray,
                 style = MaterialTheme.typography.bodySmall
             )

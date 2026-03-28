@@ -178,7 +178,11 @@ fun BoardingPassScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 460.dp)
+                    ) {
                         Card(
                             modifier = Modifier.fillMaxWidth().zIndex(1f),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),

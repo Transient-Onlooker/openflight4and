@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,6 +132,8 @@ fun InFlightScreen(
     onFlightEnd: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
@@ -466,11 +469,18 @@ fun InFlightScreen(
             overlayContent = {
                 // UI Overlay (Canvas ????????源낆┸????????롮쾸?椰???⑤챷寃?┼???????袁⑸즴筌?씛彛?????????
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(if (isLandscape) 16.dp else 24.dp)
+                        .systemBarsPadding(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     GlassPanel(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = if (isLandscape) {
+                            Modifier.fillMaxWidth(0.52f)
+                        } else {
+                            Modifier.fillMaxWidth()
+                        },
                         backgroundColor = inflightPanelBackground,
                         borderColor = inflightPanelBorder
                     ) {
@@ -490,30 +500,40 @@ fun InFlightScreen(
                                             fontSize = 11.sp
                                         )
                                     }
-                                    Text(
-                                        zoomLabel,
-                                        color = inflightSecondaryText,
-                                        fontSize = 11.sp
-                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider(color = inflightDivider)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-                                Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    zoomLabel,
+                                    color = inflightSecondaryText,
+                                    fontSize = 11.sp
+                                )
                             }
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(
+                        modifier = if (isLandscape) Modifier.fillMaxWidth(0.34f) else Modifier,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = if (isLandscape) Alignment.Start else Alignment.End
+                    ) {
                         SmallFloatingActionButton(
                             onClick = { showAdRewardDialog = true },
-                            modifier = Modifier.align(Alignment.End),
+                            modifier = Modifier.align(if (isLandscape) Alignment.Start else Alignment.End),
                             containerColor = overlayPalette.floatingButtonContainer,
                             contentColor = overlayPalette.floatingButtonContent
                         ) {
@@ -542,7 +562,7 @@ fun InFlightScreen(
                                     repository.setMapPerspective(nextPerspective)
                                 }
                             },
-                            modifier = Modifier.align(Alignment.End),
+                            modifier = Modifier.align(if (isLandscape) Alignment.Start else Alignment.End),
                             containerColor = overlayPalette.floatingButtonContainer,
                             contentColor = overlayPalette.floatingButtonContent
                         ) {
@@ -568,7 +588,7 @@ fun InFlightScreen(
                                     )
                                 }
                             },
-                            modifier = Modifier.align(Alignment.End),
+                            modifier = Modifier.align(if (isLandscape) Alignment.Start else Alignment.End),
                             containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
                             contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
                         ) {

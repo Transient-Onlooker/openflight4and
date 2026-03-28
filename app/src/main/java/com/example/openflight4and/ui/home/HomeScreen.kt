@@ -2,9 +2,11 @@ package com.example.openflight4and.ui.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,10 +42,17 @@ import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
 import com.example.openflight4and.ui.components.rememberMapOverlayPalette
-import com.example.openflight4and.ui.theme.FlightGray
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
+
+private const val LABEL_CURRENT_LOCATION = "\uD604\uC7AC \uC704\uCE58"
+private const val LABEL_TOTAL_FLIGHTS = "\uCD1D \uC644\uB8CC \uBE44\uD589 \uC218"
+private const val LABEL_TICKETS = "\uBE44\uD589\uAD8C"
+private const val LABEL_START_FLIGHT = "\uBE44\uD589 \uC2DC\uC791"
+private const val LABEL_FLIGHT_HISTORY = "\uBE44\uD589 \uAE30\uB85D"
+private const val LABEL_TRENDS = "\uD1B5\uACC4\uC640 \uCD94\uC138"
+private const val LABEL_SETTINGS = "\uC124\uC815"
 
 @Composable
 fun HomeScreen(
@@ -56,6 +66,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
@@ -68,6 +80,7 @@ fun HomeScreen(
             10f
         )
     }
+
     LaunchedEffect(currentAirport.iata, currentAirport.latitude, currentAirport.longitude) {
         cameraPositionState.position = CameraPosition.fromLatLngZoom(
             LatLng(currentAirport.latitude, currentAirport.longitude),
@@ -80,111 +93,236 @@ fun HomeScreen(
         mapStyle = mapStyle,
         isInteractive = true,
         overlayContent = {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .systemBarsPadding(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+            if (isLandscape) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .systemBarsPadding(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "현재 위치",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = overlayPalette.secondaryText
-                        )
-                        Text(
-                            text = buildString {
-                                append(currentAirport.cityEn.uppercase())
-                                append(", ")
-                                append(currentAirport.country)
-                            },
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = overlayPalette.primaryText
-                        )
-                        Text(
-                            text = "총 완료 비행 수: $totalFlights",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = overlayPalette.accentText
-                        )
-                    }
-
-                    GlassPanel(
-                        modifier = Modifier.clickable(onClick = onNavigateToTickets),
-                        backgroundColor = overlayPalette.panelBackground,
-                        borderColor = overlayPalette.panelBorder
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.align(Alignment.TopStart)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ConfirmationNumber,
-                                contentDescription = null,
-                                tint = overlayPalette.accentText
+                            Text(
+                                text = LABEL_CURRENT_LOCATION,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = overlayPalette.secondaryText
                             )
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = "비행권",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = overlayPalette.secondaryText
+                            Text(
+                                text = buildString {
+                                    append(currentAirport.cityEn.uppercase())
+                                    append(", ")
+                                    append(currentAirport.country)
+                                },
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = overlayPalette.primaryText
+                            )
+                            Text(
+                                text = "$LABEL_TOTAL_FLIGHTS  $totalFlights",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = overlayPalette.accentText
+                            )
+                        }
+
+                        GlassPanel(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .clickable(onClick = onNavigateToTickets),
+                            backgroundColor = overlayPalette.panelBackground,
+                            borderColor = overlayPalette.panelBorder
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ConfirmationNumber,
+                                    contentDescription = null,
+                                    tint = overlayPalette.accentText
                                 )
-                                Text(
-                                    text = "$ticketBalance",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = overlayPalette.primaryText
-                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = LABEL_TICKETS,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = overlayPalette.secondaryText
+                                    )
+                                    Text(
+                                        text = "$ticketBalance",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = overlayPalette.primaryText
+                                    )
+                                }
                             }
                         }
                     }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    PrimaryFlightButton(
-                        text = "비행 시작",
-                        onClick = onNavigateToNewFlight
-                    )
 
                     GlassPanel(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(start = 20.dp)
+                            .width(260.dp)
+                            .fillMaxHeight(),
                         backgroundColor = overlayPalette.panelBackground,
                         borderColor = overlayPalette.panelBorder
                     ) {
-                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                            HomeMenuItem(
-                                icon = Icons.Default.History,
-                                title = "비행 기록",
-                                onClick = onNavigateToHistory,
-                                textColor = overlayPalette.primaryText,
-                                iconTint = overlayPalette.iconTint,
-                                chevronTint = overlayPalette.secondaryText
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                HomeMenuItem(
+                                    icon = Icons.Default.History,
+                                    title = LABEL_FLIGHT_HISTORY,
+                                    onClick = onNavigateToHistory,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                                HorizontalDivider(color = overlayPalette.divider)
+                                HomeMenuItem(
+                                    icon = Icons.Default.Timeline,
+                                    title = LABEL_TRENDS,
+                                    onClick = onNavigateToTrend,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                                HorizontalDivider(color = overlayPalette.divider)
+                                HomeMenuItem(
+                                    icon = Icons.Default.Settings,
+                                    title = LABEL_SETTINGS,
+                                    onClick = onNavigateToSettings,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                            }
+
+                            PrimaryFlightButton(
+                                text = LABEL_START_FLIGHT,
+                                onClick = onNavigateToNewFlight
                             )
-                            HorizontalDivider(color = overlayPalette.divider)
-                            HomeMenuItem(
-                                icon = Icons.Default.Timeline,
-                                title = "통계와 추세",
-                                onClick = onNavigateToTrend,
-                                textColor = overlayPalette.primaryText,
-                                iconTint = overlayPalette.iconTint,
-                                chevronTint = overlayPalette.secondaryText
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp)
+                        .systemBarsPadding(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = LABEL_CURRENT_LOCATION,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = overlayPalette.secondaryText
                             )
-                            HorizontalDivider(color = overlayPalette.divider)
-                            HomeMenuItem(
-                                icon = Icons.Default.Settings,
-                                title = "설정",
-                                onClick = onNavigateToSettings,
-                                textColor = overlayPalette.primaryText,
-                                iconTint = overlayPalette.iconTint,
-                                chevronTint = overlayPalette.secondaryText
+                            Text(
+                                text = buildString {
+                                    append(currentAirport.cityEn.uppercase())
+                                    append(", ")
+                                    append(currentAirport.country)
+                                },
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = overlayPalette.primaryText
                             )
+                            Text(
+                                text = "$LABEL_TOTAL_FLIGHTS  $totalFlights",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = overlayPalette.accentText
+                            )
+                        }
+
+                        GlassPanel(
+                            modifier = Modifier.clickable(onClick = onNavigateToTickets),
+                            backgroundColor = overlayPalette.panelBackground,
+                            borderColor = overlayPalette.panelBorder
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ConfirmationNumber,
+                                    contentDescription = null,
+                                    tint = overlayPalette.accentText
+                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = LABEL_TICKETS,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = overlayPalette.secondaryText
+                                    )
+                                    Text(
+                                        text = "$ticketBalance",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = overlayPalette.primaryText
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                        PrimaryFlightButton(
+                            text = LABEL_START_FLIGHT,
+                            onClick = onNavigateToNewFlight
+                        )
+
+                        GlassPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = overlayPalette.panelBackground,
+                            borderColor = overlayPalette.panelBorder
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                HomeMenuItem(
+                                    icon = Icons.Default.History,
+                                    title = LABEL_FLIGHT_HISTORY,
+                                    onClick = onNavigateToHistory,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                                HorizontalDivider(color = overlayPalette.divider)
+                                HomeMenuItem(
+                                    icon = Icons.Default.Timeline,
+                                    title = LABEL_TRENDS,
+                                    onClick = onNavigateToTrend,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                                HorizontalDivider(color = overlayPalette.divider)
+                                HomeMenuItem(
+                                    icon = Icons.Default.Settings,
+                                    title = LABEL_SETTINGS,
+                                    onClick = onNavigateToSettings,
+                                    textColor = Color.Black,
+                                    iconTint = Color.White,
+                                    chevronTint = overlayPalette.secondaryText
+                                )
+                            }
                         }
                     }
                 }

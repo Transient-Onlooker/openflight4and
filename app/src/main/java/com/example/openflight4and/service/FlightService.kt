@@ -123,7 +123,7 @@ class FlightService : Service() {
         currentDestinationIata = destinationIata
 
         // 珥덇린 ?뚮┝怨??④퍡 ?ш렇?쇱슫???쒖옉
-        val initialContent = "$originIata ??$destinationIata | 鍮꾪뻾 以鍮?以?.."
+        val initialContent = "$originIata -> $destinationIata | 비행 준비 중..."
         startForeground(NOTIFICATION_ID, createNotification(initialContent, originIata, destinationIata))
         Log.d(TAG, "Foreground service started with notification ID: $NOTIFICATION_ID")
         updateNotification(
@@ -187,7 +187,7 @@ class FlightService : Service() {
                 if (remaining <= 0) {
                     Log.d(TAG, "Flight completed! Remaining: 0")
                     FlightStatusManager.stopFlight()
-                    val completedText = "$originIata ??$destinationIata | 鍮꾪뻾 ?꾨즺!"
+                    val completedText = "$originIata -> $destinationIata | 비행 완료!"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
                     // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
@@ -221,7 +221,7 @@ class FlightService : Service() {
             // 猷⑦봽 ?꾨즺 ??泥섎━ (?덉쟾?μ튂)
             Log.d(TAG, "Flight completed! (loop finished)")
             FlightStatusManager.stopFlight()
-            val completedText = "$originIata ??$destinationIata | 鍮꾪뻾 ?꾨즺!"
+            val completedText = "$originIata -> $destinationIata | 비행 완료!"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
             // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
