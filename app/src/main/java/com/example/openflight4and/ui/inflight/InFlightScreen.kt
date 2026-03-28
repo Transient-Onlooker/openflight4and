@@ -136,6 +136,13 @@ fun InFlightScreen(
     val mapPerspective by repository.mapPerspective.collectAsState(initial = Perspective2_5D)
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
     val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
+    val inflightPanelBackground = Color.White.copy(alpha = 0.5f)
+    val inflightPanelBorder = Color.Black.copy(alpha = 0.18f)
+    val inflightPrimaryText = Color.Black
+    val inflightSecondaryText = Color.Black.copy(alpha = 0.72f)
+    val inflightAccentText = Color.Black
+    val inflightDivider = Color.Black.copy(alpha = 0.12f)
+    val inflightTrackColor = Color.Black.copy(alpha = 0.16f)
 
     // ???????轅붽틓???????????(??
     val totalSeconds = (draft.estimatedMinutes * 60).toLong()
@@ -387,11 +394,12 @@ fun InFlightScreen(
     // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
     LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
         if (isCameraTracking && cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE) {
+            val currentZoom = cameraPositionState.position.zoom.takeIf { it > 1f } ?: 16f
             cameraPositionState.move(
                 CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder()
                         .target(currentPos)
-                        .zoom(cameraPositionState.position.zoom)
+                        .zoom(currentZoom)
                         .tilt(trackingTilt)
                         .bearing(trackingBearing)
                         .build()
@@ -443,30 +451,30 @@ fun InFlightScreen(
                 ) {
                     GlassPanel(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = overlayPalette.panelBackground,
-                        borderColor = overlayPalette.panelBorder
+                        backgroundColor = inflightPanelBackground,
+                        borderColor = inflightPanelBorder
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column {
-                                    Text("\uBE44\uD589 \uC911", color = overlayPalette.accentText, fontSize = 12.sp)
-                                    Text(draft.flightNumber, color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                    Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
+                                    Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("\uB0A8\uC740 \uC2DC\uAC04", color = overlayPalette.secondaryText, fontSize = 12.sp)
-                                    Text(FlightUtils.formatTimer(remainingSeconds), color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                                    Text(zoomLabel, color = overlayPalette.secondaryText, fontSize = 11.sp)
+                                    Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
+                                    Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                    Text(zoomLabel, color = inflightSecondaryText, fontSize = 11.sp)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = overlayPalette.divider)
+                            HorizontalDivider(color = inflightDivider)
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(draft.origin.iata, color = overlayPalette.secondaryText, fontWeight = FontWeight.Bold)
+                                Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Flight, contentDescription = null, tint = overlayPalette.iconTint, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(draft.destination?.iata ?: "---", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
+                                Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -575,22 +583,22 @@ fun InFlightScreen(
 
                         GlassPanel(
                             modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = overlayPalette.panelBackground,
-                            borderColor = overlayPalette.panelBorder
+                            backgroundColor = inflightPanelBackground,
+                            borderColor = inflightPanelBorder
                         ) {
                             Column(modifier = Modifier.padding(20.dp)) {
                                 LinearProgressIndicator(
                                     progress = { progress },
                                     modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = overlayPalette.trackColor
+                                    color = inflightPrimaryText,
+                                    trackColor = inflightTrackColor
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = overlayPalette.secondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = inflightSecondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
 
                                 if (draft.timeScale != 1f) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = overlayPalette.accentText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = inflightPrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                                 }
                             }
                         }
@@ -598,7 +606,10 @@ fun InFlightScreen(
                         OutlinedButton(
                             onClick = { pauseFlight() },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.White.copy(alpha = 0.5f),
+                                contentColor = inflightPrimaryText
+                            )
                         ) {
                             Text("\uC77C\uC2DC\uC815\uC9C0")
                         }
@@ -624,17 +635,17 @@ fun InFlightScreen(
                         .align(Alignment.Center)
                         .padding(24.dp),
                     backgroundColor = Color.Transparent,
-                    borderColor = overlayPalette.panelBorder
+                    borderColor = inflightPanelBorder
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("\uC77C\uC2DC\uC911\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("\uC77C\uC2DC\uC911\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                         Text(
                             "\uBE44\uD589\uC911\uC5D0 \uC7A0\uAE50\uC758 \uD734\uC2DD\uC744 \uAC00\uC9C0\uB294 \uAC83\uB3C4 \uC88B\uC8E0.",
-                            color = overlayPalette.secondaryText,
+                            color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Button(onClick = { resumeFlight() }) {
