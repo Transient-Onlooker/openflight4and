@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
@@ -152,6 +153,9 @@ fun InFlightScreen(
     var isServiceSynced by remember { mutableStateOf(false) }
     var ticketCharged by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
+    var showAdRewardDialog by remember { mutableStateOf(false) }
+    var isAdRewardRunning by remember { mutableStateOf(false) }
+    var adRewardSecondsRemaining by remember { mutableIntStateOf(30) }
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
     var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
@@ -299,6 +303,22 @@ fun InFlightScreen(
             debugSliderSeconds = secondsElapsed.toFloat()
             isDebugSliderDirty = false
         }
+    }
+
+    LaunchedEffect(isAdRewardRunning) {
+        if (!isAdRewardRunning) {
+            return@LaunchedEffect
+        }
+
+        adRewardSecondsRemaining = 30
+        while (adRewardSecondsRemaining > 0) {
+            delay(1_000)
+            adRewardSecondsRemaining--
+        }
+
+        repository.rewardSingleTicketFromInFlightAd()
+        isAdRewardRunning = false
+        Toast.makeText(context, "\uBE44\uD589\uAD8C 1\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
     }
 
     LaunchedEffect(secondsElapsed, totalSeconds, ticketCharged) {
@@ -481,6 +501,22 @@ fun InFlightScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SmallFloatingActionButton(
+                            onClick = { showAdRewardDialog = true },
+                            modifier = Modifier.align(Alignment.End),
+                            containerColor = overlayPalette.floatingButtonContainer,
+                            contentColor = overlayPalette.floatingButtonContent
+                        ) {
+                            if (isAdRewardRunning) {
+                                Text(
+                                    text = "${adRewardSecondsRemaining}",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            } else {
+                                Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
+                            }
+                        }
+
+                        SmallFloatingActionButton(
                             onClick = {
                                 scope.launch {
                                     val nextPerspective = if (mapPerspective == Perspective2D) {
@@ -634,7 +670,7 @@ fun InFlightScreen(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(24.dp),
-                    backgroundColor = Color.Transparent,
+                    backgroundColor = Color.White,
                     borderColor = inflightPanelBorder
                 ) {
                     Column(
@@ -651,6 +687,97 @@ fun InFlightScreen(
                         Button(onClick = { resumeFlight() }) {
                             Text("\uBE44\uD589 \uC7AC\uAC1C")
                         }
+                    }
+                }
+            }
+        }
+
+        if (showAdRewardDialog) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x331F1F1F))
+            ) {
+                GlassPanel(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp),
+                    backgroundColor = Color.White,
+                    borderColor = inflightPanelBorder
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "\uBE44\uD589\uAD8C \uD68D\uB4DD",
+                            color = inflightPrimaryText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        )
+                        Text(
+                            "30\uCD08 \uAD11\uACE0\uB97C \uBCF4\uACE0 \uD2F0\uCF13\uC744 1\uAC1C \uC5BB\uC73C\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n(\uC9C4\uD589\uC911\uC774\uB358 \uBE44\uD589\uC740 \uAD11\uACE0 \uC7AC\uC0DD\uC911\uC5D0\uB3C4 \uC9C4\uD589\uB429\uB2C8\uB2E4)",
+                            color = inflightSecondaryText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    showAdRewardDialog = false
+                                    isAdRewardRunning = true
+                                }
+                            ) {
+                                Text("\uAD11\uACE0 \uBCF4\uAE30")
+                            }
+                            OutlinedButton(
+                                onClick = { showAdRewardDialog = false },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
+                            ) {
+                                Text("\uC544\uB2C8\uC624")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isAdRewardRunning) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x331F1F1F))
+            ) {
+                GlassPanel(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp),
+                    backgroundColor = Color.White,
+                    borderColor = inflightPanelBorder
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "\uAD11\uACE0 \uC7AC\uC0DD \uC911",
+                            color = inflightPrimaryText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        )
+                        Text(
+                            "${adRewardSecondsRemaining}\uCD08 \uB0A8\uC74C",
+                            color = inflightSecondaryText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "\uBE44\uD589\uC740 \uACC4\uC18D \uC9C4\uD589\uB429\uB2C8\uB2E4.",
+                            color = inflightSecondaryText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
