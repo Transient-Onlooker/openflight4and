@@ -4,6 +4,9 @@ import android.content.Intent
 import android.location.Location
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -147,12 +150,20 @@ fun InFlightScreen(
     var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
 
     // ???????????????????椰????
-    val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
-    val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
-    val isFlying = secondsElapsed < totalSeconds
     val localTickDelayMillis = remember(draft.timeScale) {
         (1000f / draft.timeScale.coerceIn(0.001f, 1000f)).toLong().coerceAtLeast(MinTickDelayMillis)
     }
+    val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
+    val smoothedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(
+            durationMillis = localTickDelayMillis.coerceAtMost(1000L).toInt(),
+            easing = LinearEasing
+        ),
+        label = "inflight_progress"
+    )
+    val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
+    val isFlying = secondsElapsed < totalSeconds
 
     // ????겾??좊읈??????源낇꼧???⑥??????ㅺ컼??
     var showGiveUpDialog by remember { mutableStateOf(false) }
@@ -319,12 +330,12 @@ fun InFlightScreen(
 
     val origin = draft.origin.location
     val dest = draft.destination?.location ?: origin
-    val currentPos = remember(progress) {
+    val currentPos = remember(smoothedProgress) {
         // ??????????⑤벡瑜????? ????븐뼐???????????????????????곕츥??????????????녳븢??????븐뼐??????????????븐뼐?곭춯?竊????????癲됱빖???嶺?????????
-        interpolateGreatCircle(origin, dest, progress.toDouble())
+        interpolateGreatCircle(origin, dest, smoothedProgress.toDouble())
     }
-    val bearing = remember(progress, origin, dest) {
-        calculateGreatCircleBearing(origin, dest, progress.toDouble())
+    val bearing = remember(smoothedProgress, origin, dest) {
+        calculateGreatCircleBearing(origin, dest, smoothedProgress.toDouble())
     }
     val routePoints = remember(origin, dest) {
         buildGreatCircleRoutePoints(origin, dest)
@@ -373,8 +384,8 @@ fun InFlightScreen(
 
     // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
     LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
-        if (isCameraTracking && !cameraPositionState.isMoving) {
-            cameraPositionState.animate(
+        if (isCameraTracking && cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE) {
+            cameraPositionState.move(
                 CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder()
                         .target(currentPos)
