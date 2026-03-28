@@ -115,7 +115,7 @@ fun SeatSelectionScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(horizontal = 24.dp)
-                    .widthIn(max = 460.dp)
+                    .widthIn(max = 380.dp)
             ) {
                 // Scrollable Seat Grid
                 LazyColumn(
@@ -207,7 +207,7 @@ fun SeatSelectionScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = 460.dp)
+                        .widthIn(max = 380.dp)
                         .padding(24.dp)
                         .padding(bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)

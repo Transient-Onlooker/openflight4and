@@ -169,7 +169,7 @@ fun HomeScreen(
                     GlassPanel(
                         modifier = Modifier
                             .padding(start = 20.dp)
-                            .width(260.dp)
+                            .width(340.dp)
                             .fillMaxHeight(),
                         backgroundColor = overlayPalette.panelBackground,
                         borderColor = overlayPalette.panelBorder

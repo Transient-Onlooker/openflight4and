@@ -529,92 +529,37 @@ fun InFlightScreen(
                     if (isLandscape) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Column(
-                                modifier = Modifier.width(220.dp),
+                                modifier = Modifier.width(300.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
-                                SmallFloatingActionButton(
-                                    onClick = { showAdRewardDialog = true },
-                                    containerColor = overlayPalette.floatingButtonContainer,
-                                    contentColor = overlayPalette.floatingButtonContent
+                                GlassPanel(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = inflightPanelBackground,
+                                    borderColor = inflightPanelBorder
                                 ) {
-                                    if (isAdRewardRunning) {
-                                        Text(
-                                            text = "${adRewardSecondsRemaining}",
-                                            style = MaterialTheme.typography.labelSmall
+                                    Column(modifier = Modifier.padding(20.dp)) {
+                                        LinearProgressIndicator(
+                                            progress = { progress },
+                                            modifier = Modifier.fillMaxWidth().height(6.dp),
+                                            color = inflightPrimaryText,
+                                            trackColor = inflightTrackColor
                                         )
-                                    } else {
-                                        Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = inflightSecondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+
+                                        if (draft.timeScale != 1f) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = inflightPrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                        }
                                     }
                                 }
-
-                                SmallFloatingActionButton(
-                                    onClick = {
-                                        scope.launch {
-                                            val nextPerspective = if (mapPerspective == Perspective2D) Perspective2_5D else Perspective2D
-                                            updateCameraPerspective(
-                                                perspective = nextPerspective,
-                                                keepTrackingTarget = isCameraTracking
-                                            )
-                                            repository.setMapPerspective(nextPerspective)
-                                        }
-                                    },
-                                    containerColor = overlayPalette.floatingButtonContainer,
-                                    contentColor = overlayPalette.floatingButtonContent
-                                ) {
-                                    Text(
-                                        text = if (mapPerspective == Perspective2D) "2D" else "2.5D",
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-
-                                SmallFloatingActionButton(
-                                    onClick = {
-                                        isCameraTracking = true
-                                        scope.launch {
-                                            cameraPositionState.animate(
-                                                CameraUpdateFactory.newCameraPosition(
-                                                    CameraPosition.Builder()
-                                                        .target(currentPos)
-                                                        .zoom(cameraPositionState.position.zoom)
-                                                        .tilt(trackingTilt)
-                                                        .bearing(trackingBearing)
-                                                        .build()
-                                                )
-                                            )
-                                        }
-                                    },
-                                    containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
-                                    contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
-                                ) {
-                                    Icon(Icons.Default.MyLocation, contentDescription = null)
-                                }
-
-                                OutlinedButton(
-                                    onClick = { pauseFlight() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = Color.White.copy(alpha = 0.5f),
-                                        contentColor = inflightPrimaryText
-                                    )
-                                ) {
-                                    Text("\uC77C\uC2DC\uC815\uC9C0")
-                                }
-
-                                PrimaryFlightButton(
-                                    text = "\uC5EC\uC815 \uC911\uB2E8",
-                                    onClick = { showGiveUpDialog = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    isDestructive = true
-                                )
                             }
+
+                            Spacer(modifier = Modifier.weight(1f))
 
                             Column(
                                 modifier = Modifier.width(300.dp),
@@ -674,26 +619,91 @@ fun InFlightScreen(
                                     }
                                 }
 
-                                GlassPanel(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    backgroundColor = inflightPanelBackground,
-                                    borderColor = inflightPanelBorder
+                                Column(
+                                    modifier = Modifier.width(220.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    horizontalAlignment = Alignment.End
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
-                                        LinearProgressIndicator(
-                                            progress = { progress },
-                                            modifier = Modifier.fillMaxWidth().height(6.dp),
-                                            color = inflightPrimaryText,
-                                            trackColor = inflightTrackColor
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = inflightSecondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-
-                                        if (draft.timeScale != 1f) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = inflightPrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    SmallFloatingActionButton(
+                                        onClick = { showAdRewardDialog = true },
+                                        modifier = Modifier.align(Alignment.End),
+                                        containerColor = overlayPalette.floatingButtonContainer,
+                                        contentColor = overlayPalette.floatingButtonContent
+                                    ) {
+                                        if (isAdRewardRunning) {
+                                            Text(
+                                                text = "${adRewardSecondsRemaining}",
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        } else {
+                                            Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
                                         }
                                     }
+
+                                    SmallFloatingActionButton(
+                                        onClick = {
+                                            scope.launch {
+                                                val nextPerspective = if (mapPerspective == Perspective2D) Perspective2_5D else Perspective2D
+                                                updateCameraPerspective(
+                                                    perspective = nextPerspective,
+                                                    keepTrackingTarget = isCameraTracking
+                                                )
+                                                repository.setMapPerspective(nextPerspective)
+                                            }
+                                        },
+                                        modifier = Modifier.align(Alignment.End),
+                                        containerColor = overlayPalette.floatingButtonContainer,
+                                        contentColor = overlayPalette.floatingButtonContent
+                                    ) {
+                                        Text(
+                                            text = if (mapPerspective == Perspective2D) "2D" else "2.5D",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+
+                                    SmallFloatingActionButton(
+                                        onClick = {
+                                            isCameraTracking = true
+                                            scope.launch {
+                                                cameraPositionState.animate(
+                                                    CameraUpdateFactory.newCameraPosition(
+                                                        CameraPosition.Builder()
+                                                            .target(currentPos)
+                                                            .zoom(cameraPositionState.position.zoom)
+                                                            .tilt(trackingTilt)
+                                                            .bearing(trackingBearing)
+                                                            .build()
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.align(Alignment.End),
+                                        containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
+                                        contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
+                                    ) {
+                                        Icon(Icons.Default.MyLocation, contentDescription = null)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { pauseFlight() },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = Color.White.copy(alpha = 0.5f),
+                                            contentColor = inflightPrimaryText
+                                        )
+                                    ) {
+                                        Text("\uC77C\uC2DC\uC815\uC9C0")
+                                    }
+
+                                    PrimaryFlightButton(
+                                        text = "\uC5EC\uC815 \uC911\uB2E8",
+                                        onClick = { showGiveUpDialog = true },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        isDestructive = true
+                                    )
                                 }
                             }
                         }
