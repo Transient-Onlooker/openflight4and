@@ -182,12 +182,20 @@ fun BoardingPassScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        Spacer(modifier = Modifier.weight(if (isLandscape) 1f else 0f))
+                        if (isLandscape) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                         Column(
-                            modifier = Modifier
-                                .weight(if (isLandscape) 1f else 0f, fill = false)
-                                .fillMaxWidth(if (isLandscape) 1f else 1f)
-                                .widthIn(max = 280.dp)
+                            modifier = if (isLandscape) {
+                                Modifier
+                                    .weight(1f, fill = false)
+                                    .fillMaxWidth()
+                                    .widthIn(max = 280.dp)
+                            } else {
+                                Modifier
+                                    .fillMaxWidth()
+                                    .widthIn(max = 280.dp)
+                            }
                         ) {
                         Card(
                             modifier = Modifier.fillMaxWidth().zIndex(1f),
@@ -273,7 +281,9 @@ fun BoardingPassScreen(
                             }
                         }
                         }
-                        Spacer(modifier = Modifier.weight(if (isLandscape) 1f else 0f))
+                        if (isLandscape) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
 

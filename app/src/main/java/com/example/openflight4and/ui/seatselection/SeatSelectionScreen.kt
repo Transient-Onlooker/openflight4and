@@ -91,22 +91,37 @@ fun SeatSelectionScreen(
                     }
                     
                     // Column Labels
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
-                            .widthIn(max = 280.dp)
-                            .padding(horizontal = 12.dp)
+                            .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Text("A", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text("B", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Text("C", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text("D", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(if (isLandscape) 0.33f else 1f)
+                                .widthIn(max = 280.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    Text("A", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    Text("B", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                Spacer(modifier = Modifier.size(1.dp))
+                            }
+                            Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    Text("C", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    Text("D", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                     

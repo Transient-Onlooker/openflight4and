@@ -172,7 +172,7 @@ fun HomeScreen(
                             .padding(start = 20.dp)
                             .width(340.dp)
                             .fillMaxHeight(),
-                        backgroundColor = overlayPalette.panelBackground,
+                        backgroundColor = Color.White.copy(alpha = 0.7f),
                         borderColor = overlayPalette.panelBorder
                     ) {
                         Column(
@@ -292,20 +292,14 @@ fun HomeScreen(
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PrimaryFlightButton(
-                                text = LABEL_START_FLIGHT,
-                                onClick = onNavigateToNewFlight,
-                                modifier = Modifier.widthIn(max = 320.dp)
-                            )
-                        }
+                        PrimaryFlightButton(
+                            text = LABEL_START_FLIGHT,
+                            onClick = onNavigateToNewFlight
+                        )
 
                         GlassPanel(
                             modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = overlayPalette.panelBackground,
+                            backgroundColor = Color.White.copy(alpha = 0.7f),
                             borderColor = overlayPalette.panelBorder
                         ) {
                             Column(modifier = Modifier.padding(vertical = 8.dp)) {

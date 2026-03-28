@@ -15,6 +15,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +48,64 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
+
+private val AirportSaver: Saver<Airport, Any> = listSaver(
+    save = {
+        listOf(
+            it.iata,
+            it.nameKo,
+            it.nameEn,
+            it.cityKo,
+            it.cityEn,
+            it.country,
+            it.latitude,
+            it.longitude
+        )
+    },
+    restore = {
+        Airport(
+            iata = it[0] as String,
+            nameKo = it[1] as String,
+            nameEn = it[2] as String,
+            cityKo = it[3] as String,
+            cityEn = it[4] as String,
+            country = it[5] as String,
+            latitude = it[6] as Double,
+            longitude = it[7] as Double
+        )
+    }
+)
+
+private val FlightDraftSaver: Saver<FlightDraft, Any> = listSaver(
+    save = { draft ->
+        listOf(
+            with(AirportSaver) { save(draft.origin)!! },
+            draft.destination?.let { with(AirportSaver) { save(it)!! } },
+            draft.distanceKm,
+            draft.estimatedMinutes,
+            draft.flightNumber,
+            draft.boardingTime,
+            draft.seatNumber,
+            draft.focusCategory,
+            draft.status,
+            draft.timeScale
+        )
+    },
+    restore = {
+        FlightDraft(
+            origin = with(AirportSaver) { restore(it[0]!!)!! },
+            destination = it[1]?.let { saved -> with(AirportSaver) { restore(saved)!! } },
+            distanceKm = it[2] as Int,
+            estimatedMinutes = it[3] as Int,
+            flightNumber = it[4] as String,
+            boardingTime = it[5] as String,
+            seatNumber = it[6] as String?,
+            focusCategory = it[7] as String?,
+            status = it[8] as String,
+            timeScale = (it[9] as Number).toFloat()
+        )
+    }
+)
 
 @Composable
 fun MainScreen(
@@ -87,7 +148,9 @@ fun MainScreen(
             ?: allAirports.first()
     }
 
-    var currentDraft by remember { mutableStateOf(FlightDraft(origin = defaultOrigin)) }
+    var currentDraft by rememberSaveable(defaultOrigin.iata, stateSaver = FlightDraftSaver) {
+        mutableStateOf(FlightDraft(origin = defaultOrigin))
+    }
     var showAirplaneModeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentLocation) {
@@ -147,6 +210,11 @@ fun MainScreen(
     }
 
     fun startFlight() {
+        if (currentDraft.destination == null) {
+            Toast.makeText(context, "\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         if (ticketBalance <= 0) {
             Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
             return
@@ -270,6 +338,11 @@ fun MainScreen(
                         Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
                     },
                     onFinish = {
+                        if (currentDraft.destination == null) {
+                            Toast.makeText(context, "\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.", Toast.LENGTH_SHORT).show()
+                            return@SeatSelectionScreen
+                        }
+
                         if (ticketBalance <= 0) {
                             Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
                             return@SeatSelectionScreen
