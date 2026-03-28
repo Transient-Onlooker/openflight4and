@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,8 @@ fun SeatSelectionScreen(
     hasTickets: Boolean,
     onTicketRequired: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     var selectedSeat by remember { mutableStateOf<String?>(null) }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -69,7 +72,8 @@ fun SeatSelectionScreen(
                         // 비행기 앞부분 형태 (배경과 자연스럽게 어우러지도록)
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxWidth(if (isLandscape) 0.33f else 1f)
+                                .widthIn(max = 280.dp)
                                 .height(60.dp)
                                 .clip(RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp))
                                 .background(Color.White.copy(alpha = 0.05f))
@@ -89,8 +93,9 @@ fun SeatSelectionScreen(
                     // Column Labels
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 36.dp)
+                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
+                            .widthIn(max = 280.dp)
+                            .padding(horizontal = 12.dp)
                             .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -118,14 +123,19 @@ fun SeatSelectionScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Scrollable Seat Grid
-                LazyColumn(
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .widthIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter
                 ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
+                            .widthIn(max = 280.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(vertical = 16.dp)
+                    ) {
                     items(40) { rowIndex ->
                         val rowNum = rowIndex + 1
                         Row(
@@ -154,14 +164,15 @@ fun SeatSelectionScreen(
                             }
                         }
                     }
+                    }
                 }
 
                 // Bottom Action
                 if (selectedSeat != null && selectedCategory != null) {
                     Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 320.dp)
+                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
+                            .widthIn(max = 280.dp)
                             .padding(vertical = 16.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(16.dp),
@@ -213,7 +224,7 @@ fun SeatSelectionScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = 320.dp)
+                        .widthIn(max = 560.dp)
                         .padding(24.dp)
                         .padding(bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +57,8 @@ fun BoardingPassScreen(
     unitSystem: String
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val density = LocalDensity.current
     val vibrator = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -178,11 +181,14 @@ fun BoardingPassScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 320.dp)
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Spacer(modifier = Modifier.weight(if (isLandscape) 1f else 0f))
+                        Column(
+                            modifier = Modifier
+                                .weight(if (isLandscape) 1f else 0f, fill = false)
+                                .fillMaxWidth(if (isLandscape) 1f else 1f)
+                                .widthIn(max = 280.dp)
+                        ) {
                         Card(
                             modifier = Modifier.fillMaxWidth().zIndex(1f),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -266,6 +272,8 @@ fun BoardingPassScreen(
                                 )
                             }
                         }
+                        }
+                        Spacer(modifier = Modifier.weight(if (isLandscape) 1f else 0f))
                     }
                 }
 

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
@@ -334,7 +335,7 @@ fun InFlightScreen(
         if (spendResult.success) {
             ticketCharged = true
             FlightService.markTicketCharged()
-            Toast.makeText(context, "????????살몖?亦껋꼦維뽬뜎?????????遺얘턁????怨뚮옩?????椰????誘⑸쿋????????????", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ticket_deducted_after_ten_minutes), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -403,10 +404,10 @@ fun InFlightScreen(
     // ??????嶺뚮∥?????????筌뤾퍓愿???????????袁⑸즴筌?씛彛?????????롮쾸?椰???(???????????????곗뵰??? ????????袁⑸즴筌?씛彛???돗????⑸뻿????????嚥싲갭큔?????????븐뼐???????????븐뼔???????????뀀맩鍮??????룸챶猷??????????????
     LaunchedEffect(Unit) {
         cameraPositionState.animate(
-            CameraUpdateFactory.newCameraPosition(
+                CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(currentPos)
-                    .zoom(16f)
+                    .zoom(14f)
                     .tilt(trackingTilt)
                     .bearing(trackingBearing)
                     .build()
@@ -417,7 +418,7 @@ fun InFlightScreen(
     // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
     LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
         if (isCameraTracking && cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE) {
-            val currentZoom = cameraPositionState.position.zoom.takeIf { it > 1f } ?: 16f
+            val currentZoom = cameraPositionState.position.zoom.takeIf { it > 1f } ?: 14f
             cameraPositionState.move(
                 CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder()
@@ -475,68 +476,181 @@ fun InFlightScreen(
                         .systemBarsPadding(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    GlassPanel(
-                        modifier = if (isLandscape) {
-                            Modifier.fillMaxWidth(0.34f)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        },
-                        backgroundColor = inflightPanelBackground,
-                        borderColor = inflightPanelBorder
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Column {
-                                    Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
-                                    Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
-                                    Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                                    if (draft.timeScale != 1f) {
+                    if (isLandscape) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            GlassPanel(
+                                modifier = Modifier.weight(1f),
+                                backgroundColor = inflightPanelBackground,
+                                borderColor = inflightPanelBorder
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Column {
+                                            Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
+                                            Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
+                                            Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                            if (draft.timeScale != 1f) {
+                                                Text(
+                                                    "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                    color = inflightSecondaryText,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    HorizontalDivider(color = inflightDivider)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                                        }
                                         Text(
-                                            "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                            zoomLabel,
                                             color = inflightSecondaryText,
                                             fontSize = 11.sp
                                         )
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = inflightDivider)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalAlignment = Alignment.End
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                                SmallFloatingActionButton(
+                                    onClick = { showAdRewardDialog = true },
+                                    containerColor = overlayPalette.floatingButtonContainer,
+                                    contentColor = overlayPalette.floatingButtonContent
+                                ) {
+                                    if (isAdRewardRunning) {
+                                        Text(text = "${adRewardSecondsRemaining}", style = MaterialTheme.typography.labelSmall)
+                                    } else {
+                                        Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
+                                    }
                                 }
-                                Text(
-                                    zoomLabel,
-                                    color = inflightSecondaryText,
-                                    fontSize = 11.sp
-                                )
+
+                                SmallFloatingActionButton(
+                                    onClick = {
+                                        scope.launch {
+                                            val nextPerspective = if (mapPerspective == Perspective2D) Perspective2_5D else Perspective2D
+                                            updateCameraPerspective(
+                                                perspective = nextPerspective,
+                                                keepTrackingTarget = isCameraTracking
+                                            )
+                                            repository.setMapPerspective(nextPerspective)
+                                        }
+                                    },
+                                    containerColor = overlayPalette.floatingButtonContainer,
+                                    contentColor = overlayPalette.floatingButtonContent
+                                ) {
+                                    Text(
+                                        text = if (mapPerspective == Perspective2D) "2D" else "2.5D",
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+
+                                SmallFloatingActionButton(
+                                    onClick = {
+                                        isCameraTracking = true
+                                        scope.launch {
+                                            cameraPositionState.animate(
+                                                CameraUpdateFactory.newCameraPosition(
+                                                    CameraPosition.Builder()
+                                                        .target(currentPos)
+                                                        .zoom(cameraPositionState.position.zoom)
+                                                        .tilt(trackingTilt)
+                                                        .bearing(trackingBearing)
+                                                        .build()
+                                                )
+                                            )
+                                        }
+                                    },
+                                    containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
+                                    contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
+                                ) {
+                                    Icon(Icons.Default.MyLocation, contentDescription = null)
+                                }
+                            }
+                        }
+                    } else {
+                        GlassPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = inflightPanelBackground,
+                            borderColor = inflightPanelBorder
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Column {
+                                        Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
+                                        Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
+                                        Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                        if (draft.timeScale != 1f) {
+                                            Text(
+                                                "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                color = inflightSecondaryText,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = inflightDivider)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text(
+                                        zoomLabel,
+                                        color = inflightSecondaryText,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
                     }
 
                     if (isLandscape) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Bottom
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = true)
                         ) {
-                            Spacer(modifier = Modifier.weight(1f))
-
                             Column(
-                                modifier = Modifier.width(300.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                horizontalAlignment = Alignment.End
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .fillMaxWidth(0.33f),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 if (debugFlightMode) {
                                     GlassPanel(
@@ -625,98 +739,34 @@ fun InFlightScreen(
                                         }
                                     }
                                 }
+                            }
 
-                                Column(
-                                    modifier = Modifier.width(220.dp),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    horizontalAlignment = Alignment.End
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .fillMaxWidth(0.33f),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { pauseFlight() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(56.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = Color.White.copy(alpha = 0.5f),
+                                        contentColor = inflightPrimaryText
+                                    )
                                 ) {
-                                    SmallFloatingActionButton(
-                                        onClick = { showAdRewardDialog = true },
-                                        modifier = Modifier.align(Alignment.End),
-                                        containerColor = overlayPalette.floatingButtonContainer,
-                                        contentColor = overlayPalette.floatingButtonContent
-                                    ) {
-                                        if (isAdRewardRunning) {
-                                            Text(
-                                                text = "${adRewardSecondsRemaining}",
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        } else {
-                                            Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
-                                        }
-                                    }
-
-                                    SmallFloatingActionButton(
-                                        onClick = {
-                                            scope.launch {
-                                                val nextPerspective = if (mapPerspective == Perspective2D) Perspective2_5D else Perspective2D
-                                                updateCameraPerspective(
-                                                    perspective = nextPerspective,
-                                                    keepTrackingTarget = isCameraTracking
-                                                )
-                                                repository.setMapPerspective(nextPerspective)
-                                            }
-                                        },
-                                        modifier = Modifier.align(Alignment.End),
-                                        containerColor = overlayPalette.floatingButtonContainer,
-                                        contentColor = overlayPalette.floatingButtonContent
-                                    ) {
-                                        Text(
-                                            text = if (mapPerspective == Perspective2D) "2D" else "2.5D",
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    }
-
-                                    SmallFloatingActionButton(
-                                        onClick = {
-                                            isCameraTracking = true
-                                            scope.launch {
-                                                cameraPositionState.animate(
-                                                    CameraUpdateFactory.newCameraPosition(
-                                                        CameraPosition.Builder()
-                                                            .target(currentPos)
-                                                            .zoom(cameraPositionState.position.zoom)
-                                                            .tilt(trackingTilt)
-                                                            .bearing(trackingBearing)
-                                                            .build()
-                                                    )
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.align(Alignment.End),
-                                        containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
-                                        contentColor = if (isCameraTracking) MaterialTheme.colorScheme.onPrimary else overlayPalette.floatingButtonContent
-                                    ) {
-                                        Icon(Icons.Default.MyLocation, contentDescription = null)
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = { pauseFlight() },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(56.dp),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                containerColor = Color.White.copy(alpha = 0.5f),
-                                                contentColor = inflightPrimaryText
-                                            )
-                                        ) {
-                                            Text("\uC77C\uC2DC\uC815\uC9C0")
-                                        }
-
-                                        PrimaryFlightButton(
-                                            text = "\uC5EC\uC815 \uC911\uB2E8",
-                                            onClick = { showGiveUpDialog = true },
-                                            modifier = Modifier.weight(1f),
-                                            isDestructive = true
-                                        )
-                                    }
+                                    Text("\uC77C\uC2DC\uC815\uC9C0")
                                 }
+
+                                PrimaryFlightButton(
+                                    text = "\uC5EC\uC815 \uC911\uB2E8",
+                                    onClick = { showGiveUpDialog = true },
+                                    modifier = Modifier.weight(1f),
+                                    isDestructive = true
+                                )
                             }
                         }
                     } else {

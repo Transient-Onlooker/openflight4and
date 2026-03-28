@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">OpenFlight</string>
+    <string name="ticket_deducted_after_ten_minutes">이용권이 차감되었습니다.</string>
 </resources>

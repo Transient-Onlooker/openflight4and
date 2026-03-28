@@ -210,13 +210,16 @@ fun HomeScreen(
                                 )
                             }
 
-                            PrimaryFlightButton(
-                                text = LABEL_START_FLIGHT,
-                                onClick = onNavigateToNewFlight,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .widthIn(max = 280.dp)
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PrimaryFlightButton(
+                                    text = LABEL_START_FLIGHT,
+                                    onClick = onNavigateToNewFlight,
+                                    modifier = Modifier.widthIn(max = 260.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -289,14 +292,16 @@ fun HomeScreen(
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        PrimaryFlightButton(
-                            text = LABEL_START_FLIGHT,
-                            onClick = onNavigateToNewFlight,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .widthIn(max = 380.dp)
-                                .align(Alignment.CenterHorizontally)
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PrimaryFlightButton(
+                                text = LABEL_START_FLIGHT,
+                                onClick = onNavigateToNewFlight,
+                                modifier = Modifier.widthIn(max = 320.dp)
+                            )
+                        }
 
                         GlassPanel(
                             modifier = Modifier.fillMaxWidth(),
