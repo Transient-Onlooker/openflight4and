@@ -181,7 +181,7 @@ fun BoardingPassScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .widthIn(max = 380.dp)
+                            .widthIn(max = 320.dp)
                     ) {
                         Card(
                             modifier = Modifier.fillMaxWidth().zIndex(1f),

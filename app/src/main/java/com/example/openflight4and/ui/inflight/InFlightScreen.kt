@@ -477,7 +477,7 @@ fun InFlightScreen(
                 ) {
                     GlassPanel(
                         modifier = if (isLandscape) {
-                            Modifier.fillMaxWidth(0.52f)
+                            Modifier.fillMaxWidth(0.34f)
                         } else {
                             Modifier.fillMaxWidth()
                         },
@@ -531,34 +531,6 @@ fun InFlightScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.Bottom
                         ) {
-                            Column(
-                                modifier = Modifier.width(300.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                GlassPanel(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    backgroundColor = inflightPanelBackground,
-                                    borderColor = inflightPanelBorder
-                                ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
-                                        LinearProgressIndicator(
-                                            progress = { progress },
-                                            modifier = Modifier.fillMaxWidth().height(6.dp),
-                                            color = inflightPrimaryText,
-                                            trackColor = inflightTrackColor
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = inflightSecondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-
-                                        if (draft.timeScale != 1f) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = inflightPrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-                                        }
-                                    }
-                                }
-                            }
-
                             Spacer(modifier = Modifier.weight(1f))
 
                             Column(
@@ -615,6 +587,41 @@ fun InFlightScreen(
                                                     Text("Apply")
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+
+                                GlassPanel(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = inflightPanelBackground,
+                                    borderColor = inflightPanelBorder
+                                ) {
+                                    Column(modifier = Modifier.padding(20.dp)) {
+                                        LinearProgressIndicator(
+                                            progress = { progress },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(6.dp),
+                                            color = inflightPrimaryText,
+                                            trackColor = inflightTrackColor
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            "${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC",
+                                            color = inflightSecondaryText,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                                        )
+
+                                        if (draft.timeScale != 1f) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                color = inflightPrimaryText,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                                            )
                                         }
                                     }
                                 }
@@ -684,26 +691,31 @@ fun InFlightScreen(
                                         Icon(Icons.Default.MyLocation, contentDescription = null)
                                     }
 
-                                    OutlinedButton(
-                                        onClick = { pauseFlight() },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = Color.White.copy(alpha = 0.5f),
-                                            contentColor = inflightPrimaryText
-                                        )
-                                    ) {
-                                        Text("\uC77C\uC2DC\uC815\uC9C0")
-                                    }
-
-                                    PrimaryFlightButton(
-                                        text = "\uC5EC\uC815 \uC911\uB2E8",
-                                        onClick = { showGiveUpDialog = true },
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        isDestructive = true
-                                    )
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { pauseFlight() },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(56.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = Color.White.copy(alpha = 0.5f),
+                                                contentColor = inflightPrimaryText
+                                            )
+                                        ) {
+                                            Text("\uC77C\uC2DC\uC815\uC9C0")
+                                        }
+
+                                        PrimaryFlightButton(
+                                            text = "\uC5EC\uC815 \uC911\uB2E8",
+                                            onClick = { showGiveUpDialog = true },
+                                            modifier = Modifier.weight(1f),
+                                            isDestructive = true
+                                        )
+                                    }
                                 }
                             }
                         }

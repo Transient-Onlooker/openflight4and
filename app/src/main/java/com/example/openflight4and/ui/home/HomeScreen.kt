@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -211,7 +212,10 @@ fun HomeScreen(
 
                             PrimaryFlightButton(
                                 text = LABEL_START_FLIGHT,
-                                onClick = onNavigateToNewFlight
+                                onClick = onNavigateToNewFlight,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .widthIn(max = 280.dp)
                             )
                         }
                     }
@@ -287,7 +291,11 @@ fun HomeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         PrimaryFlightButton(
                             text = LABEL_START_FLIGHT,
-                            onClick = onNavigateToNewFlight
+                            onClick = onNavigateToNewFlight,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 380.dp)
+                                .align(Alignment.CenterHorizontally)
                         )
 
                         GlassPanel(
