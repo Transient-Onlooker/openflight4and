@@ -83,7 +83,7 @@ fun TicketCenterScreen(
 
         repository.rewardTicketsFromAd()
         isWatchingAd = false
-        Toast.makeText(context, "광고 보상으로 비행권 3개가 지급되었습니다.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "광고 보상으로 비행권 1개가 지급되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -161,7 +161,7 @@ fun TicketCenterScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "30초 광고 1개를 보면 비행권 3개를 받습니다.",
+                            "30초 광고 1개를 보면 비행권 1개를 받습니다.",
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )

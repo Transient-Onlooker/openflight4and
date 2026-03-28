@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.openflight4and.data.AppRepository
@@ -375,6 +376,9 @@ fun InFlightScreen(
     // ?????筌뤾퍓愿???????????熬곣몿??????????椰????
     var isCameraTracking by rememberSaveable { mutableStateOf(true) }
     val cameraPositionState = rememberCameraPositionState()
+    val zoomLabel by remember {
+        derivedStateOf { "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x" }
+    }
     suspend fun updateCameraPerspective(
         perspective: String,
         keepTrackingTarget: Boolean
@@ -486,12 +490,17 @@ fun InFlightScreen(
                                             fontSize = 11.sp
                                         )
                                     }
+                                    Text(
+                                        zoomLabel,
+                                        color = inflightSecondaryText,
+                                        fontSize = 11.sp
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider(color = inflightDivider)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
                                 Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
@@ -647,7 +656,10 @@ fun InFlightScreen(
                         ) {
                             OutlinedButton(
                                 onClick = { pauseFlight() },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White.copy(alpha = 0.5f),
                                     contentColor = inflightPrimaryText
@@ -786,6 +798,12 @@ fun InFlightScreen(
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        OutlinedButton(
+                            onClick = { isAdRewardRunning = false },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
+                        ) {
+                            Text("\uCDE8\uC18C")
+                        }
                     }
                 }
             }
