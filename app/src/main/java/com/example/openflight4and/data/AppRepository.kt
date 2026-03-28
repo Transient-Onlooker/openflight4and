@@ -174,7 +174,7 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = 1,
                     balanceAfter = updatedBalance,
-                    title = "?쇱씪 鍮꾪뻾沅?,
+                    title = "일일 비행권",
                     detail = "?쇱씪 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."
                 )
             )
@@ -350,7 +350,7 @@ class AppRepository(private val context: Context) {
 
     private fun localizeLegacyTicketHistoryEntry(entry: FlightTicketHistoryEntry): FlightTicketHistoryEntry {
         val localizedTitle = when (entry.title.trim()) {
-            "Daily ticket" -> "?쇱씪 鍮꾪뻾沅?
+            "Daily ticket" -> "일일 비행권"
             "Flight ticket used" -> "鍮꾪뻾沅??ъ슜"
             "Ad reward" -> "愿묎퀬 蹂댁긽"
             "Redeem code" -> "由щ뵥 肄붾뱶"

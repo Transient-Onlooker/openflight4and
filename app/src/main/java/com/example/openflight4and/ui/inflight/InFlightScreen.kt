@@ -375,10 +375,6 @@ fun InFlightScreen(
     // ?????筌뤾퍓愿???????????熬곣몿??????????椰????
     var isCameraTracking by rememberSaveable { mutableStateOf(true) }
     val cameraPositionState = rememberCameraPositionState()
-    val zoomLabel by remember {
-        derivedStateOf { "${cameraPositionState.position.zoom.roundToInt()}x" }
-    }
-
     suspend fun updateCameraPerspective(
         perspective: String,
         keepTrackingTarget: Boolean
@@ -483,13 +479,19 @@ fun InFlightScreen(
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
                                     Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                                    Text(zoomLabel, color = inflightSecondaryText, fontSize = 11.sp)
+                                    if (draft.timeScale != 1f) {
+                                        Text(
+                                            "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                            color = inflightSecondaryText,
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider(color = inflightDivider)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                                 Text(draft.origin.iata, color = inflightSecondaryText, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
@@ -639,22 +641,28 @@ fun InFlightScreen(
                             }
                         }
 
-                        OutlinedButton(
-                            onClick = { pauseFlight() },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.5f),
-                                contentColor = inflightPrimaryText
-                            )
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("\uC77C\uC2DC\uC815\uC9C0")
-                        }
+                            OutlinedButton(
+                                onClick = { pauseFlight() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White.copy(alpha = 0.5f),
+                                    contentColor = inflightPrimaryText
+                                )
+                            ) {
+                                Text("\uC77C\uC2DC\uC815\uC9C0")
+                            }
 
-                        PrimaryFlightButton(
-                            text = "\uC5EC\uC815 \uC911\uB2E8",
-                            onClick = { showGiveUpDialog = true },
-                            isDestructive = true
-                        )
+                            PrimaryFlightButton(
+                                text = "\uC5EC\uC815 \uC911\uB2E8",
+                                onClick = { showGiveUpDialog = true },
+                                modifier = Modifier.weight(1f),
+                                isDestructive = true
+                            )
+                        }
                     }
                 }
             }
