@@ -55,15 +55,15 @@ fun rememberMapOverlayPalette(style: String): MapOverlayPalette {
             floatingButtonContent = FlightBlack
         )
         else -> MapOverlayPalette(
-            panelBackground = Color.White.copy(alpha = 0.15f),
-            panelBorder = Color.White.copy(alpha = 0.2f),
+            panelBackground = Color.White.copy(alpha = 0.24f),
+            panelBorder = Color.White.copy(alpha = 0.28f),
             primaryText = Color.White,
             secondaryText = FlightGray,
             accentText = FlightPrimary,
             iconTint = FlightGray,
-            divider = Color.White.copy(alpha = 0.1f),
-            trackColor = Color.White.copy(alpha = 0.1f),
-            floatingButtonContainer = FlightBlack,
+            divider = Color.White.copy(alpha = 0.16f),
+            trackColor = Color.White.copy(alpha = 0.16f),
+            floatingButtonContainer = FlightBlack.copy(alpha = 0.88f),
             floatingButtonContent = FlightOffWhite
         )
     }
