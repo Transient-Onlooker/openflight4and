@@ -20,10 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.theme.*
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,9 +36,8 @@ fun SeatSelectionScreen(
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-    var selectedSeat by remember { mutableStateOf<String?>(null) }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    var showBottomSheet by remember { mutableStateOf(false) }
+    val viewModel: SeatSelectionViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState()
 
     FlightMapBackground {
@@ -159,8 +158,8 @@ fun SeatSelectionScreen(
                         ) {
                             // 왼쪽 2석
                             Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                SeatIcon(rowNum, "A", selectedSeat) { selectedSeat = "${rowNum}A"; showBottomSheet = true }
-                                SeatIcon(rowNum, "B", selectedSeat) { selectedSeat = "${rowNum}B"; showBottomSheet = true }
+                                SeatIcon(rowNum, "A", uiState.selectedSeat) { viewModel.selectSeat("${rowNum}A") }
+                                SeatIcon(rowNum, "B", uiState.selectedSeat) { viewModel.selectSeat("${rowNum}B") }
                             }
 
                             // 통로
@@ -174,8 +173,8 @@ fun SeatSelectionScreen(
 
                             // 오른쪽 2석
                             Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                SeatIcon(rowNum, "C", selectedSeat) { selectedSeat = "${rowNum}C"; showBottomSheet = true }
-                                SeatIcon(rowNum, "D", selectedSeat) { selectedSeat = "${rowNum}D"; showBottomSheet = true }
+                                SeatIcon(rowNum, "C", uiState.selectedSeat) { viewModel.selectSeat("${rowNum}C") }
+                                SeatIcon(rowNum, "D", uiState.selectedSeat) { viewModel.selectSeat("${rowNum}D") }
                             }
                         }
                     }
@@ -183,7 +182,7 @@ fun SeatSelectionScreen(
                 }
 
                 // Bottom Action
-                if (selectedSeat != null && selectedCategory != null) {
+                if (uiState.selectedSeat != null && uiState.selectedCategory != null) {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth(if (isLandscape) 0.33f else 1f)
@@ -199,8 +198,8 @@ fun SeatSelectionScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("좌석 $selectedSeat", color = Color.White, fontWeight = FontWeight.Bold)
-                                Text(selectedCategory!!, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                                Text("좌석 ${uiState.selectedSeat}", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(uiState.selectedCategory!!, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
                             }
                             Button(
                                 onClick = {
@@ -229,9 +228,9 @@ fun SeatSelectionScreen(
             }
         }
 
-        if (showBottomSheet) {
+        if (uiState.showBottomSheet) {
             ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
+                onDismissRequest = { viewModel.hideBottomSheet() },
                 sheetState = sheetState,
                 containerColor = FlightDarkGray,
                 contentColor = Color.White
@@ -252,12 +251,12 @@ fun SeatSelectionScreen(
                             row.forEach { category ->
                                 CategoryCard(
                                     category = category,
-                                    isSelected = selectedCategory == category,
+                                    isSelected = uiState.selectedCategory == category,
                                     modifier = Modifier.weight(1f),
                                     onClick = {
-                                        selectedCategory = category
-                                        onSeatSelected(selectedSeat!!, category)
-                                        showBottomSheet = false
+                                        val selectedSeat = uiState.selectedSeat ?: return@CategoryCard
+                                        viewModel.selectCategory(category)
+                                        onSeatSelected(selectedSeat, category)
                                     }
                                 )
                             }

@@ -27,7 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.openflight4and.data.AppRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.ui.components.RulerPicker
@@ -68,20 +68,27 @@ fun NewFlightScreen(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val viewModel: NewFlightViewModel = viewModel(
+        factory = NewFlightViewModel.Factory(context.applicationContext as android.app.Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
-    val repository = remember { AppRepository(context) }
     
     // 1. Data Loading
-    val allAirports = remember { repository.getAirports() }
+    val allAirports = uiState.allAirports
     val originIata = currentDraft.origin.iata
     val originAirport = currentDraft.origin
     
+    LaunchedEffect(originIata, currentDraft.destination?.iata) {
+        viewModel.initialize(originIata, currentDraft.destination)
+    }
+
     // 2. State
-    var selectedDestination by remember { mutableStateOf(currentDraft.destination) }
-    var searchRadiusKm by remember { mutableIntStateOf(1000) }
-    var showSameAirportDialog by remember { mutableStateOf(false) }
-    var showQuickFlightDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    val selectedDestination = uiState.selectedDestination
+    val searchRadiusKm = uiState.searchRadiusKm
+    val showSameAirportDialog = uiState.showSameAirportDialog
+    val showQuickFlightDialog = uiState.showQuickFlightDialog
+    val searchQuery = uiState.searchQuery
     
     // 카메라 상태 (초기 위치: 출발 공항)
     val cameraPositionState = rememberCameraPositionState {
@@ -162,7 +169,7 @@ fun NewFlightScreen(
     }
 
     fun selectDestination(airport: Airport) {
-        selectedDestination = airport
+        viewModel.selectDestination(airport)
         onAirportSelected(airport)
         scope.launch {
             cameraPositionState.animate(
@@ -184,7 +191,7 @@ fun NewFlightScreen(
             closest?.let {
                 val dist = FlightUtils.calculateDistance(center.latitude, center.longitude, it.latitude, it.longitude)
                 if (dist < 300) { 
-                     selectedDestination = it
+                     viewModel.selectDestination(it)
                      onAirportSelected(it)
                 }
             }
@@ -266,7 +273,7 @@ fun NewFlightScreen(
                     // 검색창
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = { viewModel.updateSearchQuery(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp),
@@ -276,7 +283,7 @@ fun NewFlightScreen(
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                                     Icon(Icons.Default.Clear, contentDescription = "검색 초기화", tint = FlightGray)
                                 }
                             }
@@ -307,7 +314,7 @@ fun NewFlightScreen(
                         minRequest = 100,
                         maxRequest = 20000,
                         step = 100,
-                        onValueChange = { searchRadiusKm = it }
+                        onValueChange = { viewModel.updateSearchRadius(it) }
                     )
                 }
 
@@ -345,7 +352,7 @@ fun NewFlightScreen(
                         // 출발지와 도착지가 같은지 확인
                         if (selectedDestination?.iata == originIata) {
                             // 같은 공항 선택 시 다이얼로그 표시
-                            showSameAirportDialog = true
+                            viewModel.showSameAirportDialog()
                         } else {
                             if (isSandboxMode) {
                                 // 샌드박스 모드: 선택된 공항을 SandboxScreen 에 전달
@@ -551,7 +558,7 @@ fun NewFlightScreen(
                     .padding(16.dp)
             ) {
                 TextButton(
-                    onClick = { showQuickFlightDialog = true },
+                    onClick = { viewModel.showQuickFlightDialog() },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                 ) {
@@ -572,9 +579,9 @@ fun NewFlightScreen(
                     originIata = originIata,
                     unitSystem = unitSystem,
                     searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it },
+                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
                     searchRadiusKm = searchRadiusKm,
-                    onSearchRadiusChange = { searchRadiusKm = it },
+                    onSearchRadiusChange = { viewModel.updateSearchRadius(it) },
                     sortedAirports = sortedAirports,
                     onAirportClick = { airport ->
                         if (airport.iata != originIata) {
@@ -585,7 +592,7 @@ fun NewFlightScreen(
                     isSettingCurrentLocation = isSettingCurrentLocation,
                     onConfirm = {
                         if (selectedDestination?.iata == originIata) {
-                            showSameAirportDialog = true
+                            viewModel.showSameAirportDialog()
                         } else {
                             if (isSandboxMode) {
                                 onSandboxAirportSelected(originAirport, selectedDestination)
@@ -601,16 +608,16 @@ fun NewFlightScreen(
 
             // Same Airport Dialog
             if (showSameAirportDialog) {
-                SameAirportDialog(onDismiss = { showSameAirportDialog = false })
+                SameAirportDialog(onDismiss = { viewModel.hideSameAirportDialog() })
             }
 
             if (showQuickFlightDialog) {
                 QuickFlightDialogCards(
                     suggestions = quickFlightSuggestions,
                     unitSystem = unitSystem,
-                    onDismiss = { showQuickFlightDialog = false },
+                    onDismiss = { viewModel.hideQuickFlightDialog() },
                     onSelect = { airport ->
-                        showQuickFlightDialog = false
+                        viewModel.hideQuickFlightDialog()
                         selectDestination(airport)
                     }
                 )

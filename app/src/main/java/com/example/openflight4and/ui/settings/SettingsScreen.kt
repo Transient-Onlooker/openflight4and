@@ -31,15 +31,23 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.SectionHeader
 import com.example.openflight4and.ui.theme.FlightGray
@@ -52,7 +60,7 @@ private const val TITLE_MAP_STYLE = "\uC9C0\uB3C4 \uC2A4\uD0C0\uC77C"
 private const val TITLE_AIRPLANE_MODE_CHECK = "\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778"
 private const val TITLE_NOTIFICATIONS = "\uC54C\uB9BC"
 private const val TITLE_NOTIFICATION_INTERVAL = "\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30"
-private const val TITLE_FOCUS_LOCK = "\uC9D1\uC911 \uC7A0\uAE08 \uAC15\uB3C4"
+private const val TITLE_FOCUS_LOCK = "\uC9D1\uC911 \uC7A0\uAE08"
 private const val TITLE_BATTERY_OPT_OUT = "\uBC30\uD130\uB9AC \uCD5C\uC801\uD654 \uC608\uC678"
 private const val LABEL_AUTO = "\uC790\uB3D9"
 private const val LABEL_PORTRAIT = "\uC138\uB85C"
@@ -73,9 +81,25 @@ fun SettingsScreen(
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
-    val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
+    val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
     val isScreenOrientationLocked = restrictInFlightSettings
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasUsageAccess by remember { mutableStateOf(FocusLockUtils.hasUsageAccess(context)) }
+    var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasUsageAccess = FocusLockUtils.hasUsageAccess(context)
+                canDrawOverlays = FocusLockUtils.canDrawOverlays(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     FlightMapBackground {
         Scaffold(
@@ -219,31 +243,45 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
                 SectionHeader(TITLE_FOCUS_LOCK)
-                val levels = listOf("soft" to "Soft", "strong" to "Strong", "hardcore" to "Hardcore")
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    levels.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = lockLevel == id,
-                            onClick = { scope.launch { repository.setLockLevel(id) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = levels.size)
-                        ) { Text(label) }
+                ToggleSettingItem(
+                    title = TITLE_FOCUS_LOCK,
+                    description = "\uBE44\uD589 \uC911 \uB2E4\uB978 \uC571\uC73C\uB85C \uB098\uAC00\uBA74 \uC624\uBC84\uB808\uC774\uB85C \uBCF5\uADC0\uB97C \uC720\uB3C4\uD569\uB2C8\uB2E4.",
+                    checked = focusLockEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch { repository.setFocusLockEnabled(enabled) }
                     }
-                }
+                )
                 Text(
-                    text = when (lockLevel) {
-                        "soft" -> "\uC774\uD0C8 \uC2DC \uACBD\uACE0\uB9CC \uD45C\uC2DC\uD569\uB2C8\uB2E4."
-                        "strong" -> "\uB2E4\uB978 \uC571 \uC0AC\uC6A9\uC744 \uC81C\uD55C\uD558\uACE0 \uBCF5\uADC0\uB97C \uC720\uB3C4\uD569\uB2C8\uB2E4."
-                        else -> "\uBE44\uD589\uAE30 \uBAA8\uB4DC\uC640 \uBC29\uD574 \uC694\uC18C\uB97C \uAC00\uB2A5\uD55C \uD55C \uCC28\uB2E8\uD569\uB2C8\uB2E4."
-                    },
+                    text = "\uC791\uB3D9 \uC870\uAC74: \uC0AC\uC6A9 \uC815\uBCF4 \uC811\uADFC + \uB2E4\uB978 \uC571 \uC704\uC5D0 \uD45C\uC2DC \uAD8C\uD55C\uC774 \uBAA8\uB450 \uD544\uC694\uD569\uB2C8\uB2E4.",
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp)
                 )
+                if (focusLockEnabled) {
+                    PermissionSettingItem(
+                        title = "\uC0AC\uC6A9 \uC815\uBCF4 \uC811\uADFC",
+                        description = if (hasUsageAccess) {
+                            "\uD5C8\uC6A9\uB428"
+                        } else {
+                            "\uD544\uC694 \u2014 \uD604\uC7AC \uC804\uBA74 \uC571\uC744 \uD655\uC778\uD558\uAE30 \uC704\uD574 \uD5C8\uC6A9\uD574\uC57C \uD569\uB2C8\uB2E4."
+                        },
+                        onClick = { FocusLockUtils.openUsageAccessSettings(context) }
+                    )
+                    PermissionSettingItem(
+                        title = "\uB2E4\uB978 \uC571 \uC704\uC5D0 \uD45C\uC2DC",
+                        description = if (canDrawOverlays) {
+                            "\uD5C8\uC6A9\uB428"
+                        } else {
+                            "\uD544\uC694 \u2014 \uB2E4\uB978 \uC571 \uC774\uD0C8 \uC2DC \uBCF5\uADC0 \uC624\uBC84\uB808\uC774\uB97C \uB744\uC6B0\uAE30 \uC704\uD574 \uD5C8\uC6A9\uD574\uC57C \uD569\uB2C8\uB2E4."
+                        },
+                        onClick = { FocusLockUtils.openOverlaySettings(context) }
+                    )
+                }
 
                 Spacer(modifier = Modifier.padding(top = 48.dp))
 
                 Text(
-                    text = "\uBC84\uC804 1.2",
+                    text = "\uBC84\uC804 ${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.labelSmall,
                     color = FlightGray,
                     modifier = Modifier.fillMaxWidth(),
@@ -292,6 +330,42 @@ fun ToggleSettingItem(
                 uncheckedThumbColor = FlightGray,
                 uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
             )
+        )
+    }
+}
+
+@Composable
+fun PermissionSettingItem(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = FlightGray,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White
         )
     }
 }

@@ -11,9 +11,12 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.openflight4and.MainActivity
+import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -27,6 +30,12 @@ class FlightService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
+    private lateinit var repository: AppRepository
+    private lateinit var focusLockOverlayController: FocusLockOverlayController
+    private var focusLockSettingsJob: Job? = null
+    private var focusLockMonitorJob: Job? = null
+    private var focusLockEnabled = false
+    private var currentDurationMinutes: Int = 0
 
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
@@ -71,7 +80,10 @@ class FlightService : Service() {
         super.onCreate()
         Log.d(TAG, "Service onCreate()")
         instance = this
+        repository = AppRepository(applicationContext)
+        focusLockOverlayController = FocusLockOverlayController(applicationContext)
         createNotificationChannel()
+        observeFocusLockSettings()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,6 +91,7 @@ class FlightService : Service() {
 
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
+            stopFocusLockMonitor()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -121,6 +134,10 @@ class FlightService : Service() {
         _isInFlightScreenVisible = false
         currentOriginIata = originIata
         currentDestinationIata = destinationIata
+        currentDurationMinutes = durationMinutes
+        if (focusLockEnabled) {
+            startFocusLockMonitor()
+        }
 
         // 珥덇린 ?뚮┝怨??④퍡 ?ш렇?쇱슫???쒖옉
         val initialContent = "$originIata -> $destinationIata | 비행 준비 중..."
@@ -144,6 +161,65 @@ class FlightService : Service() {
             notificationUpdateSeconds
         )
         return START_STICKY
+    }
+
+    private fun observeFocusLockSettings() {
+        focusLockSettingsJob?.cancel()
+        focusLockSettingsJob = serviceScope.launch {
+            repository.focusLockEnabled.collect { enabled ->
+                focusLockEnabled = enabled
+                if (_isRunning && enabled) {
+                    startFocusLockMonitor()
+                } else {
+                    stopFocusLockMonitor()
+                }
+            }
+        }
+    }
+
+    private fun startFocusLockMonitor() {
+        if (focusLockMonitorJob?.isActive == true) {
+            return
+        }
+
+        focusLockMonitorJob = serviceScope.launch(Dispatchers.Default) {
+            while (isActive && _isRunning && focusLockEnabled) {
+                val hasPermissions =
+                    FocusLockUtils.hasUsageAccess(applicationContext) &&
+                    FocusLockUtils.canDrawOverlays(applicationContext)
+
+                if (!hasPermissions) {
+                    withContext(Dispatchers.Main) {
+                        focusLockOverlayController.hide()
+                    }
+                    delay(1000)
+                    continue
+                }
+
+                val foregroundPackage = FocusLockUtils.getForegroundPackage(applicationContext)
+                val shouldBlock = foregroundPackage != null && foregroundPackage != packageName
+
+                withContext(Dispatchers.Main) {
+                    if (shouldBlock) {
+                        focusLockOverlayController.show(
+                            originIata = currentOriginIata,
+                            destinationIata = currentDestinationIata,
+                            durationMinutes = currentDurationMinutes
+                        )
+                    } else {
+                        focusLockOverlayController.hide()
+                    }
+                }
+
+                delay(750)
+            }
+        }
+    }
+
+    private fun stopFocusLockMonitor() {
+        focusLockMonitorJob?.cancel()
+        focusLockMonitorJob = null
+        focusLockOverlayController.hide()
     }
 
     private fun startTimer(
@@ -201,6 +277,7 @@ class FlightService : Service() {
                     }
 
                     _isRunning = false
+                    stopFocusLockMonitor()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return@launch
@@ -235,6 +312,7 @@ class FlightService : Service() {
             }
 
             _isRunning = false
+            stopFocusLockMonitor()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -344,8 +422,11 @@ class FlightService : Service() {
         _pendingJumpSeconds = null
         _isInFlightScreenVisible = false
         instance = null
+        stopFocusLockMonitor()
+        focusLockSettingsJob?.cancel()
         timerJob?.cancel()
         serviceScope.cancel()
+        focusLockOverlayController.destroy()
         FlightStatusManager.stopFlight()
         super.onDestroy()
     }
