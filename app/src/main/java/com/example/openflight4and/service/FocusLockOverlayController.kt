@@ -2,6 +2,7 @@ package com.example.openflight4and.service
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
@@ -29,7 +30,7 @@ class FocusLockOverlayController(
         }
 
         val root = FrameLayout(context).apply {
-            setBackgroundColor(0x99000000.toInt())
+            setBackgroundColor(0x00000000)
             isClickable = true
             isFocusable = true
             setOnClickListener {
@@ -37,10 +38,27 @@ class FocusLockOverlayController(
             }
         }
 
+        val blocker = View(context).apply {
+            setBackgroundColor(0x00000000)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                // Consume taps outside the board.
+            }
+        }
+
+        val panelBackground = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 42f
+            setColor(0xF2131313.toInt())
+            setStroke(3, 0xFF565656.toInt())
+        }
+
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-            setBackgroundColor(0xF21A1A1A.toInt())
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = panelBackground
+            setPadding(56, 72, 56, 72)
             setOnClickListener {
                 // Prevent clicks on the panel from falling through.
             }
@@ -48,15 +66,17 @@ class FocusLockOverlayController(
 
         val title = TextView(context).apply {
             text = "집중 비행 중입니다"
-            textSize = 20f
+            textSize = 24f
             setTextColor(0xFFFFFFFF.toInt())
+            gravity = Gravity.CENTER
         }
 
         val message = TextView(context).apply {
             text = "다른 앱으로 이동할 수 없습니다.\nOpenFlight로 돌아가 비행을 이어서 진행하세요."
-            textSize = 15f
-            setTextColor(0xFFD6D6D6.toInt())
-            setPadding(0, 24, 0, 32)
+            textSize = 17f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFE2E2E2.toInt())
+            setPadding(0, 28, 0, 44)
         }
 
         val button = Button(context).apply {
@@ -80,14 +100,25 @@ class FocusLockOverlayController(
         panel.addView(button)
 
         root.addView(
+            blocker,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER
+            )
+        )
+
+        root.addView(
             panel,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER
             ).apply {
-                marginStart = 64
-                marginEnd = 64
+                marginStart = 28
+                marginEnd = 28
+                topMargin = 52
+                bottomMargin = 52
             }
         )
 
@@ -114,6 +145,8 @@ class FocusLockOverlayController(
         windowManager.removeView(view)
         overlayView = null
     }
+
+    fun isShowing(): Boolean = overlayView != null
 
     fun destroy() {
         hide()

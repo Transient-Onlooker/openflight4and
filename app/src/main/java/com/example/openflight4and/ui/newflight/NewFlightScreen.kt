@@ -178,6 +178,16 @@ fun NewFlightScreen(
         }
     }
 
+    fun quickSelectDestination(airport: Airport) {
+        viewModel.selectDestination(airport)
+        onAirportSelected(airport)
+        when {
+            isSandboxMode -> onSandboxAirportSelected(originAirport, airport)
+            isSettingCurrentLocation -> onCurrentLocationSet(originAirport)
+            else -> onNavigateToBoardingPass()
+        }
+    }
+
     // Map Snapping
     LaunchedEffect(cameraPositionState.isMoving, sortedAirports, originIata) {
         if (!cameraPositionState.isMoving) {
@@ -618,7 +628,7 @@ fun NewFlightScreen(
                     onDismiss = { viewModel.hideQuickFlightDialog() },
                     onSelect = { airport ->
                         viewModel.hideQuickFlightDialog()
-                        selectDestination(airport)
+                        quickSelectDestination(airport)
                     }
                 )
             }

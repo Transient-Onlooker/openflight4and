@@ -36,6 +36,12 @@ class FlightService : Service() {
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
     private var currentDurationMinutes: Int = 0
+    private val focusLockAllowedPackages = setOf(
+        "com.example.openflight4and",
+        "com.android.settings",
+        "com.google.android.permissioncontroller",
+        "com.android.permissioncontroller"
+    )
 
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
@@ -197,7 +203,11 @@ class FlightService : Service() {
                 }
 
                 val foregroundPackage = FocusLockUtils.getForegroundPackage(applicationContext)
-                val shouldBlock = foregroundPackage != null && foregroundPackage != packageName
+                val shouldBlock = when {
+                    foregroundPackage == null -> focusLockOverlayController.isShowing()
+                    foregroundPackage in focusLockAllowedPackages -> false
+                    else -> true
+                }
 
                 withContext(Dispatchers.Main) {
                     if (shouldBlock) {

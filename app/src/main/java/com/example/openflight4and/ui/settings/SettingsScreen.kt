@@ -409,22 +409,28 @@ fun BatteryOptimizationItem() {
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                if (isIgnoring) {
-                    Text(
-                        text = "ON",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
+                Text(
+                    text = if (isIgnoring) "\uD5C8\uC6A9\uB428" else "\uAEBC\uC9D0",
+                    color = if (isIgnoring) MaterialTheme.colorScheme.primary else FlightGray,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .background(
+                            color = if (isIgnoring) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            } else {
+                                Color.White.copy(alpha = 0.08f)
+                            },
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
             }
             Text(
-                text = "\uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C\uB3C4 \uBE44\uD589\uC774 \uC911\uB2E8\uB418\uC9C0 \uC54A\uB3C4\uB85D \uC124\uC815\uD569\uB2C8\uB2E4.",
+                text = if (isIgnoring) {
+                    "\uBC31\uADF8\uB77C\uC6B4\uB4DC \uCD5C\uC801\uD654 \uC608\uC678\uAC00 \uD5C8\uC6A9\uB41C \uC0C1\uD0DC\uC785\uB2C8\uB2E4."
+                } else {
+                    "\uD604\uC7AC \uAEBC\uC838 \uC788\uC2B5\uB2C8\uB2E4. \uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C\uB3C4 \uBE44\uD589\uC774 \uC911\uB2E8\uB418\uC9C0 \uC54A\uB3C4\uB85D \uD5C8\uC6A9\uD558\uC138\uC694."
+                },
                 color = FlightGray,
                 style = MaterialTheme.typography.bodySmall
             )
