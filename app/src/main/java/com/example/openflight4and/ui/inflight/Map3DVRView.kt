@@ -22,13 +22,43 @@ import com.google.android.gms.maps3d.GoogleMap3D
 import com.google.android.gms.maps3d.Map3DOptions
 import com.google.android.gms.maps3d.Map3DView
 import com.google.android.gms.maps3d.OnMap3DViewReadyCallback
+import com.google.android.gms.maps3d.model.Camera
 import com.google.android.gms.maps3d.model.camera
 import com.google.android.gms.maps3d.model.latLngAltitude
+import kotlin.math.abs
 
 private const val Maps3DTag = "Map3DVRView"
 private const val Maps3DTiltDegrees = 60.0
 private const val Maps3DRangeMeters = 4500.0
 private const val Maps3DAltitudeMeters = 1200.0
+private const val Maps3DManualHeadingPerPixel = 0.18
+private const val Maps3DManualTiltPerPixel = 0.12
+
+private fun normalizeMaps3DHeading(bearing: Float): Double {
+    return ((bearing % 360f) + 360f).toDouble() % 360.0
+}
+
+private fun normalizedHeadingDouble(heading: Double): Double {
+    return ((heading % 360.0) + 360.0) % 360.0
+}
+
+private fun adjustedCameraForDrag(
+    camera: Camera,
+    deltaX: Float,
+    deltaY: Float
+): Camera {
+    val currentHeading = camera.heading ?: 0.0
+    val currentTilt = camera.tilt ?: Maps3DTiltDegrees
+    val updatedHeading = normalizedHeadingDouble(currentHeading - deltaX * Maps3DManualHeadingPerPixel)
+    val updatedTilt = (currentTilt + deltaY * Maps3DManualTiltPerPixel).coerceIn(5.0, 88.0)
+    return camera {
+        center = camera.center
+        heading = updatedHeading
+        tilt = updatedTilt
+        roll = camera.roll ?: 0.0
+        range = camera.range ?: Maps3DRangeMeters
+    }
+}
 
 @Composable
 fun Map3DVRView(
@@ -42,7 +72,11 @@ fun Map3DVRView(
 ) {
     var map3D by remember { mutableStateOf<GoogleMap3D?>(null) }
     var map3DView by remember { mutableStateOf<Map3DView?>(null) }
+    var isUserCameraOverride by remember { mutableStateOf(false) }
+    var lastTouchX by remember { mutableStateOf(0f) }
+    var lastTouchY by remember { mutableStateOf(0f) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val normalizedHeading = remember(bearing) { normalizeMaps3DHeading(bearing) }
 
     DisposableEffect(lifecycleOwner, map3DView) {
         val view = map3DView
@@ -81,7 +115,7 @@ fun Map3DVRView(
                     centerLat = currentPosition.latitude,
                     centerLng = currentPosition.longitude,
                     centerAlt = Maps3DAltitudeMeters,
-                    heading = bearing.toDouble(),
+                    heading = normalizedHeading,
                     tilt = Maps3DTiltDegrees,
                     roll = 0.0,
                     range = Maps3DRangeMeters
@@ -89,13 +123,46 @@ fun Map3DVRView(
                 Map3DView(context, options).apply {
                     map3DView = this
                     setOnTouchListener { _, event ->
-                        if (event.actionMasked == MotionEvent.ACTION_DOWN ||
-                            event.actionMasked == MotionEvent.ACTION_MOVE ||
-                            event.actionMasked == MotionEvent.ACTION_POINTER_DOWN
-                        ) {
-                            onUserInteraction()
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> {
+                                isUserCameraOverride = true
+                                onUserInteraction()
+                                lastTouchX = event.x
+                                lastTouchY = event.y
+                                true
+                            }
+
+                            MotionEvent.ACTION_MOVE -> {
+                                if (event.pointerCount == 1) {
+                                    val deltaX = event.x - lastTouchX
+                                    val deltaY = event.y - lastTouchY
+                                    if (abs(deltaX) > 0.5f || abs(deltaY) > 0.5f) {
+                                        map3D?.getCamera()?.let { currentCamera ->
+                                            map3D?.setCamera(
+                                                adjustedCameraForDrag(
+                                                    camera = currentCamera,
+                                                    deltaX = deltaX,
+                                                    deltaY = deltaY
+                                                )
+                                            )
+                                        }
+                                        lastTouchX = event.x
+                                        lastTouchY = event.y
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+
+                            MotionEvent.ACTION_POINTER_DOWN -> {
+                                isUserCameraOverride = true
+                                onUserInteraction()
+                                false
+                            }
+
+                            else -> false
                         }
-                        false
                     }
                     onCreate(null)
                     getMap3DViewAsync(
@@ -138,8 +205,14 @@ fun Map3DVRView(
         overlayContent?.invoke(this)
     }
 
-    LaunchedEffect(map3D, currentPosition, bearing, isCameraTracking) {
-        if (!isCameraTracking) {
+    LaunchedEffect(isCameraTracking) {
+        if (isCameraTracking) {
+            isUserCameraOverride = false
+        }
+    }
+
+    LaunchedEffect(map3D, currentPosition, bearing, isCameraTracking, isUserCameraOverride) {
+        if (!isCameraTracking || isUserCameraOverride) {
             return@LaunchedEffect
         }
 
@@ -150,7 +223,7 @@ fun Map3DVRView(
                     longitude = currentPosition.longitude
                     altitude = Maps3DAltitudeMeters
                 }
-                heading = bearing.toDouble()
+                heading = normalizedHeading
                 tilt = Maps3DTiltDegrees
                 roll = 0.0
                 range = Maps3DRangeMeters
