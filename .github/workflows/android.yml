@@ -29,6 +29,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: ./gradlew assembleDebug
 
       - name: Upload Debug APK artifact
@@ -57,6 +59,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: ./gradlew assembleDebug
 
       - name: Rename APK for release
