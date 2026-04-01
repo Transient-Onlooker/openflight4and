@@ -54,8 +54,6 @@ private const val Perspective2D = "2d"
 private const val Perspective2_5D = "2_5d"
 private const val GreatCircleBearingStep = 0.001
 private const val GreatCircleRouteSegments = 256
-private const val CameraTrackingUpdateIntervalMillis = 180L
-private const val SmoothRenderFrameDelayMillis = 33L
 
 /**
  * ??????????⑤벡瑜?????(Great Circle Interpolation)
@@ -177,12 +175,22 @@ fun InFlightScreen(
     val localTickDelayMillis = remember(draft.timeScale) {
         (1000f / draft.timeScale.coerceIn(0.001f, 1000f)).toLong().coerceAtLeast(MinTickDelayMillis)
     }
-    val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
-    val renderedProgress = if (totalSeconds > 0) {
-        (renderedElapsedSeconds / totalSeconds.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
+    val renderFrameDelayMillis = remember(draft.timeScale) {
+        when {
+            draft.timeScale <= 1f -> 16L
+            draft.timeScale <= 3f -> 24L
+            else -> 33L
+        }
     }
+    val cameraTrackingUpdateIntervalMillis = remember(draft.timeScale) {
+        when {
+            draft.timeScale <= 1f -> 48L
+            draft.timeScale <= 3f -> 90L
+            draft.timeScale <= 10f -> 140L
+            else -> 180L
+        }
+    }
+    val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
     val isFlying = secondsElapsed < totalSeconds
 
@@ -293,6 +301,28 @@ fun InFlightScreen(
         }
     }
 
+    val origin = draft.origin.location
+    val dest = draft.destination?.location ?: origin
+    val routePoints = remember(origin, dest) {
+        buildGreatCircleRoutePoints(origin, dest)
+    }
+    val planeMarker = remember { MapBitmapUtils.createPlaneMarkerBitmap(context) }
+    val planeMarkerState = remember { MarkerState(position = origin) }
+    val liveCurrentPos = remember(origin, dest) { mutableStateOf(origin) }
+    val liveBearing = remember(origin, dest) {
+        mutableFloatStateOf(calculateGreatCircleBearing(origin, dest, 0.0))
+    }
+    val trackingTilt = if (mapPerspective == Perspective2D) 0f else TrackingTiltDegrees
+    val planeRotation = planeMarkerRotationForBearing(liveBearing.floatValue)
+    var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
+    val isCameraTracking = inflightUiState.isCameraTracking
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(origin, 14f)
+    }
+    val zoomLabel by remember {
+        derivedStateOf { "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x" }
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             if (isPaused) {
@@ -303,7 +333,37 @@ fun InFlightScreen(
                 val fraction = ((now - animationStartedAtMillis).toFloat() / durationMillis).coerceIn(0f, 1f)
                 renderedElapsedSeconds = animationStartElapsed + (animationTargetElapsed - animationStartElapsed) * fraction
             }
-            delay(SmoothRenderFrameDelayMillis)
+            val smoothedProgress = if (totalSeconds > 0) {
+                (renderedElapsedSeconds / totalSeconds.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val updatedPos = interpolateGreatCircle(origin, dest, smoothedProgress.toDouble())
+            val updatedBearing = calculateGreatCircleBearing(origin, dest, smoothedProgress.toDouble())
+            liveCurrentPos.value = updatedPos
+            liveBearing.floatValue = updatedBearing
+            planeMarkerState.position = updatedPos
+
+            if (inflightUiState.isCameraTracking &&
+                cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE
+            ) {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastCameraTrackingUpdateAt >= cameraTrackingUpdateIntervalMillis) {
+                    lastCameraTrackingUpdateAt = now
+                    val currentZoom = cameraPositionState.position.zoom.takeIf { it >= 2f } ?: 14f
+                    cameraPositionState.move(
+                        CameraUpdateFactory.newCameraPosition(
+                            CameraPosition.Builder()
+                                .target(updatedPos)
+                                .zoom(currentZoom)
+                                .tilt(trackingTilt)
+                                .bearing(if (mapPerspective == Perspective2D) 0f else updatedBearing)
+                                .build()
+                        )
+                    )
+                }
+            }
+            delay(renderFrameDelayMillis)
         }
     }
 
@@ -398,39 +458,13 @@ fun InFlightScreen(
         }
     }
 
-    val origin = draft.origin.location
-    val dest = draft.destination?.location ?: origin
-    val currentPos = remember(renderedProgress) {
-        // ??????????⑤벡瑜????? ????븐뼐???????????????????????곕츥??????????????녳븢??????븐뼐??????????????븐뼐?곭춯?竊????????癲됱빖???嶺?????????
-        interpolateGreatCircle(origin, dest, renderedProgress.toDouble())
-    }
-    val bearing = remember(renderedProgress, origin, dest) {
-        calculateGreatCircleBearing(origin, dest, renderedProgress.toDouble())
-    }
-    val routePoints = remember(origin, dest) {
-        buildGreatCircleRoutePoints(origin, dest)
-    }
-    val trackingTilt = if (mapPerspective == Perspective2D) 0f else TrackingTiltDegrees
-    val trackingBearing = if (mapPerspective == Perspective2D) 0f else bearing
-    val planeRotation = remember(bearing) { planeMarkerRotationForBearing(bearing) }
-    val planeMarker = remember { MapBitmapUtils.createPlaneMarkerBitmap(context) }
-    val planeMarkerState = remember { MarkerState(position = currentPos) }
-    LaunchedEffect(currentPos) {
-        planeMarkerState.position = currentPos
-    }
-    var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
-    val isCameraTracking = inflightUiState.isCameraTracking
-    val cameraPositionState = rememberCameraPositionState()
-    val zoomLabel by remember {
-        derivedStateOf { "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x" }
-    }
     suspend fun updateCameraPerspective(
         perspective: String,
         keepTrackingTarget: Boolean
     ) {
-        val target = if (keepTrackingTarget) currentPos else cameraPositionState.position.target
+        val target = if (keepTrackingTarget) liveCurrentPos.value else cameraPositionState.position.target
         val updatedTilt = if (perspective == Perspective2D) 0f else TrackingTiltDegrees
-        val updatedBearing = if (perspective == Perspective2D) 0f else bearing
+        val updatedBearing = if (perspective == Perspective2D) 0f else liveBearing.floatValue
         cameraPositionState.move(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder(cameraPositionState.position)
@@ -447,35 +481,13 @@ fun InFlightScreen(
         cameraPositionState.animate(
                 CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
-                    .target(currentPos)
+                    .target(liveCurrentPos.value)
                     .zoom(14f)
                     .tilt(trackingTilt)
-                    .bearing(trackingBearing)
+                    .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
                     .build()
             )
         )
-    }
-
-    // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
-    LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
-        if (isCameraTracking && cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE) {
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastCameraTrackingUpdateAt < CameraTrackingUpdateIntervalMillis) {
-                return@LaunchedEffect
-            }
-            lastCameraTrackingUpdateAt = now
-            val currentZoom = cameraPositionState.position.zoom.takeIf { it > 1f } ?: 14f
-            cameraPositionState.move(
-                CameraUpdateFactory.newCameraPosition(
-                    CameraPosition.Builder()
-                        .target(currentPos)
-                        .zoom(currentZoom)
-                        .tilt(trackingTilt)
-                        .bearing(trackingBearing)
-                        .build()
-                )
-            )
-        }
     }
 
     LaunchedEffect(cameraPositionState.isMoving) {
@@ -622,10 +634,10 @@ fun InFlightScreen(
                                             cameraPositionState.animate(
                                                 CameraUpdateFactory.newCameraPosition(
                                                     CameraPosition.Builder()
-                                                        .target(currentPos)
+                                                        .target(liveCurrentPos.value)
                                                         .zoom(cameraPositionState.position.zoom)
                                                         .tilt(trackingTilt)
-                                                        .bearing(trackingBearing)
+                                                        .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
                                                         .build()
                                                 )
                                             )
@@ -869,10 +881,10 @@ fun InFlightScreen(
                                         cameraPositionState.animate(
                                             CameraUpdateFactory.newCameraPosition(
                                                 CameraPosition.Builder()
-                                                    .target(currentPos)
+                                                    .target(liveCurrentPos.value)
                                                     .zoom(cameraPositionState.position.zoom)
                                                     .tilt(trackingTilt)
-                                                    .bearing(trackingBearing)
+                                                    .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
                                                     .build()
                                             )
                                         )
