@@ -172,11 +172,11 @@ fun NewFlightScreen(
     }
 
     // Map Snapping
-    LaunchedEffect(cameraPositionState.isMoving) {
+    LaunchedEffect(cameraPositionState.isMoving, sortedAirports, originIata) {
         if (!cameraPositionState.isMoving) {
             val center = cameraPositionState.position.target
-            val closest = allAirports
-                .filter { it.iata != originIata }
+            val visibleSelectableAirports = sortedAirports.filter { it.iata != originIata }
+            val closest = visibleSelectableAirports
                 .minByOrNull { 
                     FlightUtils.calculateDistance(center.latitude, center.longitude, it.latitude, it.longitude)
                 }

@@ -1,12 +1,11 @@
 ﻿package com.example.openflight4and.ui.inflight
 
+import android.app.Application
 import android.content.Intent
 import android.location.Location
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -15,7 +14,6 @@ import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
@@ -45,6 +44,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
@@ -54,6 +54,8 @@ private const val Perspective2D = "2d"
 private const val Perspective2_5D = "2_5d"
 private const val GreatCircleBearingStep = 0.001
 private const val GreatCircleRouteSegments = 256
+private const val CameraTrackingUpdateIntervalMillis = 180L
+private const val SmoothRenderFrameDelayMillis = 33L
 
 /**
  * ??????????⑤벡瑜?????(Great Circle Interpolation)
@@ -134,6 +136,9 @@ fun InFlightScreen(
     onFlightEnd: () -> Unit
 ) {
     val context = LocalContext.current
+    val inflightViewModel: InFlightViewModel = viewModel(
+        factory = InFlightViewModel.Factory(context.applicationContext as Application)
+    )
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val repository = remember { AppRepository(context) }
@@ -159,35 +164,32 @@ fun InFlightScreen(
     var isServiceSynced by remember { mutableStateOf(false) }
     var ticketCharged by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
-    var showAdRewardDialog by remember { mutableStateOf(false) }
-    var isAdRewardRunning by remember { mutableStateOf(false) }
-    var adRewardSecondsRemaining by remember { mutableIntStateOf(30) }
+    val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
     var lastDebugSliderInteractionAt by remember { mutableStateOf(0L) }
+    var renderedElapsedSeconds by remember { mutableFloatStateOf(0f) }
+    var animationStartElapsed by remember { mutableFloatStateOf(0f) }
+    var animationTargetElapsed by remember { mutableFloatStateOf(0f) }
+    var animationStartedAtMillis by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
 
     // ???????????????????椰????
     val localTickDelayMillis = remember(draft.timeScale) {
         (1000f / draft.timeScale.coerceIn(0.001f, 1000f)).toLong().coerceAtLeast(MinTickDelayMillis)
     }
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
-    val smoothedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(
-            durationMillis = localTickDelayMillis.coerceAtMost(1000L).toInt(),
-            easing = LinearEasing
-        ),
-        label = "inflight_progress"
-    )
+    val renderedProgress = if (totalSeconds > 0) {
+        (renderedElapsedSeconds / totalSeconds.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
     val isFlying = secondsElapsed < totalSeconds
 
     // ????겾??좊읈??????源낇꼧???⑥??????ㅺ컼??
-    var showGiveUpDialog by remember { mutableStateOf(false) }
-
     // ??살쨮揶쎛疫?甕곌쑵???紐껊굶??
     BackHandler {
-        showGiveUpDialog = true
+        inflightViewModel.showGiveUpDialog()
     }
 
     fun pauseFlight() {
@@ -197,7 +199,7 @@ fun InFlightScreen(
             }
         )
         isPaused = true
-        showGiveUpDialog = false
+        inflightViewModel.hideGiveUpDialog()
     }
 
     fun resumeFlight() {
@@ -217,8 +219,18 @@ fun InFlightScreen(
         )
         FlightStatusManager.stopFlight()
         isPaused = false
-        showGiveUpDialog = false
+        inflightViewModel.hideGiveUpDialog()
         onFlightEnd()
+    }
+
+    LaunchedEffect(Unit) {
+        inflightViewModel.events.collect { event ->
+            when (event) {
+                is InFlightEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -240,6 +252,10 @@ fun InFlightScreen(
                 if (!isDebugSliderDirty) {
                     debugSliderSeconds = secondsElapsed.toFloat()
                 }
+                renderedElapsedSeconds = secondsElapsed.toFloat()
+                animationStartElapsed = renderedElapsedSeconds
+                animationTargetElapsed = renderedElapsedSeconds
+                animationStartedAtMillis = SystemClock.elapsedRealtime()
             }
         } else {
             FlightStatusManager.startFlight(
@@ -252,6 +268,42 @@ fun InFlightScreen(
             if (!isDebugSliderDirty) {
                 debugSliderSeconds = 0f
             }
+            renderedElapsedSeconds = 0f
+            animationStartElapsed = 0f
+            animationTargetElapsed = 0f
+            animationStartedAtMillis = SystemClock.elapsedRealtime()
+        }
+    }
+
+    LaunchedEffect(secondsElapsed) {
+        animationStartElapsed = renderedElapsedSeconds
+        animationTargetElapsed = secondsElapsed.toFloat()
+        animationStartedAtMillis = SystemClock.elapsedRealtime()
+        if (isPaused) {
+            renderedElapsedSeconds = animationTargetElapsed
+        }
+    }
+
+    LaunchedEffect(isPaused) {
+        if (isPaused) {
+            renderedElapsedSeconds = secondsElapsed.toFloat()
+            animationStartElapsed = renderedElapsedSeconds
+            animationTargetElapsed = renderedElapsedSeconds
+            animationStartedAtMillis = SystemClock.elapsedRealtime()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (isPaused) {
+                renderedElapsedSeconds = secondsElapsed.toFloat()
+            } else {
+                val now = SystemClock.elapsedRealtime()
+                val durationMillis = localTickDelayMillis.coerceAtMost(1000L).toFloat().coerceAtLeast(1f)
+                val fraction = ((now - animationStartedAtMillis).toFloat() / durationMillis).coerceIn(0f, 1f)
+                renderedElapsedSeconds = animationStartElapsed + (animationTargetElapsed - animationStartElapsed) * fraction
+            }
+            delay(SmoothRenderFrameDelayMillis)
         }
     }
 
@@ -311,22 +363,6 @@ fun InFlightScreen(
         }
     }
 
-    LaunchedEffect(isAdRewardRunning) {
-        if (!isAdRewardRunning) {
-            return@LaunchedEffect
-        }
-
-        adRewardSecondsRemaining = 30
-        while (adRewardSecondsRemaining > 0) {
-            delay(1_000)
-            adRewardSecondsRemaining--
-        }
-
-        repository.rewardSingleTicketFromInFlightAd()
-        isAdRewardRunning = false
-        Toast.makeText(context, "\uBE44\uD589\uAD8C 1\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
-    }
-
     LaunchedEffect(secondsElapsed, totalSeconds, ticketCharged) {
         if (totalSeconds < 600 || ticketCharged || secondsElapsed < 600) {
             return@LaunchedEffect
@@ -344,6 +380,7 @@ fun InFlightScreen(
     fun applyDebugElapsed(targetSeconds: Long) {
         val clampedSeconds = targetSeconds.coerceIn(0L, totalSeconds)
         secondsElapsed = clampedSeconds
+        renderedElapsedSeconds = clampedSeconds.toFloat()
         debugSliderSeconds = clampedSeconds.toFloat()
         isDebugSliderDirty = false
         FlightStatusManager.updateProgress(clampedSeconds)
@@ -363,12 +400,12 @@ fun InFlightScreen(
 
     val origin = draft.origin.location
     val dest = draft.destination?.location ?: origin
-    val currentPos = remember(smoothedProgress) {
+    val currentPos = remember(renderedProgress) {
         // ??????????⑤벡瑜????? ????븐뼐???????????????????????곕츥??????????????녳븢??????븐뼐??????????????븐뼐?곭춯?竊????????癲됱빖???嶺?????????
-        interpolateGreatCircle(origin, dest, smoothedProgress.toDouble())
+        interpolateGreatCircle(origin, dest, renderedProgress.toDouble())
     }
-    val bearing = remember(smoothedProgress, origin, dest) {
-        calculateGreatCircleBearing(origin, dest, smoothedProgress.toDouble())
+    val bearing = remember(renderedProgress, origin, dest) {
+        calculateGreatCircleBearing(origin, dest, renderedProgress.toDouble())
     }
     val routePoints = remember(origin, dest) {
         buildGreatCircleRoutePoints(origin, dest)
@@ -377,9 +414,12 @@ fun InFlightScreen(
     val trackingBearing = if (mapPerspective == Perspective2D) 0f else bearing
     val planeRotation = remember(bearing) { planeMarkerRotationForBearing(bearing) }
     val planeMarker = remember { MapBitmapUtils.createPlaneMarkerBitmap(context) }
-
-    // ?????筌뤾퍓愿???????????熬곣몿??????????椰????
-    var isCameraTracking by rememberSaveable { mutableStateOf(true) }
+    val planeMarkerState = remember { MarkerState(position = currentPos) }
+    LaunchedEffect(currentPos) {
+        planeMarkerState.position = currentPos
+    }
+    var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
+    val isCameraTracking = inflightUiState.isCameraTracking
     val cameraPositionState = rememberCameraPositionState()
     val zoomLabel by remember {
         derivedStateOf { "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x" }
@@ -419,6 +459,11 @@ fun InFlightScreen(
     // ?????筌뤾퍓愿???????????熬곣몿???????????雅?퍔瑗?땟???(?????? ????븐뼐???????????????????????????롮쾸?椰??????????????熬곣몿??????????ш끽踰椰?????袁ㅻ쇀??)
     LaunchedEffect(currentPos, isCameraTracking, mapPerspective) {
         if (isCameraTracking && cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastCameraTrackingUpdateAt < CameraTrackingUpdateIntervalMillis) {
+                return@LaunchedEffect
+            }
+            lastCameraTrackingUpdateAt = now
             val currentZoom = cameraPositionState.position.zoom.takeIf { it > 1f } ?: 14f
             cameraPositionState.move(
                 CameraUpdateFactory.newCameraPosition(
@@ -435,7 +480,7 @@ fun InFlightScreen(
 
     LaunchedEffect(cameraPositionState.isMoving) {
         if (cameraPositionState.isMoving && cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE) {
-            isCameraTracking = false
+            inflightViewModel.disableCameraTracking()
         }
     }
 
@@ -462,7 +507,7 @@ fun InFlightScreen(
                     geodesic = false
                 )
                 Marker(
-                    state = MarkerState(position = currentPos),
+                    state = planeMarkerState,
                     icon = planeMarker,
                     rotation = planeRotation,
                     flat = true,
@@ -539,12 +584,12 @@ fun InFlightScreen(
                                 horizontalAlignment = Alignment.End
                             ) {
                                 SmallFloatingActionButton(
-                                    onClick = { showAdRewardDialog = true },
+                                    onClick = { inflightViewModel.showAdRewardDialog() },
                                     containerColor = overlayPalette.floatingButtonContainer,
                                     contentColor = overlayPalette.floatingButtonContent
                                 ) {
-                                    if (isAdRewardRunning) {
-                                        Text(text = "${adRewardSecondsRemaining}", style = MaterialTheme.typography.labelSmall)
+                                    if (inflightUiState.isAdRewardRunning) {
+                                        Text(text = "${inflightUiState.adRewardSecondsRemaining}", style = MaterialTheme.typography.labelSmall)
                                     } else {
                                         Icon(Icons.Default.ConfirmationNumber, contentDescription = null)
                                     }
@@ -572,7 +617,7 @@ fun InFlightScreen(
 
                                 SmallFloatingActionButton(
                                     onClick = {
-                                        isCameraTracking = true
+                                        inflightViewModel.enableCameraTracking()
                                         scope.launch {
                                             cameraPositionState.animate(
                                                 CameraUpdateFactory.newCameraPosition(
@@ -765,7 +810,7 @@ fun InFlightScreen(
 
                                 PrimaryFlightButton(
                                     text = "\uC5EC\uC815 \uC911\uB2E8",
-                                    onClick = { showGiveUpDialog = true },
+                                    onClick = { inflightViewModel.showGiveUpDialog() },
                                     modifier = Modifier.weight(1f),
                                     isDestructive = true
                                 )
@@ -777,14 +822,14 @@ fun InFlightScreen(
                             horizontalAlignment = Alignment.End
                         ) {
                             SmallFloatingActionButton(
-                                onClick = { showAdRewardDialog = true },
+                                onClick = { inflightViewModel.showAdRewardDialog() },
                                 modifier = Modifier.align(Alignment.End),
                                 containerColor = overlayPalette.floatingButtonContainer,
                                 contentColor = overlayPalette.floatingButtonContent
                             ) {
-                                if (isAdRewardRunning) {
+                                if (inflightUiState.isAdRewardRunning) {
                                     Text(
-                                        text = "${adRewardSecondsRemaining}",
+                                        text = "${inflightUiState.adRewardSecondsRemaining}",
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 } else {
@@ -819,7 +864,7 @@ fun InFlightScreen(
 
                             SmallFloatingActionButton(
                                 onClick = {
-                                    isCameraTracking = true
+                                    inflightViewModel.enableCameraTracking()
                                     scope.launch {
                                         cameraPositionState.animate(
                                             CameraUpdateFactory.newCameraPosition(
@@ -935,7 +980,7 @@ fun InFlightScreen(
 
                                 PrimaryFlightButton(
                                     text = "\uC5EC\uC815 \uC911\uB2E8",
-                                    onClick = { showGiveUpDialog = true },
+                                    onClick = { inflightViewModel.showGiveUpDialog() },
                                     modifier = Modifier.weight(1f),
                                     isDestructive = true
                                 )
@@ -988,7 +1033,7 @@ fun InFlightScreen(
             }
         }
 
-        if (showAdRewardDialog) {
+        if (inflightUiState.showAdRewardDialog) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1022,14 +1067,13 @@ fun InFlightScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    showAdRewardDialog = false
-                                    isAdRewardRunning = true
+                                    inflightViewModel.startAdReward()
                                 }
                             ) {
                                 Text("\uAD11\uACE0 \uBCF4\uAE30")
                             }
                             OutlinedButton(
-                                onClick = { showAdRewardDialog = false },
+                                onClick = { inflightViewModel.hideAdRewardDialog() },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
                             ) {
                                 Text("\uC544\uB2C8\uC624")
@@ -1040,7 +1084,7 @@ fun InFlightScreen(
             }
         }
 
-        if (isAdRewardRunning) {
+        if (inflightUiState.isAdRewardRunning) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1065,7 +1109,7 @@ fun InFlightScreen(
                             fontSize = 22.sp
                         )
                         Text(
-                            "${adRewardSecondsRemaining}\uCD08 \uB0A8\uC74C",
+                            "${inflightUiState.adRewardSecondsRemaining}\uCD08 \uB0A8\uC74C",
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1075,7 +1119,7 @@ fun InFlightScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         OutlinedButton(
-                            onClick = { isAdRewardRunning = false },
+                            onClick = { inflightViewModel.cancelAdReward() },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
                         ) {
                             Text("\uCDE8\uC18C")
@@ -1086,9 +1130,9 @@ fun InFlightScreen(
         }
     }
 
-    if (showGiveUpDialog) {
+    if (inflightUiState.showGiveUpDialog) {
         AlertDialog(
-            onDismissRequest = { showGiveUpDialog = false },
+            onDismissRequest = { inflightViewModel.hideGiveUpDialog() },
             title = { Text("\uBE44\uD589 \uD3EC\uAE30", color = Color.White) },
             text = { Text("\uD604\uC7AC \uBE44\uD589\uC744 \uD3EC\uAE30\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAE30\uB85D\uC774 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", color = FlightGray) },
             confirmButton = {
@@ -1099,7 +1143,7 @@ fun InFlightScreen(
                 ) { Text("\uD3EC\uAE30", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showGiveUpDialog = false }) { Text("\uACC4\uC18D \uBE44\uD589") }
+                TextButton(onClick = { inflightViewModel.hideGiveUpDialog() }) { Text("\uACC4\uC18D \uBE44\uD589") }
             },
             containerColor = Color(0xFF0D0000)
         )

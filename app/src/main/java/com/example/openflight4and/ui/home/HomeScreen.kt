@@ -94,7 +94,8 @@ fun HomeScreen(
     RealFlightMap(
         cameraPositionState = cameraPositionState,
         mapStyle = mapStyle,
-        isInteractive = true,
+        isInteractive = false,
+        useDarkOverlay = false,
         overlayContent = {
             if (isLandscape) {
                 Row(

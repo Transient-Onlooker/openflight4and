@@ -1,7 +1,6 @@
 package com.example.openflight4and.ui
 
-import android.content.Intent
-import android.util.Log
+import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -12,16 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,9 +24,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.data.AppRepository
-import com.example.openflight4and.model.Airport
-import com.example.openflight4and.model.FlightDraft
-import com.example.openflight4and.service.FlightService
 import com.example.openflight4and.ui.boardingpass.BoardingPassScreen
 import com.example.openflight4and.ui.history.HistoryScreen
 import com.example.openflight4and.ui.home.HomeScreen
@@ -43,69 +35,8 @@ import com.example.openflight4and.ui.seatselection.SeatSelectionScreen
 import com.example.openflight4and.ui.settings.SettingsScreen
 import com.example.openflight4and.ui.tickets.TicketCenterScreen
 import com.example.openflight4and.ui.trend.TrendScreen
-import com.example.openflight4and.utils.FlightUtils
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-
-private val AirportSaver: Saver<Airport, Any> = listSaver(
-    save = {
-        listOf(
-            it.iata,
-            it.nameKo,
-            it.nameEn,
-            it.cityKo,
-            it.cityEn,
-            it.country,
-            it.latitude,
-            it.longitude
-        )
-    },
-    restore = {
-        Airport(
-            iata = it[0] as String,
-            nameKo = it[1] as String,
-            nameEn = it[2] as String,
-            cityKo = it[3] as String,
-            cityEn = it[4] as String,
-            country = it[5] as String,
-            latitude = it[6] as Double,
-            longitude = it[7] as Double
-        )
-    }
-)
-
-private val FlightDraftSaver: Saver<FlightDraft, Any> = listSaver(
-    save = { draft ->
-        listOf(
-            with(AirportSaver) { save(draft.origin)!! },
-            draft.destination?.let { with(AirportSaver) { save(it)!! } },
-            draft.distanceKm,
-            draft.estimatedMinutes,
-            draft.flightNumber,
-            draft.boardingTime,
-            draft.seatNumber,
-            draft.focusCategory,
-            draft.status,
-            draft.timeScale
-        )
-    },
-    restore = {
-        FlightDraft(
-            origin = with(AirportSaver) { restore(it[0]!!)!! },
-            destination = it[1]?.let { saved -> with(AirportSaver) { restore(saved)!! } },
-            distanceKm = it[2] as Int,
-            estimatedMinutes = it[3] as Int,
-            flightNumber = it[4] as String,
-            boardingTime = it[5] as String,
-            seatNumber = it[6] as String?,
-            focusCategory = it[7] as String?,
-            status = it[8] as String,
-            timeScale = (it[9] as Number).toFloat()
-        )
-    }
-)
 
 @Composable
 fun MainScreen(
@@ -116,127 +47,43 @@ fun MainScreen(
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
+    val viewModel: MainScreenViewModel = viewModel(
+        factory = MainScreenViewModel.Factory(context.applicationContext as Application)
+    )
 
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val airplaneModeCheckEnabled by repository.airplaneModeCheck.collectAsState(initial = true)
-    val currentLocation by repository.currentLocation.collectAsState(initial = null)
     val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
     val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
-    val recentSessions by repository.recentSessions.collectAsState(initial = emptyList())
+    val uiState by viewModel.uiState.collectAsState()
 
-    val allAirports = remember { repository.getAirports() }
-    val defaultOrigin = remember(currentLocation, recentSessions, allAirports) {
-        if (allAirports.isEmpty()) {
-            return@remember Airport(
-                iata = "ICN",
-                nameKo = "Incheon Intl",
-                nameEn = "Incheon Intl",
-                cityKo = "Incheon Seoul",
-                cityEn = "Incheon Seoul",
-                country = "KR",
-                latitude = 37.46,
-                longitude = 126.44
-            )
-        }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MainScreenEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
 
-        currentLocation?.let { return@remember it }
-
-        val lastDestIata = recentSessions.firstOrNull()?.destinationIata
-        allAirports.find { it.iata == lastDestIata }
-            ?: allAirports.find { it.iata == "ICN" }
-            ?: allAirports.first()
-    }
-
-    var currentDraft by rememberSaveable(defaultOrigin.iata, stateSaver = FlightDraftSaver) {
-        mutableStateOf(FlightDraft(origin = defaultOrigin))
-    }
-    var showAirplaneModeDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(currentLocation) {
-        currentLocation?.let { airport ->
-            Log.d("MainScreen", "Current location changed to: ${airport.iata}")
-            currentDraft = currentDraft.copy(origin = airport)
-        }
-    }
-
-    LaunchedEffect(defaultOrigin.iata) {
-        if (currentLocation == null && currentDraft.origin.iata != defaultOrigin.iata) {
-            currentDraft = currentDraft.copy(origin = defaultOrigin)
-        }
-    }
-
-    LaunchedEffect(inflightLaunchRequest, allAirports) {
-        val request = inflightLaunchRequest ?: return@LaunchedEffect
-
-        if (!FlightService.isServiceRunning()) {
-            onInflightLaunchHandled()
-            return@LaunchedEffect
-        }
-
-        val origin = request.originIata?.let { requestedIata ->
-            allAirports.find { it.iata == requestedIata }
-        } ?: currentDraft.origin
-        val destination = request.destinationIata
-            ?.takeUnless { it == "N/A" }
-            ?.let { requestedIata -> allAirports.find { it.iata == requestedIata } }
-            ?: currentDraft.destination
-        val estimatedMinutes = request.durationMinutes
-            .takeIf { it > 0 }
-            ?: (FlightService.getTotalSeconds() / 60L).toInt()
-        val distanceKm = destination
-            ?.let { FlightUtils.calculateDistance(origin, it).toInt() }
-            ?: currentDraft.distanceKm
-
-        currentDraft = currentDraft.copy(
-            origin = origin,
-            destination = destination,
-            estimatedMinutes = estimatedMinutes,
-            distanceKm = distanceKm
-        )
-
-        navController.navigate(Screen.InFlight.route) {
-            launchSingleTop = true
-            popUpTo(Screen.Home.route) { inclusive = false }
-        }
-        onInflightLaunchHandled()
-    }
-
-    fun startFlight() {
-        if (currentDraft.destination == null) {
-            Toast.makeText(context, "\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (ticketBalance <= 0) {
-            Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        scope.launch {
-            val spendResult = repository.canStartFlight(currentDraft.estimatedMinutes)
-            if (!spendResult.success) {
-                Toast.makeText(context, "티켓이 부족합니다.", Toast.LENGTH_SHORT).show()
-                return@launch
+                MainScreenEvent.NavigateToInFlight -> {
+                    navController.navigate(Screen.InFlight.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
             }
+        }
+    }
 
-            val draftToStart = currentDraft.copy(timeScale = sandboxTimeScale)
-            currentDraft = draftToStart
-
-            val intent = Intent(context, FlightService::class.java).apply {
-                putExtra("origin_iata", draftToStart.origin.iata)
-                putExtra("destination_iata", draftToStart.destination?.iata ?: "N/A")
-                putExtra("origin_name", draftToStart.origin.nameKo)
-                putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
-                putExtra("duration_minutes", draftToStart.estimatedMinutes)
-                putExtra("time_scale", sandboxTimeScale)
-                putExtra("notification_update_seconds", notificationUpdateSeconds)
-            }
-            context.startForegroundService(intent)
-
+    LaunchedEffect(inflightLaunchRequest) {
+        val handled = viewModel.handleInflightLaunchRequest(inflightLaunchRequest)
+        if (handled) {
             navController.navigate(Screen.InFlight.route) {
+                launchSingleTop = true
                 popUpTo(Screen.Home.route) { inclusive = false }
             }
+            onInflightLaunchHandled()
+        } else if (inflightLaunchRequest != null) {
+            onInflightLaunchHandled()
         }
     }
 
@@ -249,14 +96,13 @@ fun MainScreen(
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToNewFlight = {
-                        val origin = currentLocation ?: defaultOrigin
-                        currentDraft = FlightDraft(origin = origin)
+                        viewModel.prepareNewFlight()
                         navController.navigate(Screen.NewFlight.route)
                     },
                     onNavigateToHistory = { navController.navigate(Screen.History.route) },
                     onNavigateToTrend = { navController.navigate(Screen.Trend.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    currentAirport = currentDraft.origin,
+                    currentAirport = uiState.currentDraft.origin,
                     ticketBalance = ticketBalance,
                     onNavigateToTickets = { navController.navigate(Screen.Tickets.route) }
                 )
@@ -279,20 +125,13 @@ fun MainScreen(
                 val isSettingCurrentLocation = backStackEntry.arguments?.getString("isSettingCurrentLocation") == "true"
 
                 NewFlightScreen(
-                    currentDraft = currentDraft,
+                    currentDraft = uiState.currentDraft,
                     onAirportSelected = { destination ->
-                        val distance = FlightUtils.calculateDistance(currentDraft.origin, destination)
-                        val duration = FlightUtils.estimateDurationMinutes(distance)
-                        currentDraft = currentDraft.copy(
-                            destination = destination,
-                            distanceKm = distance.toInt(),
-                            estimatedMinutes = duration
-                        )
+                        viewModel.updateDestination(destination)
                     },
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToBoardingPass = {
-                        val now = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                        currentDraft = currentDraft.copy(boardingTime = now)
+                        viewModel.prepareBoardingPass()
                         navController.navigate(Screen.BoardingPass.route)
                     },
                     unitSystem = unitSystem,
@@ -313,7 +152,7 @@ fun MainScreen(
 
             composable(Screen.BoardingPass.route) {
                 BoardingPassScreen(
-                    draft = currentDraft,
+                    draft = uiState.currentDraft,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToSeatSelection = { navController.navigate(Screen.SeatSelection.route) },
                     unitSystem = unitSystem
@@ -324,35 +163,30 @@ fun MainScreen(
                 SeatSelectionScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onSeatSelected = { seat, category ->
-                        currentDraft = currentDraft.copy(seatNumber = seat, focusCategory = category)
+                        viewModel.updateSeatAndCategory(seat, category)
                     },
                     hasTickets = ticketBalance > 0,
                     onTicketRequired = {
-                        Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
                     },
                     onFinish = {
-                        if (currentDraft.destination == null) {
-                            Toast.makeText(context, "\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.", Toast.LENGTH_SHORT).show()
+                        if (!viewModel.validateSeatSelection(ticketBalance)) {
                             return@SeatSelectionScreen
                         }
 
-                        if (ticketBalance <= 0) {
-                            Toast.makeText(context, "비행권이 부족합니다.", Toast.LENGTH_SHORT).show()
-                            return@SeatSelectionScreen
-                        }
-
-                        if (airplaneModeCheckEnabled && !FlightUtils.isAirplaneModeOn(context)) {
-                            showAirplaneModeDialog = true
-                        } else {
-                            startFlight()
-                        }
+                        viewModel.requestStartFlight(
+                            ticketBalance = ticketBalance,
+                            airplaneModeCheckEnabled = airplaneModeCheckEnabled,
+                            sandboxTimeScale = sandboxTimeScale,
+                            notificationUpdateSeconds = notificationUpdateSeconds
+                        )
                     }
                 )
             }
 
             composable(Screen.InFlight.route) {
                 InFlightScreen(
-                    draft = currentDraft,
+                    draft = uiState.currentDraft,
                     onNavigateToSettings = { navController.navigate(Screen.InFlightSettings.route) },
                     onFlightEnd = { navController.popBackStack(Screen.Home.route, inclusive = false) }
                 )
@@ -406,29 +240,30 @@ fun MainScreen(
         }
     }
 
-    if (showAirplaneModeDialog) {
+    if (uiState.showAirplaneModeDialog) {
         AlertDialog(
-            onDismissRequest = { showAirplaneModeDialog = false },
-            title = { Text("비행기 모드 확인", color = Color.White) },
+            onDismissRequest = { viewModel.dismissAirplaneModeDialog() },
+            title = { Text("\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778", color = Color.White) },
             text = {
                 Text(
-                    "집중 비행에는 비행기 모드 사용을 권장합니다. 그래도 계속할 수 있습니다.",
+                    "\uC9D1\uC911 \uBE44\uD589\uC5D0\uC11C\uB294 \uBE44\uD589\uAE30 \uBAA8\uB4DC \uC0AC\uC6A9\uC744 \uAD8C\uC7A5\uD569\uB2C8\uB2E4. \uADF8\uB798\uB3C4 \uACC4\uC18D\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?",
                     color = Color.Gray
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showAirplaneModeDialog = false
-                        startFlight()
+                        viewModel.confirmAirplaneModeStart(
+                            sandboxTimeScale = sandboxTimeScale,
+                            notificationUpdateSeconds = notificationUpdateSeconds
+                        )
                     }
-                ) { Text("그대로 시작") }
+                ) { Text("\uADF8\uB300\uB85C \uC2DC\uC791") }
             },
             dismissButton = {
-                TextButton(onClick = { showAirplaneModeDialog = false }) { Text("취소") }
+                TextButton(onClick = { viewModel.dismissAirplaneModeDialog() }) { Text("\uCDE8\uC18C") }
             },
             containerColor = Color(0xFF0D0000)
         )
     }
-
 }

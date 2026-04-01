@@ -49,7 +49,6 @@ private const val TITLE_SETTINGS = "\uC124\uC815"
 private const val TITLE_UNIT_SYSTEM = "\uCE21\uC815 \uB2E8\uC704"
 private const val TITLE_SCREEN_ORIENTATION = "\uD654\uBA74 \uBC29\uD5A5"
 private const val TITLE_MAP_STYLE = "\uC9C0\uB3C4 \uC2A4\uD0C0\uC77C"
-private const val TITLE_OVERLAY_CONTRAST = "\uBC84\uD2BC \uB300\uBE44"
 private const val TITLE_AIRPLANE_MODE_CHECK = "\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778"
 private const val TITLE_NOTIFICATIONS = "\uC54C\uB9BC"
 private const val TITLE_NOTIFICATION_INTERVAL = "\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30"
@@ -71,13 +70,12 @@ fun SettingsScreen(
 
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
-    val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
-    val isImmediateVisualSettingLocked = restrictInFlightSettings
+    val isScreenOrientationLocked = restrictInFlightSettings
 
     FlightMapBackground {
         Scaffold(
@@ -107,7 +105,7 @@ fun SettingsScreen(
             ) {
                 if (restrictInFlightSettings) {
                     Text(
-                        text = "\uBE44\uD589 \uC911\uC5D0\uB294 \uD654\uBA74\uC5D0 \uC989\uC2DC \uBC18\uC601\uB418\uB294 \uC124\uC815\uC740 \uC7A0\uAE08\uB2C8\uB2E4.",
+                        text = "\uBE44\uD589 \uC911\uC5D0\uB294 \uD654\uBA74 \uBC29\uD5A5 \uC124\uC815\uB9CC \uC7A0\uAE08\uB2C8\uB2E4.",
                         style = MaterialTheme.typography.bodySmall,
                         color = FlightGray,
                         modifier = Modifier.padding(top = 8.dp, start = 4.dp)
@@ -119,13 +117,11 @@ fun SettingsScreen(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = unitSystem == "km",
-                        enabled = !isImmediateVisualSettingLocked,
                         onClick = { scope.launch { repository.setUnitSystem("km") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                     ) { Text("Kilometers (km)") }
                     SegmentedButton(
                         selected = unitSystem == "mi",
-                        enabled = !isImmediateVisualSettingLocked,
                         onClick = { scope.launch { repository.setUnitSystem("mi") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                     ) { Text("Miles (mi)") }
@@ -143,7 +139,7 @@ fun SettingsScreen(
                     orientationModes.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
                             selected = screenOrientationMode == id,
-                            enabled = !isImmediateVisualSettingLocked,
+                            enabled = !isScreenOrientationLocked,
                             onClick = { scope.launch { repository.setScreenOrientationMode(id) } },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = orientationModes.size)
                         ) { Text(label) }
@@ -168,36 +164,11 @@ fun SettingsScreen(
                     styles.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
                             selected = mapStyle == id,
-                            enabled = !isImmediateVisualSettingLocked,
                             onClick = { scope.launch { repository.setMapStyle(id) } },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = styles.size)
                         ) { Text(label) }
                     }
                 }
-
-                Spacer(modifier = Modifier.padding(top = 24.dp))
-
-                SectionHeader(TITLE_OVERLAY_CONTRAST)
-                val overlayStyles = listOf(
-                    "dark" to "\uC5B4\uB450\uC6C0",
-                    "light" to "\uBC1D\uC74C"
-                )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    overlayStyles.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = mapOverlayStyle == id,
-                            enabled = !isImmediateVisualSettingLocked,
-                            onClick = { scope.launch { repository.setMapOverlayStyle(id) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = overlayStyles.size)
-                        ) { Text(label) }
-                    }
-                }
-                Text(
-                    text = "\uC9C0\uB3C4 \uC704 \uBC84\uD2BC\uACFC \uAE00\uC790 \uC0C9\uC0C1 \uB300\uBE44\uB97C \uC870\uC808\uD569\uB2C8\uB2E4.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = FlightGray,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
-                )
 
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
