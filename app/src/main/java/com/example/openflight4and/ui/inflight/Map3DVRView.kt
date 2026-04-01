@@ -1,6 +1,7 @@
 package com.example.openflight4and.ui.inflight
 
 import android.util.Log
+import android.view.MotionEvent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ fun Map3DVRView(
     isCameraTracking: Boolean,
     modifier: Modifier = Modifier,
     overlayContent: (@Composable BoxScope.() -> Unit)? = null,
+    onUserInteraction: () -> Unit = {},
     onMapError: (Exception) -> Unit = {}
 ) {
     var map3D by remember { mutableStateOf<GoogleMap3D?>(null) }
@@ -86,6 +88,15 @@ fun Map3DVRView(
                 )
                 Map3DView(context, options).apply {
                     map3DView = this
+                    setOnTouchListener { _, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN ||
+                            event.actionMasked == MotionEvent.ACTION_MOVE ||
+                            event.actionMasked == MotionEvent.ACTION_POINTER_DOWN
+                        ) {
+                            onUserInteraction()
+                        }
+                        false
+                    }
                     onCreate(null)
                     getMap3DViewAsync(
                         object : OnMap3DViewReadyCallback {

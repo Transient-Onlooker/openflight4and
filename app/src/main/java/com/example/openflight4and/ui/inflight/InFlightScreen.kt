@@ -562,6 +562,7 @@ fun InFlightScreen(
                 bearing = liveBearing.floatValue,
                 isCameraTracking = isCameraTracking,
                 modifier = Modifier.fillMaxSize(),
+                onUserInteraction = { inflightViewModel.disableCameraTracking() },
                 onMapError = {
                     scope.launch {
                         repository.setMapPerspective(Perspective2_5D)
