@@ -19,6 +19,7 @@ fun RealFlightMap(
     cameraPositionState: CameraPositionState,
     mapStyle: String = "standard",
     isInteractive: Boolean = true,
+    allowRotationGestures: Boolean = false,
     mapContent: (@Composable @GoogleMapComposable () -> Unit)? = null,
     overlayContent: (@Composable BoxScope.() -> Unit)? = null,
     useDarkOverlay: Boolean = true
@@ -51,7 +52,7 @@ fun RealFlightMap(
                 scrollGesturesEnabled = isInteractive,
                 zoomGesturesEnabled = isInteractive,
                 tiltGesturesEnabled = false,
-                rotationGesturesEnabled = false
+                rotationGesturesEnabled = isInteractive && allowRotationGestures
             )
         ) {
             // 지도 콘텐츠 (Polyline, Marker 등)

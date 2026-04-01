@@ -130,6 +130,7 @@ fun buildGreatCircleRoutePoints(start: LatLng, end: LatLng, segments: Int = Grea
 @Composable
 fun InFlightScreen(
     draft: FlightDraft,
+    onNavigateToSettings: () -> Unit,
     onFlightEnd: () -> Unit
 ) {
     val context = LocalContext.current
@@ -450,6 +451,7 @@ fun InFlightScreen(
             cameraPositionState = cameraPositionState,
             mapStyle = mapStyle,
             isInteractive = true,
+            allowRotationGestures = true,
             useDarkOverlay = false,
             mapContent = {
                 // ????븐뼐??????????????꾩룆梨띰쭕??????(GoogleMap ????????????????
@@ -968,8 +970,18 @@ fun InFlightScreen(
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Button(onClick = { resumeFlight() }) {
-                            Text("\uBE44\uD589 \uC7AC\uAC1C")
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onNavigateToSettings,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
+                            ) {
+                                Text("\uC124\uC815")
+                            }
+                            Button(onClick = { resumeFlight() }) {
+                                Text("\uBE44\uD589 \uC7AC\uAC1C")
+                            }
                         }
                     }
                 }

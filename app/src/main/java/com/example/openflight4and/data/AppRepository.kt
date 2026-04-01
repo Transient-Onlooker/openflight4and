@@ -101,6 +101,9 @@ class AppRepository(private val context: Context) {
     val flightTickets: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[KEY_FLIGHT_TICKETS] ?: 0
     }
+    val hasCheckedInToday: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_LAST_DAILY_TICKET_DATE] == LocalDate.now().toString()
+    }
     val debugFlightMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_DEBUG_FLIGHT_MODE] ?: false
     }
@@ -166,12 +169,15 @@ class AppRepository(private val context: Context) {
         }
     }
 
-    suspend fun grantDailyTicketIfNeeded(): Int {
-        var granted = 0
+    suspend fun claimDailyCheckIn(): DailyCheckInResult {
+        var result: DailyCheckInResult = DailyCheckInResult.Error("오늘은 이미 출석체크를 완료했습니다.")
         val today = LocalDate.now().toString()
 
         context.dataStore.edit { preferences ->
-            if (preferences[KEY_LAST_DAILY_TICKET_DATE] == today) return@edit
+            if (preferences[KEY_LAST_DAILY_TICKET_DATE] == today) {
+                result = DailyCheckInResult.Error("오늘은 이미 출석체크를 완료했습니다.")
+                return@edit
+            }
 
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
             val updatedBalance = currentBalance + 1
@@ -182,14 +188,14 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = 1,
                     balanceAfter = updatedBalance,
-                    title = "일일 비행권",
-                    detail = "일일 비행권 1개가 지급되었습니다."
+                    title = "출석 체크",
+                    detail = "출석체크 보상으로 비행권 1개가 지급되었습니다."
                 )
             )
-            granted = 1
+            result = DailyCheckInResult.Success(1)
         }
 
-        return granted
+        return result
     }
 
     suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult {
@@ -358,10 +364,15 @@ class AppRepository(private val context: Context) {
 
     private fun localizeLegacyTicketHistoryEntry(entry: FlightTicketHistoryEntry): FlightTicketHistoryEntry {
         val localizedTitle = when (entry.title.trim()) {
-            "Daily ticket" -> "일일 비행권"
+            "Daily ticket" -> "출석 체크"
+            "일일 비행권" -> "출석 체크"
+            "異쒖꽍泥댄겕" -> "출석 체크"
             "Flight ticket used" -> "비행권 사용"
+            "鍮꾪뻾沅?ъ슜" -> "비행권 사용"
             "Ad reward" -> "광고 보상"
+            "愿묎퀬 蹂댁긽" -> "광고 보상"
             "Redeem code" -> "리딤 코드"
+            "由щ뵥 肄붾뱶" -> "리딤 코드"
             else -> entry.title
         }
 
@@ -378,14 +389,19 @@ class AppRepository(private val context: Context) {
         val trimmed = detail.trim()
         if (trimmed.isEmpty()) return detail
 
-        if (trimmed.equals("Daily ticket granted.", ignoreCase = true)) {
-            return "일일 비행권 1개가 지급되었습니다."
+        if (
+            trimmed.equals("Daily ticket granted.", ignoreCase = true) ||
+            trimmed.equals("일일 비행권 1개가 지급되었습니다.", ignoreCase = true) ||
+            (trimmed.contains("異쒖꽍泥댄겕") && trimmed.contains("鍮꾪뻾沅?"))
+        ) {
+            return "출석체크 보상으로 비행권 1개가 지급되었습니다."
         }
 
         if (
             trimmed.equals("Consumed 1 ticket for a 10+ minute flight.", ignoreCase = true) ||
             trimmed.equals("Consumed 1 ticket for a flight over 10 minutes.", ignoreCase = true) ||
-            trimmed.equals("Consumed 1 ticket.", ignoreCase = true)
+            trimmed.equals("Consumed 1 ticket.", ignoreCase = true) ||
+            (trimmed.contains("10遺") && trimmed.contains("李④컧"))
         ) {
             return "10분 이상 비행으로 비행권 1개가 차감되었습니다."
         }
@@ -395,6 +411,10 @@ class AppRepository(private val context: Context) {
             trimmed.equals("Earned 3 tickets by watching an ad.", ignoreCase = true)
         ) {
             return "30초 광고 보상으로 비행권 3개가 지급되었습니다."
+        }
+
+        if (trimmed.contains("愿묎퀬") && trimmed.contains("鍮꾪뻾沅?")) {
+            return "30초 광고 보상으로 비행권 1개가 지급되었습니다."
         }
 
         val redeemMatch = Regex(
@@ -420,4 +440,9 @@ data class TicketSpendResult(
 sealed class RedeemCodeResult {
     data class Success(val amount: Int) : RedeemCodeResult()
     data class Error(val message: String) : RedeemCodeResult()
+}
+
+sealed class DailyCheckInResult {
+    data class Success(val amount: Int) : DailyCheckInResult()
+    data class Error(val message: String) : DailyCheckInResult()
 }

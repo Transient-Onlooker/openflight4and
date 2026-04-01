@@ -166,13 +166,6 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        val granted = repository.grantDailyTicketIfNeeded()
-        if (granted > 0) {
-            Toast.makeText(context, "일일 비행권이 지급되었습니다.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     LaunchedEffect(inflightLaunchRequest, allAirports) {
         val request = inflightLaunchRequest ?: return@LaunchedEffect
 
@@ -360,6 +353,7 @@ fun MainScreen(
             composable(Screen.InFlight.route) {
                 InFlightScreen(
                     draft = currentDraft,
+                    onNavigateToSettings = { navController.navigate(Screen.InFlightSettings.route) },
                     onFlightEnd = { navController.popBackStack(Screen.Home.route, inclusive = false) }
                 )
             }
@@ -377,6 +371,13 @@ fun MainScreen(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable(Screen.InFlightSettings.route) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    restrictInFlightSettings = true
+                )
             }
 
             composable(Screen.Tickets.route) {

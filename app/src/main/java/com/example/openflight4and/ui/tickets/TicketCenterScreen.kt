@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
 import com.example.openflight4and.model.FlightTicketHistoryEntry
 import com.example.openflight4and.ui.components.GlassPanel
@@ -66,6 +67,7 @@ fun TicketCenterScreen(
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
     val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
+    val hasCheckedInToday by repository.hasCheckedInToday.collectAsState(initial = false)
     val ticketHistory by repository.ticketHistory.collectAsState(initial = emptyList())
 
     var redeemCode by rememberSaveable { mutableStateOf("") }
@@ -124,7 +126,7 @@ fun TicketCenterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("남은 비행권", color = FlightGray, style = MaterialTheme.typography.labelLarge)
+                            Text("현재 비행권", color = FlightGray, style = MaterialTheme.typography.labelLarge)
                             Text(
                                 text = "$ticketBalance",
                                 color = Color.White,
@@ -155,13 +157,58 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
+                            "출석 체크",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            if (hasCheckedInToday) {
+                                "오늘은 출석체크를 완료했습니다."
+                            } else {
+                                "하루에 한 번 출석체크를 하면 비행권 1개를 받을 수 있습니다."
+                            },
+                            color = FlightGray,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        PrimaryFlightButton(
+                            text = if (hasCheckedInToday) "오늘 출석 완료" else "출석체크 하기",
+                            enabled = !hasCheckedInToday,
+                            onClick = {
+                                scope.launch {
+                                    when (val result = repository.claimDailyCheckIn()) {
+                                        is DailyCheckInResult.Success -> {
+                                            Toast.makeText(
+                                                context,
+                                                "출석체크 보상으로 비행권 ${result.amount}개가 지급되었습니다.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        is DailyCheckInResult.Error -> {
+                                            Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            item {
+                GlassPanel(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
                             "광고 보고 비행권 받기",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "30초 광고 1개를 보면 비행권 1개를 받습니다.",
+                            "30초 광고를 보면 비행권 1개를 받습니다.",
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -186,7 +233,11 @@ fun TicketCenterScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text("테스트 코드: admin / admin10 / admin100", color = FlightGray, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "테스트 코드: admin / admin10 / admin100",
+                            color = FlightGray,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         OutlinedTextField(
                             value = redeemCode,
                             onValueChange = { redeemCode = it },
@@ -201,7 +252,11 @@ fun TicketCenterScreen(
                                 scope.launch {
                                     when (val result = repository.redeemCode(redeemCode)) {
                                         is RedeemCodeResult.Success -> {
-                                            Toast.makeText(context, "비행권 ${result.amount}개가 지급되었습니다.", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                "비행권 ${result.amount}개가 지급되었습니다.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                             redeemCode = ""
                                         }
                                         is RedeemCodeResult.Error -> {
@@ -271,7 +326,7 @@ fun TicketCenterScreen(
             },
             confirmButton = {
                 TextButton(onClick = { isWatchingAd = false }) {
-                    Text("중지")
+                    Text("취소")
                 }
             },
             containerColor = Color(0xFF0D0000)
@@ -306,8 +361,16 @@ private fun TicketHistoryItem(entry: FlightTicketHistoryEntry) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(formatter.format(Date(entry.timestamp)), color = FlightGray, style = MaterialTheme.typography.labelSmall)
-                Text("잔여 ${entry.balanceAfter}", color = FlightGray, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    formatter.format(Date(entry.timestamp)),
+                    color = FlightGray,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Text(
+                    "잔여 ${entry.balanceAfter}",
+                    color = FlightGray,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }

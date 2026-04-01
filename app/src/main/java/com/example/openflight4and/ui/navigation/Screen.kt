@@ -9,6 +9,7 @@ sealed class Screen(val route: String) {
     object History : Screen("history")
     object Trend : Screen("trend")
     object Settings : Screen("settings")
+    object InFlightSettings : Screen("settings_in_flight")
     object Sandbox : Screen("sandbox")
     object Tickets : Screen("tickets")
 }

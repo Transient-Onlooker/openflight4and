@@ -62,7 +62,8 @@ private const val LABEL_LANDSCAPE = "\uAC00\uB85C"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    restrictInFlightSettings: Boolean = false
 ) {
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
@@ -76,6 +77,7 @@ fun SettingsScreen(
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val lockLevel by repository.lockLevel.collectAsState(initial = "soft")
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
+    val isImmediateVisualSettingLocked = restrictInFlightSettings
 
     FlightMapBackground {
         Scaffold(
@@ -103,15 +105,27 @@ fun SettingsScreen(
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+                if (restrictInFlightSettings) {
+                    Text(
+                        text = "\uBE44\uD589 \uC911\uC5D0\uB294 \uD654\uBA74\uC5D0 \uC989\uC2DC \uBC18\uC601\uB418\uB294 \uC124\uC815\uC740 \uC7A0\uAE08\uB2C8\uB2E4.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    )
+                    Spacer(modifier = Modifier.padding(top = 16.dp))
+                }
+
                 SectionHeader(TITLE_UNIT_SYSTEM)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = unitSystem == "km",
+                        enabled = !isImmediateVisualSettingLocked,
                         onClick = { scope.launch { repository.setUnitSystem("km") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                     ) { Text("Kilometers (km)") }
                     SegmentedButton(
                         selected = unitSystem == "mi",
+                        enabled = !isImmediateVisualSettingLocked,
                         onClick = { scope.launch { repository.setUnitSystem("mi") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                     ) { Text("Miles (mi)") }
@@ -129,6 +143,7 @@ fun SettingsScreen(
                     orientationModes.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
                             selected = screenOrientationMode == id,
+                            enabled = !isImmediateVisualSettingLocked,
                             onClick = { scope.launch { repository.setScreenOrientationMode(id) } },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = orientationModes.size)
                         ) { Text(label) }
@@ -153,6 +168,7 @@ fun SettingsScreen(
                     styles.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
                             selected = mapStyle == id,
+                            enabled = !isImmediateVisualSettingLocked,
                             onClick = { scope.launch { repository.setMapStyle(id) } },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = styles.size)
                         ) { Text(label) }
@@ -170,6 +186,7 @@ fun SettingsScreen(
                     overlayStyles.forEachIndexed { index, (id, label) ->
                         SegmentedButton(
                             selected = mapOverlayStyle == id,
+                            enabled = !isImmediateVisualSettingLocked,
                             onClick = { scope.launch { repository.setMapOverlayStyle(id) } },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = overlayStyles.size)
                         ) { Text(label) }
@@ -200,14 +217,22 @@ fun SettingsScreen(
 
                 if (notificationsEnabled) {
                     SectionHeader(TITLE_NOTIFICATION_INTERVAL)
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        val notificationIntervals = listOf(1, 2, 3, 5, 10, 20, 30)
-                        notificationIntervals.forEachIndexed { index, seconds ->
-                            SegmentedButton(
-                                selected = notificationUpdateSeconds == seconds,
-                                onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = notificationIntervals.size)
-                            ) { Text("${seconds}s") }
+                    val notificationIntervalRows = listOf(
+                        listOf(1, 2, 5),
+                        listOf(10, 20, 30)
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        notificationIntervalRows.forEach { row ->
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                row.forEachIndexed { index, seconds ->
+                                    SegmentedButton(
+                                        modifier = Modifier.weight(1f),
+                                        selected = notificationUpdateSeconds == seconds,
+                                        onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = row.size)
+                                    ) { Text("${seconds}s") }
+                                }
+                            }
                         }
                     }
                     Text(
