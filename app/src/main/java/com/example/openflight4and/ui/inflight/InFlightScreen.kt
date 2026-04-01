@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -16,7 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +57,7 @@ private const val TrackingTiltDegrees = 60f
 private const val MinTickDelayMillis = 100L
 private const val Perspective2D = "2d"
 private const val Perspective2_5D = "2_5d"
+private const val Perspective3D = "3d"
 private const val GreatCircleBearingStep = 0.001
 private const val GreatCircleRouteSegments = 256
 
@@ -124,6 +130,42 @@ fun buildGreatCircleRoutePoints(start: LatLng, end: LatLng, segments: Int = Grea
     if (segments <= 1) return listOf(start, end)
     return List(segments + 1) { index ->
         interpolateGreatCircle(start, end, index.toDouble() / segments.toDouble())
+    }
+}
+
+fun nextStandardMapPerspective(current: String): String {
+    return if (current == Perspective2D) Perspective2_5D else Perspective2D
+}
+
+@Composable
+fun Window3DIcon(
+    modifier: Modifier = Modifier,
+    tint: Color
+) {
+    Canvas(modifier = modifier) {
+        val frameInset = size.minDimension * 0.12f
+        val frameSize = Size(size.width - frameInset * 2, size.height - frameInset * 2)
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(frameInset, frameInset),
+            size = frameSize,
+            cornerRadius = CornerRadius(size.minDimension * 0.18f, size.minDimension * 0.18f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = size.minDimension * 0.1f)
+        )
+        drawLine(
+            color = tint,
+            start = Offset(size.width / 2f, frameInset * 1.6f),
+            end = Offset(size.width / 2f, size.height - frameInset * 1.6f),
+            strokeWidth = size.minDimension * 0.08f,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint,
+            start = Offset(frameInset * 1.7f, size.height / 2f),
+            end = Offset(size.width - frameInset * 1.7f, size.height / 2f),
+            strokeWidth = size.minDimension * 0.08f,
+            cap = StrokeCap.Round
+        )
     }
 }
 
@@ -320,7 +362,13 @@ fun InFlightScreen(
         position = CameraPosition.fromLatLngZoom(origin, 14f)
     }
     val zoomLabel by remember {
-        derivedStateOf { "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x" }
+        derivedStateOf {
+            if (mapPerspective == Perspective3D) {
+                "\uD654\uBA74 \uBC30\uC728: 3D"
+            } else {
+                "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x"
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -344,7 +392,8 @@ fun InFlightScreen(
             liveBearing.floatValue = updatedBearing
             planeMarkerState.position = updatedPos
 
-            if (inflightUiState.isCameraTracking &&
+            if (mapPerspective != Perspective3D &&
+                inflightUiState.isCameraTracking &&
                 cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE
             ) {
                 val now = SystemClock.elapsedRealtime()
@@ -491,7 +540,10 @@ fun InFlightScreen(
     }
 
     LaunchedEffect(cameraPositionState.isMoving) {
-        if (cameraPositionState.isMoving && cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE) {
+        if (mapPerspective != Perspective3D &&
+            cameraPositionState.isMoving &&
+            cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE
+        ) {
             inflightViewModel.disableCameraTracking()
         }
     }
@@ -504,9 +556,29 @@ fun InFlightScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        if (mapPerspective == Perspective3D) {
+            Map3DVRView(
+                currentPosition = liveCurrentPos.value,
+                bearing = liveBearing.floatValue,
+                isCameraTracking = isCameraTracking,
+                modifier = Modifier.fillMaxSize(),
+                onMapError = {
+                    scope.launch {
+                        repository.setMapPerspective(Perspective2_5D)
+                    }
+                    Toast.makeText(
+                        context,
+                        "3D 지도를 불러오지 못해 2.5D로 전환합니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            )
+        }
+
         RealFlightMap(
             cameraPositionState = cameraPositionState,
             mapStyle = mapStyle,
+            renderMap = mapPerspective != Perspective3D,
             isInteractive = true,
             allowRotationGestures = true,
             useDarkOverlay = false,
@@ -610,7 +682,7 @@ fun InFlightScreen(
                                 SmallFloatingActionButton(
                                     onClick = {
                                         scope.launch {
-                                            val nextPerspective = if (mapPerspective == Perspective2D) Perspective2_5D else Perspective2D
+                                            val nextPerspective = nextStandardMapPerspective(mapPerspective)
                                             updateCameraPerspective(
                                                 perspective = nextPerspective,
                                                 keepTrackingTarget = isCameraTracking
@@ -629,18 +701,53 @@ fun InFlightScreen(
 
                                 SmallFloatingActionButton(
                                     onClick = {
-                                        inflightViewModel.enableCameraTracking()
                                         scope.launch {
-                                            cameraPositionState.animate(
-                                                CameraUpdateFactory.newCameraPosition(
-                                                    CameraPosition.Builder()
-                                                        .target(liveCurrentPos.value)
-                                                        .zoom(cameraPositionState.position.zoom)
-                                                        .tilt(trackingTilt)
-                                                        .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
-                                                        .build()
-                                                )
+                                            val nextPerspective =
+                                                if (mapPerspective == Perspective3D) Perspective2_5D else Perspective3D
+                                            updateCameraPerspective(
+                                                perspective = nextPerspective,
+                                                keepTrackingTarget = isCameraTracking
                                             )
+                                            repository.setMapPerspective(nextPerspective)
+                                        }
+                                    },
+                                    containerColor = if (mapPerspective == Perspective3D) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        overlayPalette.floatingButtonContainer
+                                    },
+                                    contentColor = if (mapPerspective == Perspective3D) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        overlayPalette.floatingButtonContent
+                                    }
+                                ) {
+                                    Window3DIcon(
+                                        modifier = Modifier.size(18.dp),
+                                        tint = if (mapPerspective == Perspective3D) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            overlayPalette.floatingButtonContent
+                                        }
+                                    )
+                                }
+
+                                SmallFloatingActionButton(
+                                    onClick = {
+                                        inflightViewModel.enableCameraTracking()
+                                        if (mapPerspective != Perspective3D) {
+                                            scope.launch {
+                                                cameraPositionState.animate(
+                                                    CameraUpdateFactory.newCameraPosition(
+                                                        CameraPosition.Builder()
+                                                            .target(liveCurrentPos.value)
+                                                            .zoom(cameraPositionState.position.zoom)
+                                                            .tilt(trackingTilt)
+                                                            .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
+                                                            .build()
+                                                    )
+                                                )
+                                            }
                                         }
                                     },
                                     containerColor = if (isCameraTracking) MaterialTheme.colorScheme.primary else overlayPalette.floatingButtonContainer,
@@ -852,11 +959,7 @@ fun InFlightScreen(
                             SmallFloatingActionButton(
                                 onClick = {
                                     scope.launch {
-                                        val nextPerspective = if (mapPerspective == Perspective2D) {
-                                            Perspective2_5D
-                                        } else {
-                                            Perspective2D
-                                        }
+                                        val nextPerspective = nextStandardMapPerspective(mapPerspective)
                                         updateCameraPerspective(
                                             perspective = nextPerspective,
                                             keepTrackingTarget = isCameraTracking
@@ -876,18 +979,54 @@ fun InFlightScreen(
 
                             SmallFloatingActionButton(
                                 onClick = {
-                                    inflightViewModel.enableCameraTracking()
                                     scope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newCameraPosition(
-                                                CameraPosition.Builder()
-                                                    .target(liveCurrentPos.value)
-                                                    .zoom(cameraPositionState.position.zoom)
-                                                    .tilt(trackingTilt)
-                                                    .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
-                                                    .build()
-                                            )
+                                        val nextPerspective =
+                                            if (mapPerspective == Perspective3D) Perspective2_5D else Perspective3D
+                                        updateCameraPerspective(
+                                            perspective = nextPerspective,
+                                            keepTrackingTarget = isCameraTracking
                                         )
+                                        repository.setMapPerspective(nextPerspective)
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.End),
+                                containerColor = if (mapPerspective == Perspective3D) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    overlayPalette.floatingButtonContainer
+                                },
+                                contentColor = if (mapPerspective == Perspective3D) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    overlayPalette.floatingButtonContent
+                                }
+                            ) {
+                                Window3DIcon(
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (mapPerspective == Perspective3D) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        overlayPalette.floatingButtonContent
+                                    }
+                                )
+                            }
+
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    inflightViewModel.enableCameraTracking()
+                                    if (mapPerspective != Perspective3D) {
+                                        scope.launch {
+                                            cameraPositionState.animate(
+                                                CameraUpdateFactory.newCameraPosition(
+                                                    CameraPosition.Builder()
+                                                        .target(liveCurrentPos.value)
+                                                        .zoom(cameraPositionState.position.zoom)
+                                                        .tilt(trackingTilt)
+                                                        .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
+                                                        .build()
+                                                )
+                                            )
+                                        }
                                     }
                                 },
                                 modifier = Modifier.align(Alignment.End),

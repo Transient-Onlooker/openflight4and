@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -14,9 +15,12 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
-val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")
-    ?: System.getenv("MAPS_API_KEY")
+val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")?.takeUnless { it.isBlank() }
+    ?: System.getenv("MAPS_API_KEY")?.takeUnless { it.isBlank() }
     ?: ""
+val maps3dApiKey: String = localProperties.getProperty("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
+    ?: System.getenv("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
+    ?: mapsApiKey
 
 android {
     namespace = "com.example.openflight4and"
@@ -26,13 +30,14 @@ android {
         applicationId = "com.example.openflight4and"
         minSdk = 33
         targetSdk = 36
-        versionCode = 9
-        versionName = "2.3.1"
+        versionCode = 10
+        versionName = "2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Manifest에 API Key 주입
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        manifestPlaceholders["MAPS3D_API_KEY"] = maps3dApiKey
     }
 
     buildTypes {
@@ -48,18 +53,22 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
@@ -74,7 +83,7 @@ dependencies {
 
     // Google Maps
     implementation(libs.play.services.maps)
-    implementation(libs.play.services.maps)
+    implementation(libs.play.services.maps3d)
     implementation(libs.maps.compose)
 
     // DataStore & Serialization

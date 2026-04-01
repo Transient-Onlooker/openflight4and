@@ -11,6 +11,7 @@ import android.provider.Settings
 
 object FocusLockUtils {
 
+    @Suppress("DEPRECATION")
     fun hasUsageAccess(context: Context): Boolean {
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = appOpsManager.unsafeCheckOpNoThrow(
@@ -51,10 +52,7 @@ object FocusLockUtils {
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (
-                event.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
-                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND
-            ) {
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                 lastForegroundPackage = event.packageName
             }
         }
