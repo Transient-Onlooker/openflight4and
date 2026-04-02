@@ -38,9 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.openflight4and.R
 import com.example.openflight4and.model.FlightTicketHistoryEntry
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
@@ -75,7 +77,7 @@ fun TicketCenterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("\uBE44\uD589\uAD8C \uC13C\uD130", color = Color.White) },
+                title = { Text(stringResource(R.string.tickets_title), color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -110,7 +112,7 @@ fun TicketCenterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("\uD604\uC7AC \uBE44\uD589\uAD8C", color = FlightGray, style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.tickets_current), color = FlightGray, style = MaterialTheme.typography.labelLarge)
                             Text(
                                 text = "${uiState.ticketBalance}",
                                 color = Color.White,
@@ -118,7 +120,7 @@ fun TicketCenterScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "10\uBD84 \uC774\uC0C1 \uBE44\uD589\uD558\uBA74 \uBE44\uD589\uAD8C 1\uAC1C\uAC00 \uCC28\uAC10\uB429\uB2C8\uB2E4.",
+                                text = stringResource(R.string.tickets_long_flight_notice),
                                 color = FlightGray,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -141,22 +143,26 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "\uCD9C\uC11D \uCCB4\uD06C",
+                            stringResource(R.string.tickets_daily_check_in),
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             if (uiState.hasCheckedInToday) {
-                                "\uC624\uB298\uC740 \uCD9C\uC11D\uCCB4\uD06C\uB97C \uC644\uB8CC\uD588\uC2B5\uB2C8\uB2E4."
+                                stringResource(R.string.tickets_daily_check_in_done_description)
                             } else {
-                                "\uD558\uB8E8\uC5D0 \uD55C \uBC88 \uCD9C\uC11D\uCCB4\uD06C\uB97C \uD558\uBA74 \uBE44\uD589\uAD8C 1\uAC1C\uB97C \uBC1B\uC744 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+                                stringResource(R.string.tickets_daily_check_in_ready_description)
                             },
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )
                         PrimaryFlightButton(
-                            text = if (uiState.hasCheckedInToday) "\uC624\uB298 \uCD9C\uC11D \uC644\uB8CC" else "\uCD9C\uC11D\uCCB4\uD06C \uD558\uAE30",
+                            text = if (uiState.hasCheckedInToday) {
+                                stringResource(R.string.tickets_daily_check_in_done)
+                            } else {
+                                stringResource(R.string.tickets_daily_check_in_action)
+                            },
                             enabled = !uiState.hasCheckedInToday,
                             onClick = { viewModel.claimDailyCheckIn() }
                         )
@@ -171,18 +177,22 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "\uAD11\uACE0 \uBCF4\uACE0 \uBE44\uD589\uAD8C \uBC1B\uAE30",
+                            stringResource(R.string.tickets_ad_reward_title),
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "30\uCD08 \uAD11\uACE0\uB97C \uBCF4\uBA74 \uBE44\uD589\uAD8C 1\uAC1C\uB97C \uBC1B\uC2B5\uB2C8\uB2E4.",
+                            stringResource(R.string.tickets_ad_reward_description),
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )
                         PrimaryFlightButton(
-                            text = if (uiState.isWatchingAd) "\uAD11\uACE0 \uC7AC\uC0DD \uC911..." else "\uAD11\uACE0 \uBCF4\uAE30",
+                            text = if (uiState.isWatchingAd) {
+                                stringResource(R.string.tickets_ad_reward_running)
+                            } else {
+                                stringResource(R.string.tickets_ad_reward_action)
+                            },
                             enabled = !uiState.isWatchingAd,
                             onClick = { viewModel.startAdReward() }
                         )
@@ -197,25 +207,25 @@ fun TicketCenterScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "\uB9AC\uB51C \uCF54\uB4DC",
+                            stringResource(R.string.tickets_redeem_title),
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "\uD14C\uC2A4\uD2B8 \uCF54\uB4DC: admin / admin10 / admin100",
+                            stringResource(R.string.tickets_redeem_test_codes),
                             color = FlightGray,
                             style = MaterialTheme.typography.bodySmall
                         )
                         OutlinedTextField(
                             value = uiState.redeemCode,
                             onValueChange = { viewModel.updateRedeemCode(it) },
-                            label = { Text("\uCF54\uB4DC \uC785\uB825") },
+                            label = { Text(stringResource(R.string.tickets_redeem_code_input)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
                         PrimaryFlightButton(
-                            text = "\uB4F1\uB85D",
+                            text = stringResource(R.string.tickets_redeem_action),
                             enabled = uiState.redeemCode.isNotBlank(),
                             onClick = { viewModel.redeemCode() }
                         )
@@ -225,7 +235,7 @@ fun TicketCenterScreen(
 
             item {
                 Text(
-                    text = "\uBE44\uD589\uAD8C \uC0AC\uC6A9 \uB0B4\uC5ED",
+                    text = stringResource(R.string.tickets_history_title),
                     color = FlightGray,
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 8.dp)
@@ -236,7 +246,7 @@ fun TicketCenterScreen(
                 item {
                     GlassPanel(modifier = Modifier.fillMaxWidth()) {
                         Box(modifier = Modifier.padding(20.dp)) {
-                            Text("\uC544\uC9C1 \uBE44\uD589\uAD8C \uB0B4\uC5ED\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", color = FlightGray)
+                            Text(stringResource(R.string.tickets_history_empty), color = FlightGray)
                         }
                     }
                 }
@@ -260,7 +270,7 @@ fun TicketCenterScreen(
     if (uiState.isWatchingAd) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("\uAD11\uACE0 \uC7AC\uC0DD \uC911", color = Color.White) },
+            title = { Text(stringResource(R.string.tickets_ad_dialog_title), color = Color.White) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -272,14 +282,18 @@ fun TicketCenterScreen(
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Text("\uD0C0\uC774\uBA38\uAC00 \uB05D\uB098\uBA74 \uBE44\uD589\uAD8C\uC774 \uC9C0\uAE09\uB429\uB2C8\uB2E4.", color = FlightGray)
+                        Text(stringResource(R.string.tickets_ad_dialog_description), color = FlightGray)
                     }
-                    Text("${uiState.adSecondsRemaining}\uCD08 \uB0A8\uC74C", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.label_seconds_remaining, uiState.adSecondsRemaining),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.cancelAdReward() }) {
-                    Text("\uCDE8\uC18C")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             containerColor = Color(0xFF0D0000)
@@ -320,7 +334,7 @@ private fun TicketHistoryItem(entry: FlightTicketHistoryEntry) {
                     style = MaterialTheme.typography.labelSmall
                 )
                 Text(
-                    "\uC794\uC5EC ${entry.balanceAfter}",
+                    stringResource(R.string.label_remaining_format, entry.balanceAfter),
                     color = FlightGray,
                     style = MaterialTheme.typography.labelSmall
                 )

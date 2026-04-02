@@ -16,28 +16,55 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FlightTakeoff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.R
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.theme.FlightBlack
@@ -126,15 +153,9 @@ fun BoardingPassScreen(
                     isTorn = true
                     showGreeting = true
 
-                    launch {
-                        offsetX.animateTo(1000f, animationSpec = tween(400, easing = LinearEasing))
-                    }
-                    launch {
-                        offsetY.animateTo(2000f, animationSpec = tween(800, easing = LinearEasing))
-                    }
-                    launch {
-                        rotation.animateTo(-120f, animationSpec = tween(800, easing = LinearEasing))
-                    }
+                    launch { offsetX.animateTo(1000f, animationSpec = tween(400, easing = LinearEasing)) }
+                    launch { offsetY.animateTo(2000f, animationSpec = tween(800, easing = LinearEasing)) }
+                    launch { rotation.animateTo(-120f, animationSpec = tween(800, easing = LinearEasing)) }
                     launch {
                         val shakeDuration = 800
                         val shakeSteps = 20
@@ -162,10 +183,20 @@ fun BoardingPassScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text("탑승권", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = {
+                        Text(
+                            stringResource(R.string.boardingpass_title),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기", tint = Color.White)
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back),
+                                tint = Color.White
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -197,89 +228,113 @@ fun BoardingPassScreen(
                                     .widthIn(max = 280.dp)
                             }
                         ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().zIndex(1f),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Text(draft.origin.cityKo, color = FlightGray, style = MaterialTheme.typography.labelSmall)
-                                        Text(draft.origin.iata, color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(1f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(24.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(draft.origin.cityKo, color = FlightGray, style = MaterialTheme.typography.labelSmall)
+                                            Text(draft.origin.iata, color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.FlightTakeoff,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .align(Alignment.CenterVertically),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                draft.destination?.cityKo ?: stringResource(R.string.boardingpass_destination_tbd),
+                                                color = FlightGray,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            Text(draft.destination?.iata ?: "---", color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                                        }
                                     }
-                                    Icon(
-                                        imageVector = Icons.Default.FlightTakeoff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp).align(Alignment.CenterVertically),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(draft.destination?.cityKo ?: "미정", color = FlightGray, style = MaterialTheme.typography.labelSmall)
-                                        Text(draft.destination?.iata ?: "---", color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(32.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        TicketInfoItem(stringResource(R.string.boardingpass_info_flight), draft.flightNumber)
+                                        TicketInfoItem(stringResource(R.string.boardingpass_info_distance), FlightUtils.formatDistance(draft.distanceKm, unitSystem))
+                                        TicketInfoItem(stringResource(R.string.boardingpass_info_boarding_time), draft.boardingTime)
                                     }
-                                }
-                                Spacer(modifier = Modifier.height(32.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    TicketInfoItem("항공편", draft.flightNumber)
-                                    TicketInfoItem("거리", FlightUtils.formatDistance(draft.distanceKm, unitSystem))
-                                    TicketInfoItem("탑승시간", draft.boardingTime)
                                 }
                             }
-                        }
 
-                        Canvas(modifier = Modifier.fillMaxWidth().height(10.dp)) {
-                            drawPath(
-                                path = tearLinePath,
-                                color = FlightGray.copy(alpha = 0.5f),
-                                style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                    width = 1.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+                            Canvas(modifier = Modifier.fillMaxWidth().height(10.dp)) {
+                                drawPath(
+                                    path = tearLinePath,
+                                    color = FlightGray.copy(alpha = 0.5f),
+                                    style = Stroke(
+                                        width = 1.dp.toPx(),
+                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+                                    )
                                 )
-                            )
-                        }
+                            }
 
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    translationX = offsetX.value + wobbleX.value
-                                    translationY = offsetY.value
-                                    rotationZ = rotation.value + wobbleRotation.value
-                                    shadowElevation = if (offsetX.value > 0) 16.dp.toPx() else 0f
-                                    alpha = if (offsetY.value > 500) 1f - ((offsetY.value - 500) / 1500).coerceIn(0f, 1f) else 1f
-                                }
-                                .draggable(state = draggableState, orientation = Orientation.Horizontal),
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(modifier = Modifier.fillMaxWidth().height(60.dp).background(FlightGray.copy(alpha = 0.1f))) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        translationX = offsetX.value + wobbleX.value
+                                        translationY = offsetY.value
+                                        rotationZ = rotation.value + wobbleRotation.value
+                                        shadowElevation = if (offsetX.value > 0) 16.dp.toPx() else 0f
+                                        alpha = if (offsetY.value > 500) {
+                                            1f - ((offsetY.value - 500) / 1500).coerceIn(0f, 1f)
+                                        } else {
+                                            1f
+                                        }
+                                    }
+                                    .draggable(state = draggableState, orientation = Orientation.Horizontal),
+                                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(60.dp)
+                                            .background(FlightGray.copy(alpha = 0.1f))
+                                    ) {
+                                        Text(
+                                            "|| ||| | || ||| || || |",
+                                            modifier = Modifier.align(Alignment.Center),
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            color = FlightBlack,
+                                            letterSpacing = 4.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        "|| ||| | || ||| || || |",
-                                        modifier = Modifier.align(Alignment.Center),
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        color = FlightBlack,
-                                        letterSpacing = 4.sp
+                                        if (isTorn) {
+                                            stringResource(R.string.boardingpass_confirmed)
+                                        } else {
+                                            stringResource(R.string.boardingpass_swipe_to_confirm)
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (isTorn) Color.Gray else MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    if (isTorn) "탑승 확인 완료" else "오른쪽으로 밀어서 탑승 확인 ->",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (isTorn) Color.Gray else MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
-                        }
                         }
                         if (isLandscape) {
                             Spacer(modifier = Modifier.weight(1f))
@@ -299,7 +354,7 @@ fun BoardingPassScreen(
                         modifier = Modifier.padding(24.dp)
                     ) {
                         Text(
-                            "좋은 비행 되세요",
+                            stringResource(R.string.boardingpass_greeting),
                             color = Color.White,
                             style = MaterialTheme.typography.headlineMedium,
                             modifier = Modifier.padding(vertical = 32.dp, horizontal = 48.dp),
@@ -313,7 +368,7 @@ fun BoardingPassScreen(
 }
 
 @Composable
-fun TicketInfoItem(label: String, value: String) {
+private fun TicketInfoItem(label: String, value: String) {
     Column {
         Text(label, color = FlightGray, style = MaterialTheme.typography.labelSmall)
         Text(value, color = FlightBlack, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

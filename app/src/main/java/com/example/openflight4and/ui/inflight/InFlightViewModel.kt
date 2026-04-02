@@ -1,11 +1,11 @@
 package com.example.openflight4and.ui.inflight
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.data.AppRepositoryDataSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +27,8 @@ sealed interface InFlightEvent {
 }
 
 class InFlightViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
-    private val repository = AppRepository(application)
+    private val repository: AppRepositoryDataSource
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InFlightUiState())
     val uiState = _uiState.asStateFlow()
@@ -98,7 +96,7 @@ class InFlightViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(InFlightViewModel::class.java)) {
-                return InFlightViewModel(application) as T
+                return InFlightViewModel(AppRepository(application)) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

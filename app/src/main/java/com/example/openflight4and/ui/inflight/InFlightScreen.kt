@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
@@ -575,7 +576,7 @@ fun InFlightScreen(
                     }
                     Toast.makeText(
                         context,
-                        "3D 지도를 불러오지 못해 2.5D로 전환합니다.",
+                        context.getString(R.string.inflight_3d_fallback_message),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -628,15 +629,15 @@ fun InFlightScreen(
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                         Column {
-                                            Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
+                                            Text(stringResource(R.string.inflight_title), color = inflightAccentText, fontSize = 12.sp)
                                             Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                                         }
                                         Column(horizontalAlignment = Alignment.End) {
-                                            Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
+                                            Text(stringResource(R.string.inflight_remaining_time), color = inflightSecondaryText, fontSize = 12.sp)
                                             Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                                             if (draft.timeScale != 1f) {
                                                 Text(
-                                                    "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                    stringResource(R.string.inflight_time_scale_format, formatTimeScale(draft.timeScale)),
                                                     color = inflightSecondaryText,
                                                     fontSize = 11.sp
                                                 )
@@ -773,15 +774,15 @@ fun InFlightScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                     Column {
-                                        Text("\uBE44\uD589 \uC911", color = inflightAccentText, fontSize = 12.sp)
+                                        Text(stringResource(R.string.inflight_title), color = inflightAccentText, fontSize = 12.sp)
                                         Text(draft.flightNumber, color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
-                                        Text("\uB0A8\uC740 \uC2DC\uAC04", color = inflightSecondaryText, fontSize = 12.sp)
+                                        Text(stringResource(R.string.inflight_remaining_time), color = inflightSecondaryText, fontSize = 12.sp)
                                         Text(FlightUtils.formatTimer(remainingSeconds), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                                         if (draft.timeScale != 1f) {
                                             Text(
-                                                "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                stringResource(R.string.inflight_time_scale_format, formatTimeScale(draft.timeScale)),
                                                 color = inflightSecondaryText,
                                                 fontSize = 11.sp
                                             )
@@ -801,7 +802,7 @@ fun InFlightScreen(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Flight, contentDescription = null, tint = inflightPrimaryText, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(draft.destination?.iata ?: "---", color = inflightPrimaryText, fontWeight = FontWeight.Bold)
+                                        Text(draft.destination?.iata ?: stringResource(R.string.boardingpass_destination_tbd), color = inflightPrimaryText, fontWeight = FontWeight.Bold)
                                     }
                                     Text(
                                         zoomLabel,
@@ -832,10 +833,10 @@ fun InFlightScreen(
                                         borderColor = overlayPalette.panelBorder
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
-                                            Text("Flight Debug", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.inflight_debug_title), color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
-                                                "Elapsed: ${FlightUtils.formatTimer(debugSliderSeconds.toLong())}",
+                                                stringResource(R.string.inflight_debug_elapsed_format, FlightUtils.formatTimer(debugSliderSeconds.toLong())),
                                                 color = overlayPalette.secondaryText,
                                                 fontSize = 12.sp
                                             )
@@ -858,20 +859,20 @@ fun InFlightScreen(
                                                     enabled = totalSeconds >= 600,
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                                 ) {
-                                                    Text("9:50")
+                                                    Text(stringResource(R.string.inflight_debug_shortcut_950))
                                                 }
                                                 OutlinedButton(
                                                     onClick = { applyDebugElapsed(totalSeconds / 2) },
                                                     modifier = Modifier.weight(1f),
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                                 ) {
-                                                    Text("50%")
+                                                    Text(stringResource(R.string.inflight_debug_shortcut_half))
                                                 }
                                                 Button(
                                                     onClick = { applyDebugElapsed(debugSliderSeconds.toLong()) },
                                                     modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Text("Apply")
+                                                    Text(stringResource(R.string.inflight_debug_apply))
                                                 }
                                             }
                                         }
@@ -894,7 +895,7 @@ fun InFlightScreen(
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            "${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC",
+                                            stringResource(R.string.inflight_progress_complete_format, (progress * 100).toInt()),
                                             color = inflightSecondaryText,
                                             fontSize = 11.sp,
                                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -903,7 +904,7 @@ fun InFlightScreen(
                                         if (draft.timeScale != 1f) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
-                                                "\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}",
+                                                stringResource(R.string.inflight_time_scale_format, formatTimeScale(draft.timeScale)),
                                                 color = inflightPrimaryText,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
@@ -931,11 +932,11 @@ fun InFlightScreen(
                                         contentColor = inflightPrimaryText
                                     )
                                 ) {
-                                    Text("\uC77C\uC2DC\uC815\uC9C0")
+                                    Text(stringResource(R.string.inflight_pause))
                                 }
 
                                 PrimaryFlightButton(
-                                    text = "\uC5EC\uC815 \uC911\uB2E8",
+                                    text = stringResource(R.string.inflight_end_journey),
                                     onClick = { inflightViewModel.showGiveUpDialog() },
                                     modifier = Modifier.weight(1f),
                                     isDestructive = true
@@ -1050,10 +1051,10 @@ fun InFlightScreen(
                                     borderColor = overlayPalette.panelBorder
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("Flight Debug", color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(R.string.inflight_debug_title), color = overlayPalette.primaryText, fontWeight = FontWeight.Bold)
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            "Elapsed: ${FlightUtils.formatTimer(debugSliderSeconds.toLong())}",
+                                            stringResource(R.string.inflight_debug_elapsed_format, FlightUtils.formatTimer(debugSliderSeconds.toLong())),
                                             color = overlayPalette.secondaryText,
                                             fontSize = 12.sp
                                         )
@@ -1076,20 +1077,20 @@ fun InFlightScreen(
                                                 enabled = totalSeconds >= 600,
                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                             ) {
-                                                Text("9:50")
+                                                Text(stringResource(R.string.inflight_debug_shortcut_950))
                                             }
                                             OutlinedButton(
                                                 onClick = { applyDebugElapsed(totalSeconds / 2) },
                                                 modifier = Modifier.weight(1f),
                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = overlayPalette.primaryText)
                                             ) {
-                                                Text("50%")
+                                                Text(stringResource(R.string.inflight_debug_shortcut_half))
                                             }
                                             Button(
                                                 onClick = { applyDebugElapsed(debugSliderSeconds.toLong()) },
                                                 modifier = Modifier.weight(1f)
                                             ) {
-                                                Text("Apply")
+                                                Text(stringResource(R.string.inflight_debug_apply))
                                             }
                                         }
                                     }
@@ -1109,11 +1110,22 @@ fun InFlightScreen(
                                         trackColor = inflightTrackColor
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("${(progress * 100).toInt()}% \uBE44\uD589 \uC644\uB8CC", color = inflightSecondaryText, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                    Text(
+                                        stringResource(R.string.inflight_progress_complete_format, (progress * 100).toInt()),
+                                        color = inflightSecondaryText,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
 
                                     if (draft.timeScale != 1f) {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text("\uC2DC\uAC04 \uBC30\uC728: ${formatTimeScale(draft.timeScale)}", color = inflightPrimaryText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                        Text(
+                                            stringResource(R.string.inflight_time_scale_format, formatTimeScale(draft.timeScale)),
+                                            color = inflightPrimaryText,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                                        )
                                     }
                                 }
                             }
@@ -1133,11 +1145,11 @@ fun InFlightScreen(
                                         contentColor = inflightPrimaryText
                                     )
                                 ) {
-                                    Text("\uC77C\uC2DC\uC815\uC9C0")
+                                    Text(stringResource(R.string.inflight_pause))
                                 }
 
                                 PrimaryFlightButton(
-                                    text = "\uC5EC\uC815 \uC911\uB2E8",
+                                    text = stringResource(R.string.inflight_end_journey),
                                     onClick = { inflightViewModel.showGiveUpDialog() },
                                     modifier = Modifier.weight(1f),
                                     isDestructive = true
@@ -1167,9 +1179,9 @@ fun InFlightScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("\uC77C\uC2DC\uC911\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(stringResource(R.string.inflight_paused_title), color = inflightPrimaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                         Text(
-                            "\uBE44\uD589\uC911\uC5D0 \uC7A0\uAE50\uC758 \uD734\uC2DD\uC744 \uAC00\uC9C0\uB294 \uAC83\uB3C4 \uC88B\uC8E0.",
+                            stringResource(R.string.inflight_paused_message),
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1180,10 +1192,10 @@ fun InFlightScreen(
                                 onClick = onNavigateToSettings,
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
                             ) {
-                                Text("\uC124\uC815")
+                                Text(stringResource(R.string.action_settings))
                             }
                             Button(onClick = { resumeFlight() }) {
-                                Text("\uBE44\uD589 \uC7AC\uAC1C")
+                                Text(stringResource(R.string.inflight_resume))
                             }
                         }
                     }
@@ -1210,13 +1222,13 @@ fun InFlightScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "\uBE44\uD589\uAD8C \uD68D\uB4DD",
+                            stringResource(R.string.inflight_reward_title),
                             color = inflightPrimaryText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         )
                         Text(
-                            "30\uCD08 \uAD11\uACE0\uB97C \uBCF4\uACE0 \uD2F0\uCF13\uC744 1\uAC1C \uC5BB\uC73C\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n(\uC9C4\uD589\uC911\uC774\uB358 \uBE44\uD589\uC740 \uAD11\uACE0 \uC7AC\uC0DD\uC911\uC5D0\uB3C4 \uC9C4\uD589\uB429\uB2C8\uB2E4)",
+                            stringResource(R.string.inflight_reward_message),
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1228,13 +1240,13 @@ fun InFlightScreen(
                                     inflightViewModel.startAdReward()
                                 }
                             ) {
-                                Text("\uAD11\uACE0 \uBCF4\uAE30")
+                                Text(stringResource(R.string.inflight_watch_ad))
                             }
                             OutlinedButton(
                                 onClick = { inflightViewModel.hideAdRewardDialog() },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
                             ) {
-                                Text("\uC544\uB2C8\uC624")
+                                Text(stringResource(R.string.action_no))
                             }
                         }
                     }
@@ -1261,18 +1273,18 @@ fun InFlightScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "\uAD11\uACE0 \uC7AC\uC0DD \uC911",
+                            stringResource(R.string.inflight_ad_playing_title),
                             color = inflightPrimaryText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         )
                         Text(
-                            "${inflightUiState.adRewardSecondsRemaining}\uCD08 \uB0A8\uC74C",
+                            stringResource(R.string.inflight_ad_seconds_remaining_format, inflightUiState.adRewardSecondsRemaining),
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            "\uBE44\uD589\uC740 \uACC4\uC18D \uC9C4\uD589\uB429\uB2C8\uB2E4.",
+                            stringResource(R.string.inflight_ad_playing_message),
                             color = inflightSecondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1280,7 +1292,7 @@ fun InFlightScreen(
                             onClick = { inflightViewModel.cancelAdReward() },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = inflightPrimaryText)
                         ) {
-                            Text("\uCDE8\uC18C")
+                            Text(stringResource(R.string.action_cancel))
                         }
                     }
                 }
@@ -1291,17 +1303,17 @@ fun InFlightScreen(
     if (inflightUiState.showGiveUpDialog) {
         AlertDialog(
             onDismissRequest = { inflightViewModel.hideGiveUpDialog() },
-            title = { Text("\uBE44\uD589 \uD3EC\uAE30", color = Color.White) },
-            text = { Text("\uD604\uC7AC \uBE44\uD589\uC744 \uD3EC\uAE30\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAE30\uB85D\uC774 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", color = FlightGray) },
+            title = { Text(stringResource(R.string.inflight_give_up_title), color = Color.White) },
+            text = { Text(stringResource(R.string.inflight_give_up_message), color = FlightGray) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         stopFlight()
                     }
-                ) { Text("\uD3EC\uAE30", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.action_give_up), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { inflightViewModel.hideGiveUpDialog() }) { Text("\uACC4\uC18D \uBE44\uD589") }
+                TextButton(onClick = { inflightViewModel.hideGiveUpDialog() }) { Text(stringResource(R.string.action_continue)) }
             },
             containerColor = Color(0xFF0D0000)
         )

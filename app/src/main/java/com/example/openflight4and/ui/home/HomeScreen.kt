@@ -38,8 +38,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.ui.components.GlassPanel
@@ -48,14 +50,6 @@ import com.example.openflight4and.ui.components.rememberMapOverlayPalette
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
-
-private const val LABEL_CURRENT_LOCATION = "\uD604\uC7AC \uC704\uCE58"
-private const val LABEL_TOTAL_FLIGHTS = "\uCD1D \uC644\uB8CC \uBE44\uD589 \uC218"
-private const val LABEL_TICKETS = "\uBE44\uD589\uAD8C"
-private const val LABEL_START_FLIGHT = "\uBE44\uD589 \uC2DC\uC791"
-private const val LABEL_FLIGHT_HISTORY = "\uBE44\uD589 \uAE30\uB85D"
-private const val LABEL_TRENDS = "\uD1B5\uACC4\uC640 \uCD94\uC138"
-private const val LABEL_SETTINGS = "\uC124\uC815"
 
 @Composable
 fun HomeScreen(
@@ -76,6 +70,13 @@ fun HomeScreen(
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)
     val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
+    val labelCurrentLocation = stringResource(R.string.home_current_location)
+    val labelTotalFlights = stringResource(R.string.home_total_flights_format, totalFlights)
+    val labelTickets = stringResource(R.string.home_tickets)
+    val labelStartFlight = stringResource(R.string.home_start_flight)
+    val labelFlightHistory = stringResource(R.string.home_flight_history)
+    val labelTrends = stringResource(R.string.home_trends)
+    val labelSettings = stringResource(R.string.home_settings)
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
@@ -115,7 +116,7 @@ fun HomeScreen(
                             modifier = Modifier.align(Alignment.TopStart)
                         ) {
                             Text(
-                                text = LABEL_CURRENT_LOCATION,
+                                text = labelCurrentLocation,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = overlayPalette.secondaryText
                             )
@@ -130,7 +131,7 @@ fun HomeScreen(
                                 color = overlayPalette.primaryText
                             )
                             Text(
-                                text = "$LABEL_TOTAL_FLIGHTS  $totalFlights",
+                                text = labelTotalFlights,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = overlayPalette.accentText
                             )
@@ -155,7 +156,7 @@ fun HomeScreen(
                                 )
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = LABEL_TICKETS,
+                                        text = labelTickets,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.Black.copy(alpha = 0.72f)
                                     )
@@ -187,7 +188,7 @@ fun HomeScreen(
                             Column {
                                 HomeMenuItem(
                                     icon = Icons.Default.History,
-                                    title = LABEL_FLIGHT_HISTORY,
+                                    title = labelFlightHistory,
                                     onClick = onNavigateToHistory,
                                     textColor = Color.Black,
                                     iconTint = Color.White,
@@ -196,7 +197,7 @@ fun HomeScreen(
                                 HorizontalDivider(color = overlayPalette.divider)
                                 HomeMenuItem(
                                     icon = Icons.Default.Timeline,
-                                    title = LABEL_TRENDS,
+                                    title = labelTrends,
                                     onClick = onNavigateToTrend,
                                     textColor = Color.Black,
                                     iconTint = Color.White,
@@ -205,7 +206,7 @@ fun HomeScreen(
                                 HorizontalDivider(color = overlayPalette.divider)
                                 HomeMenuItem(
                                     icon = Icons.Default.Settings,
-                                    title = LABEL_SETTINGS,
+                                    title = labelSettings,
                                     onClick = onNavigateToSettings,
                                     textColor = Color.Black,
                                     iconTint = Color.White,
@@ -230,7 +231,7 @@ fun HomeScreen(
                                     )
                                 ) {
                                     Text(
-                                        text = LABEL_START_FLIGHT,
+                                        text = labelStartFlight,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.Black
@@ -255,7 +256,7 @@ fun HomeScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = LABEL_CURRENT_LOCATION,
+                                text = labelCurrentLocation,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = overlayPalette.secondaryText
                             )
@@ -270,7 +271,7 @@ fun HomeScreen(
                                 color = overlayPalette.primaryText
                             )
                             Text(
-                                text = "$LABEL_TOTAL_FLIGHTS  $totalFlights",
+                                text = labelTotalFlights,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = overlayPalette.accentText
                             )
@@ -293,7 +294,7 @@ fun HomeScreen(
                                 )
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = LABEL_TICKETS,
+                                        text = labelTickets,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.Black.copy(alpha = 0.72f)
                                     )
@@ -321,7 +322,7 @@ fun HomeScreen(
                             )
                         ) {
                             Text(
-                                text = LABEL_START_FLIGHT,
+                                text = labelStartFlight,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
@@ -336,7 +337,7 @@ fun HomeScreen(
                             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                 HomeMenuItem(
                                     icon = Icons.Default.History,
-                                    title = LABEL_FLIGHT_HISTORY,
+                                    title = labelFlightHistory,
                                     onClick = onNavigateToHistory,
                                     textColor = Color.Black,
                                     iconTint = Color.White,
@@ -345,7 +346,7 @@ fun HomeScreen(
                                 HorizontalDivider(color = overlayPalette.divider)
                                 HomeMenuItem(
                                     icon = Icons.Default.Timeline,
-                                    title = LABEL_TRENDS,
+                                    title = labelTrends,
                                     onClick = onNavigateToTrend,
                                     textColor = Color.Black,
                                     iconTint = Color.White,
@@ -354,7 +355,7 @@ fun HomeScreen(
                                 HorizontalDivider(color = overlayPalette.divider)
                                 HomeMenuItem(
                                     icon = Icons.Default.Settings,
-                                    title = LABEL_SETTINGS,
+                                    title = labelSettings,
                                     onClick = onNavigateToSettings,
                                     textColor = Color.Black,
                                     iconTint = Color.White,

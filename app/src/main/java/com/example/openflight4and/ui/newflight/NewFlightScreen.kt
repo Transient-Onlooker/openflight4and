@@ -24,10 +24,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.openflight4and.R
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.ui.components.RulerPicker
@@ -253,7 +255,9 @@ fun NewFlightScreen(
 
                     // Destination Info
                     Text(
-                        text = selectedDestination?.let { "도착: ${it.cityKo} (${it.iata})" } ?: "지도에서 공항 선택",
+                        text = selectedDestination?.let {
+                            stringResource(R.string.newflight_selected_destination_format, it.cityKo, it.iata)
+                        } ?: stringResource(R.string.newflight_select_airport_on_map),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -262,14 +266,18 @@ fun NewFlightScreen(
                     if (selectedDestination != null) {
                         val distKm = FlightUtils.calculateDistance(originAirport, selectedDestination!!)
                         Text(
-                            text = "${FlightUtils.formatDistance(distKm, unitSystem)} • 약 ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))}",
+                            text = stringResource(
+                                R.string.newflight_selected_destination_distance_format,
+                                FlightUtils.formatDistance(distKm, unitSystem),
+                                FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))
+                            ),
                             style = MaterialTheme.typography.titleLarge,
                             color = FlightPrimary,
                             fontWeight = FontWeight.Medium
                         )
                     } else {
                         Text(
-                            text = "지도를 움직이거나 아래 목록에서 선택하세요",
+                            text = stringResource(R.string.newflight_move_map_or_select_from_list),
                             style = MaterialTheme.typography.bodyLarge,
                             color = FlightGray
                         )
@@ -287,14 +295,14 @@ fun NewFlightScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp),
-                        placeholder = { Text("공항 검색 또는 시간 검색 (예: 1, 1.5)", color = FlightGray) },
+                        placeholder = { Text(stringResource(R.string.newflight_search_placeholder), color = FlightGray) },
                         leadingIcon = {
                             Icon(Icons.Default.Search, contentDescription = null, tint = FlightGray)
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "검색 초기화", tint = FlightGray)
+                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.newflight_clear_search), tint = FlightGray)
                                 }
                             }
                         },
@@ -311,10 +319,10 @@ fun NewFlightScreen(
                         )
                     )
 
-                    val radiusText = if (searchRadiusKm >= 20000) "무제한" else "${searchRadiusKm}km"
-                    val durationText = if (searchRadiusKm >= 20000) "" else " • 약 ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+                    val radiusText = if (searchRadiusKm >= 20000) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
+                    val durationText = if (searchRadiusKm >= 20000) "" else " • ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
                     Text(
-                        text = "검색 반경: $radiusText$durationText",
+                        text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                         color = FlightPrimary,
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
@@ -389,9 +397,9 @@ fun NewFlightScreen(
                 ) {
                     Text(
                         text = when {
-                            isSettingCurrentLocation -> "현재 위치로 설정"
-                            isSandboxMode -> "공항 선택 완료"
-                            else -> "목적지 확정"
+                            isSettingCurrentLocation -> stringResource(R.string.newflight_set_current_location)
+                            isSandboxMode -> stringResource(R.string.newflight_airport_selection_done)
+                            else -> stringResource(R.string.newflight_confirm_destination)
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -451,7 +459,7 @@ fun NewFlightScreen(
                         // 출발지 마커 표시
                         val isSelected = airport == selectedDestination
                         val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                            val label = "출발"
+                            val label = context.getString(R.string.newflight_origin_short)
                             MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                         }
                         Marker(
@@ -468,7 +476,7 @@ fun NewFlightScreen(
                         val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
                         val isSelected = airport == selectedDestination
                         val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                            val label = if (isSelected) "도착" else airport.cityKo.split("/")[0]
+                            val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
                             MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                         }
                         Marker(
@@ -490,7 +498,7 @@ fun NewFlightScreen(
                             // 마커 표시
                             val isSelected = airport == selectedDestination
                             val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                                val label = if (isSelected) "도착" else airport.cityKo.split("/")[0]
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
                                 MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                             }
                             Marker(
@@ -514,7 +522,7 @@ fun NewFlightScreen(
                             // 마커 표시
                             val isSelected = airport == selectedDestination
                             val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                                val label = if (isSelected) "도착" else airport.cityKo.split("/")[0]
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
                                 MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                             }
                             Marker(
@@ -557,7 +565,7 @@ fun NewFlightScreen(
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = Color.White)
                 }
             }
 
@@ -572,7 +580,7 @@ fun NewFlightScreen(
                     colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                 ) {
-                    Text("빠른 비행", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.newflight_quick_flight_title), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -684,7 +692,13 @@ fun AirportListItem(
                 if (isOrigin) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(color = FlightPrimary, shape = RoundedCornerShape(4.dp)) {
-                        Text(text = "출발", color = FlightBlack, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp), fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(R.string.newflight_origin_badge),
+                            color = FlightBlack,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -718,10 +732,10 @@ fun SameAirportDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("목적지 오류", color = Color.White) },
-        text = { Text("출발지와 목적지가 같습니다.\n다른 공항를 선택해주세요.", color = FlightGray) },
+        title = { Text(stringResource(R.string.newflight_same_airport_title), color = Color.White) },
+        text = { Text(stringResource(R.string.newflight_same_airport_message), color = FlightGray) },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("확인") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_confirm)) }
         },
         containerColor = Color(0xFF0D0000)
     )
@@ -736,11 +750,11 @@ private fun QuickFlightDialogCards(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("\uBE60\uB978 \uBE44\uD589", color = Color.White) },
+        title = { Text(stringResource(R.string.newflight_quick_flight_title), color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "1\uC2DC\uAC04, 2\uC2DC\uAC04, 3\uC2DC\uAC04\uC5D0 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uBE44\uD589 \uC2DC\uAC04\uC758 \uACF5\uD56D\uC785\uB2C8\uB2E4.",
+                    stringResource(R.string.newflight_quick_flight_description),
                     color = FlightGray
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -758,7 +772,7 @@ private fun QuickFlightDialogCards(
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Text(
-                                    "${suggestion.targetMinutes / 60}\uC2DC\uAC04 \uCD94\uCC9C",
+                                    stringResource(R.string.newflight_quick_flight_recommendation_format, suggestion.targetMinutes / 60),
                                     color = FlightPrimary,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -790,7 +804,7 @@ private fun QuickFlightDialogCards(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("\uB2EB\uAE30")
+                Text(stringResource(R.string.action_close))
             }
         },
         containerColor = Color(0xFF0D0000)
@@ -833,8 +847,8 @@ private fun NewFlightLandscapePanel(
             ) {
                 Text(
                     text = selectedDestination?.let {
-                        "\uB3C4\uCC29: ${it.cityKo} (${it.iata})"
-                    } ?: "\uC9C0\uB3C4\uC5D0\uC11C \uACF5\uD56D \uC120\uD0DD",
+                        stringResource(R.string.newflight_selected_destination_format, it.cityKo, it.iata)
+                    } ?: stringResource(R.string.newflight_select_airport_on_map),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -843,14 +857,18 @@ private fun NewFlightLandscapePanel(
                 if (selectedDestination != null) {
                     val distKm = FlightUtils.calculateDistance(originAirport, selectedDestination)
                     Text(
-                        text = "${FlightUtils.formatDistance(distKm, unitSystem)}  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))}",
+                        text = stringResource(
+                            R.string.newflight_distance_duration_format,
+                            FlightUtils.formatDistance(distKm, unitSystem),
+                            FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))
+                        ),
                         style = MaterialTheme.typography.titleMedium,
                         color = FlightPrimary,
                         fontWeight = FontWeight.Medium
                     )
                 } else {
                     Text(
-                        text = "\uC9C0\uB3C4\uB97C \uC774\uB3D9\uD558\uAC70\uB098 \uC544\uB798 \uBAA9\uB85D\uC5D0\uC11C \uC120\uD0DD\uD558\uC138\uC694.",
+                        text = stringResource(R.string.newflight_move_map_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = FlightGray
                     )
@@ -867,7 +885,7 @@ private fun NewFlightLandscapePanel(
                     .padding(horizontal = 20.dp),
                 placeholder = {
                     Text(
-                        "\uACF5\uD56D \uAC80\uC0C9 \uB610\uB294 \uC2DC\uAC04 \uAC80\uC0C9 (\uC608: 1, 1.5)",
+                        stringResource(R.string.newflight_search_placeholder),
                         color = FlightGray
                     )
                 },
@@ -877,7 +895,7 @@ private fun NewFlightLandscapePanel(
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "\uAC80\uC0C9 \uCD08\uAE30\uD654", tint = FlightGray)
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.newflight_clear_search), tint = FlightGray)
                         }
                     }
                 },
@@ -894,10 +912,10 @@ private fun NewFlightLandscapePanel(
                 )
             )
 
-            val radiusText = if (searchRadiusKm >= 20000) "\uBB34\uC81C\uD55C" else "${searchRadiusKm}km"
+            val radiusText = if (searchRadiusKm >= 20000) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
             val durationText = if (searchRadiusKm >= 20000) "" else "  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
             Text(
-                text = "\uAC80\uC0C9 \uBC18\uACBD: $radiusText$durationText",
+                text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                 color = FlightPrimary,
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -949,9 +967,9 @@ private fun NewFlightLandscapePanel(
             ) {
                 Text(
                     text = when {
-                        isSettingCurrentLocation -> "\uD604\uC7AC \uC704\uCE58\uB85C \uC124\uC815"
-                        isSandboxMode -> "\uACF5\uD56D \uC120\uD0DD \uC644\uB8CC"
-                        else -> "\uBAA9\uC801\uC9C0 \uD655\uC815"
+                        isSettingCurrentLocation -> stringResource(R.string.newflight_set_current_location)
+                        isSandboxMode -> stringResource(R.string.newflight_airport_selection_done)
+                        else -> stringResource(R.string.newflight_confirm_destination)
                     },
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -1000,7 +1018,7 @@ private fun QuickFlightDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("빠른 비행", color = Color.White) },
+        title = { Text(stringResource(R.string.newflight_quick_flight_title), color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -1049,7 +1067,7 @@ private fun QuickFlightDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("닫기")
+                Text(stringResource(R.string.action_close))
             }
         },
         containerColor = Color(0xFF0D0000)

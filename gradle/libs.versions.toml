@@ -3,6 +3,7 @@ agp = "8.13.2"
 kotlin = "2.2.20"
 coreKtx = "1.15.0"
 junit = "4.13.2"
+coroutines = "1.10.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 lifecycleRuntimeKtx = "2.8.7"
@@ -49,6 +50,7 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 # DataStore & Serialization
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

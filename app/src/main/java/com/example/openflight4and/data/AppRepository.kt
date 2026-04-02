@@ -2,6 +2,7 @@
 
 import android.content.Context
 import android.util.Log
+import com.example.openflight4and.R
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -22,12 +23,28 @@ import kotlinx.serialization.json.Json
 
 val Context.dataStore by preferencesDataStore(name = "settings")
 
-class AppRepository(private val context: Context) {
+interface AppRepositoryDataSource {
+    fun getAirports(): List<Airport>
+
+    val recentSessions: Flow<List<FlightSession>>
+    val currentLocation: Flow<Airport?>
+    val flightTickets: Flow<Int>
+    val hasCheckedInToday: Flow<Boolean>
+    val ticketHistory: Flow<List<FlightTicketHistoryEntry>>
+
+    suspend fun claimDailyCheckIn(): DailyCheckInResult
+    suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult
+    suspend fun rewardTicketsFromAd(): Int
+    suspend fun rewardSingleTicketFromInFlightAd(): Int
+    suspend fun redeemCode(code: String): RedeemCodeResult
+}
+
+class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     private val database = AppDatabase.getDatabase(context)
     private val flightDao = database.flightSessionDao()
 
-    fun getAirports(): List<Airport> {
+    override fun getAirports(): List<Airport> {
         return try {
             val inputStream = context.assets.open("airports.json")
             val reader = BufferedReader(InputStreamReader(inputStream))
@@ -40,7 +57,7 @@ class AppRepository(private val context: Context) {
     }
 
     val allSessions: Flow<List<FlightSession>> = flightDao.getAllSessions()
-    val recentSessions: Flow<List<FlightSession>> = flightDao.getRecentCompletedSessions()
+    override val recentSessions: Flow<List<FlightSession>> = flightDao.getRecentCompletedSessions()
     val totalFlights: Flow<Int> = flightDao.getTotalFlightsCount()
     val totalDistance: Flow<Int?> = flightDao.getTotalDistance()
     val totalFocusMinutes: Flow<Int?> = flightDao.getTotalFocusMinutes()
@@ -85,7 +102,7 @@ class AppRepository(private val context: Context) {
     val screenOrientationMode: Flow<String> = context.dataStore.data.map {
         it[KEY_SCREEN_ORIENTATION_MODE] ?: "auto"
     }
-    val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
+    override val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[KEY_CURRENT_LOCATION]
         Log.d("AppRepository", "Reading current location from DataStore: $json")
         json?.let {
@@ -102,16 +119,16 @@ class AppRepository(private val context: Context) {
     val sandboxTimeScale: Flow<Float> = context.dataStore.data.map { preferences ->
         preferences[KEY_SANDBOX_TIME_SCALE]?.toFloatOrNull() ?: 1f
     }
-    val flightTickets: Flow<Int> = context.dataStore.data.map { preferences ->
+    override val flightTickets: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[KEY_FLIGHT_TICKETS] ?: 0
     }
-    val hasCheckedInToday: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val hasCheckedInToday: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_LAST_DAILY_TICKET_DATE] == LocalDate.now().toString()
     }
     val debugFlightMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_DEBUG_FLIGHT_MODE] ?: false
     }
-    val ticketHistory: Flow<List<FlightTicketHistoryEntry>> = context.dataStore.data.map { preferences ->
+    override val ticketHistory: Flow<List<FlightTicketHistoryEntry>> = context.dataStore.data.map { preferences ->
         decodeTicketHistory(preferences[KEY_TICKET_HISTORY])
             .map(::localizeLegacyTicketHistoryEntry)
             .sortedByDescending { it.timestamp }
@@ -179,13 +196,13 @@ class AppRepository(private val context: Context) {
         }
     }
 
-    suspend fun claimDailyCheckIn(): DailyCheckInResult {
-        var result: DailyCheckInResult = DailyCheckInResult.Error("오늘은 이미 출석체크를 완료했습니다.")
+    override suspend fun claimDailyCheckIn(): DailyCheckInResult {
+        var result: DailyCheckInResult = DailyCheckInResult.Error(context.getString(R.string.repo_daily_check_in_already_done))
         val today = LocalDate.now().toString()
 
         context.dataStore.edit { preferences ->
             if (preferences[KEY_LAST_DAILY_TICKET_DATE] == today) {
-                result = DailyCheckInResult.Error("오늘은 이미 출석체크를 완료했습니다.")
+                result = DailyCheckInResult.Error(context.getString(R.string.repo_daily_check_in_already_done))
                 return@edit
             }
 
@@ -198,8 +215,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = 1,
                     balanceAfter = updatedBalance,
-                    title = "출석 체크",
-                    detail = "출석체크 보상으로 비행권 1개가 지급되었습니다."
+                    title = context.getString(R.string.repo_daily_check_in_title),
+                    detail = context.getString(R.string.repo_daily_check_in_detail)
                 )
             )
             result = DailyCheckInResult.Success(1)
@@ -208,7 +225,7 @@ class AppRepository(private val context: Context) {
         return result
     }
 
-    suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult {
+    override suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult {
         val currentBalance = context.dataStore.data.map { preferences ->
             preferences[KEY_FLIGHT_TICKETS] ?: 0
         }
@@ -220,13 +237,13 @@ class AppRepository(private val context: Context) {
             TicketSpendResult(
                 success = false,
                 spent = 0,
-                message = "비행권이 부족합니다."
+                message = context.getString(R.string.repo_ticket_insufficient)
             )
         }
     }
 
     suspend fun consumeTicketForLongFlight(): TicketSpendResult {
-        var result = TicketSpendResult(success = false, spent = 0, message = "비행권이 부족합니다.")
+        var result = TicketSpendResult(success = false, spent = 0, message = context.getString(R.string.repo_ticket_insufficient))
 
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
@@ -234,7 +251,7 @@ class AppRepository(private val context: Context) {
                 result = TicketSpendResult(
                     success = false,
                     spent = 0,
-                    message = "비행권이 부족합니다."
+                    message = context.getString(R.string.repo_ticket_insufficient)
                 )
                 return@edit
             }
@@ -246,8 +263,8 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = -1,
                     balanceAfter = updatedBalance,
-                    title = "비행권 사용",
-                    detail = "10분 이상 비행으로 비행권 1개가 차감되었습니다."
+                    title = context.getString(R.string.repo_ticket_use_title),
+                    detail = context.getString(R.string.repo_ticket_use_detail)
                 )
             )
             result = TicketSpendResult(success = true, spent = 1)
@@ -256,7 +273,7 @@ class AppRepository(private val context: Context) {
         return result
     }
 
-    suspend fun rewardTicketsFromAd(): Int {
+    override suspend fun rewardTicketsFromAd(): Int {
         val rewardAmount = 1
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
@@ -267,15 +284,15 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "광고 보상",
-                    detail = "30초 광고 보상으로 비행권 1개가 지급되었습니다."
+                    title = context.getString(R.string.repo_ad_reward_title),
+                    detail = context.getString(R.string.repo_ad_reward_detail)
                 )
             )
         }
         return rewardAmount
     }
 
-    suspend fun rewardSingleTicketFromInFlightAd(): Int {
+    override suspend fun rewardSingleTicketFromInFlightAd(): Int {
         val rewardAmount = 1
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
@@ -286,21 +303,22 @@ class AppRepository(private val context: Context) {
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "광고 보상",
-                    detail = "비행 중 30초 광고 보상으로 비행권 1개가 지급되었습니다."
+                    title = context.getString(R.string.repo_ad_reward_title),
+                    detail = context.getString(R.string.repo_inflight_ad_reward_detail)
                 )
             )
         }
         return rewardAmount
     }
 
-    suspend fun redeemCode(code: String): RedeemCodeResult {
+    override suspend fun redeemCode(code: String): RedeemCodeResult {
         val normalized = code.trim().lowercase()
         if (normalized.isBlank()) {
-            return RedeemCodeResult.Error("코드를 입력해 주세요.")
+            return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_enter_code))
         }
+        val isReusableAdminCode = normalized.startsWith("admin")
 
-        var result: RedeemCodeResult = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
+        var result: RedeemCodeResult = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_invalid))
         val rewardAmount = when (normalized) {
             "admin" -> 1
             "admin10" -> 10
@@ -311,29 +329,31 @@ class AppRepository(private val context: Context) {
         context.dataStore.edit { preferences ->
             val usedCodes = decodeStringList(preferences[KEY_USED_REDEEM_CODES]).toMutableSet()
 
-            if (normalized in usedCodes) {
-                result = RedeemCodeResult.Error("이미 사용한 코드입니다.")
+            if (!isReusableAdminCode && normalized in usedCodes) {
+                result = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_already_used))
                 return@edit
             }
 
             if (rewardAmount == null) {
-                result = RedeemCodeResult.Error("유효하지 않은 코드입니다.")
+                result = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_invalid))
                 return@edit
             }
 
             val currentBalance = preferences[KEY_FLIGHT_TICKETS] ?: 0
             val updatedBalance = currentBalance + rewardAmount
 
-            usedCodes += normalized
             preferences[KEY_FLIGHT_TICKETS] = updatedBalance
-            preferences[KEY_USED_REDEEM_CODES] = Json.encodeToString(usedCodes.toList())
+            if (!isReusableAdminCode) {
+                usedCodes += normalized
+                preferences[KEY_USED_REDEEM_CODES] = Json.encodeToString(usedCodes.toList())
+            }
             preferences[KEY_TICKET_HISTORY] = appendHistoryEntry(
                 preferences[KEY_TICKET_HISTORY],
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
-                    title = "리딤 코드",
-                    detail = "${normalized.uppercase()} 코드로 비행권 ${rewardAmount}개가 지급되었습니다."
+                    title = context.getString(R.string.repo_redeem_title),
+                    detail = context.getString(R.string.repo_redeem_detail_format, normalized.uppercase(), rewardAmount)
                 )
             )
             result = RedeemCodeResult.Success(rewardAmount)
@@ -404,7 +424,7 @@ class AppRepository(private val context: Context) {
             trimmed.equals("일일 비행권 1개가 지급되었습니다.", ignoreCase = true) ||
             (trimmed.contains("異쒖꽍泥댄겕") && trimmed.contains("鍮꾪뻾沅?"))
         ) {
-            return "출석체크 보상으로 비행권 1개가 지급되었습니다."
+            return context.getString(R.string.repo_legacy_daily_detail)
         }
 
         if (
@@ -413,18 +433,18 @@ class AppRepository(private val context: Context) {
             trimmed.equals("Consumed 1 ticket.", ignoreCase = true) ||
             (trimmed.contains("10遺") && trimmed.contains("李④컧"))
         ) {
-            return "10분 이상 비행으로 비행권 1개가 차감되었습니다."
+            return context.getString(R.string.repo_legacy_ticket_use_detail)
         }
 
         if (
             trimmed.equals("Rewarded 3 tickets from ad reward.", ignoreCase = true) ||
             trimmed.equals("Earned 3 tickets by watching an ad.", ignoreCase = true)
         ) {
-            return "30초 광고 보상으로 비행권 3개가 지급되었습니다."
+            return context.getString(R.string.repo_legacy_ad_reward_detail)
         }
 
         if (trimmed.contains("愿묎퀬") && trimmed.contains("鍮꾪뻾沅?")) {
-            return "30초 광고 보상으로 비행권 1개가 지급되었습니다."
+            return context.getString(R.string.repo_legacy_ad_reward_detail)
         }
 
         val redeemMatch = Regex(
@@ -434,7 +454,7 @@ class AppRepository(private val context: Context) {
         if (redeemMatch != null) {
             val amount = redeemMatch.groupValues[1]
             val code = redeemMatch.groupValues[2].uppercase()
-            return "$code 코드로 비행권 ${amount}개가 지급되었습니다."
+            return context.getString(R.string.repo_redeem_detail_format, code, amount.toInt())
         }
 
         return detail

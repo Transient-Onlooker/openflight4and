@@ -2,8 +2,8 @@ package com.example.openflight4and.service
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.GradientDrawable
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.openflight4and.MainActivity
+import com.example.openflight4and.R
 
 class FocusLockOverlayController(
     private val context: Context
@@ -24,9 +25,7 @@ class FocusLockOverlayController(
         destinationIata: String,
         durationMinutes: Int
     ) {
-        if (overlayView != null) {
-            return
-        }
+        if (overlayView != null) return
 
         val root = FrameLayout(context).apply {
             setBackgroundColor(0x00000000)
@@ -64,14 +63,14 @@ class FocusLockOverlayController(
         }
 
         val title = TextView(context).apply {
-            text = "집중 비행 중입니다"
+            text = context.getString(R.string.focus_lock_overlay_title)
             textSize = 24f
             setTextColor(0xFFFFFFFF.toInt())
             gravity = Gravity.CENTER
         }
 
         val message = TextView(context).apply {
-            text = "다른 앱으로 이동할 수 없습니다.\nOpenFlight로 돌아가 비행을 이어서 진행하세요."
+            text = context.getString(R.string.focus_lock_overlay_message)
             textSize = 17f
             gravity = Gravity.CENTER
             setTextColor(0xFFE2E2E2.toInt())
@@ -79,7 +78,7 @@ class FocusLockOverlayController(
         }
 
         val button = Button(context).apply {
-            text = "비행으로 돌아가기"
+            text = context.getString(R.string.focus_lock_overlay_button)
             setOnClickListener {
                 val intent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or

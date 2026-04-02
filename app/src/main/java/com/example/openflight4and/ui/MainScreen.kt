@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -23,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.openflight4and.InFlightLaunchRequest
+import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.boardingpass.BoardingPassScreen
 import com.example.openflight4and.ui.history.HistoryScreen
@@ -167,7 +169,7 @@ fun MainScreen(
                     },
                     hasTickets = ticketBalance > 0,
                     onTicketRequired = {
-                        Toast.makeText(context, "\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.message_ticket_insufficient), Toast.LENGTH_SHORT).show()
                     },
                     onFinish = {
                         if (!viewModel.validateSeatSelection(ticketBalance)) {
@@ -243,10 +245,10 @@ fun MainScreen(
     if (uiState.showAirplaneModeDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissAirplaneModeDialog() },
-            title = { Text("\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778", color = Color.White) },
+            title = { Text(stringResource(R.string.main_airplane_mode_dialog_title), color = Color.White) },
             text = {
                 Text(
-                    "\uC9D1\uC911 \uBE44\uD589\uC5D0\uC11C\uB294 \uBE44\uD589\uAE30 \uBAA8\uB4DC \uC0AC\uC6A9\uC744 \uAD8C\uC7A5\uD569\uB2C8\uB2E4. \uADF8\uB798\uB3C4 \uACC4\uC18D\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?",
+                    stringResource(R.string.main_airplane_mode_dialog_message),
                     color = Color.Gray
                 )
             },
@@ -258,10 +260,10 @@ fun MainScreen(
                             notificationUpdateSeconds = notificationUpdateSeconds
                         )
                     }
-                ) { Text("\uADF8\uB300\uB85C \uC2DC\uC791") }
+                ) { Text(stringResource(R.string.action_start_anyway)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissAirplaneModeDialog() }) { Text("\uCDE8\uC18C") }
+                TextButton(onClick = { viewModel.dismissAirplaneModeDialog() }) { Text(stringResource(R.string.action_cancel)) }
             },
             containerColor = Color(0xFF0D0000)
         )

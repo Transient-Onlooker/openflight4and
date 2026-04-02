@@ -40,11 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.openflight4and.R
 import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.focus.FocusLockUtils
@@ -52,19 +54,6 @@ import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.SectionHeader
 import com.example.openflight4and.ui.theme.FlightGray
 import kotlinx.coroutines.launch
-
-private const val TITLE_SETTINGS = "\uC124\uC815"
-private const val TITLE_UNIT_SYSTEM = "\uCE21\uC815 \uB2E8\uC704"
-private const val TITLE_SCREEN_ORIENTATION = "\uD654\uBA74 \uBC29\uD5A5"
-private const val TITLE_MAP_STYLE = "\uC9C0\uB3C4 \uC2A4\uD0C0\uC77C"
-private const val TITLE_AIRPLANE_MODE_CHECK = "\uBE44\uD589\uAE30 \uBAA8\uB4DC \uD655\uC778"
-private const val TITLE_NOTIFICATIONS = "\uC54C\uB9BC"
-private const val TITLE_NOTIFICATION_INTERVAL = "\uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30"
-private const val TITLE_FOCUS_LOCK = "\uC9D1\uC911 \uC7A0\uAE08"
-private const val TITLE_BATTERY_OPT_OUT = "\uBC30\uD130\uB9AC \uCD5C\uC801\uD654 \uC608\uC678"
-private const val LABEL_AUTO = "\uC790\uB3D9"
-private const val LABEL_PORTRAIT = "\uC138\uB85C"
-private const val LABEL_LANDSCAPE = "\uAC00\uB85C"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +76,17 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasUsageAccess by remember { mutableStateOf(FocusLockUtils.hasUsageAccess(context)) }
     var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
+    val titleSettings = stringResource(R.string.settings_title)
+    val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
+    val titleScreenOrientation = stringResource(R.string.settings_title_screen_orientation)
+    val titleMapStyle = stringResource(R.string.settings_title_map_style)
+    val titleAirplaneModeCheck = stringResource(R.string.settings_title_airplane_mode_check)
+    val titleNotifications = stringResource(R.string.settings_title_notifications)
+    val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
+    val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
+    val labelAuto = stringResource(R.string.settings_orientation_auto)
+    val labelPortrait = stringResource(R.string.settings_orientation_portrait)
+    val labelLandscape = stringResource(R.string.settings_orientation_landscape)
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -106,12 +106,12 @@ fun SettingsScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text(TITLE_SETTINGS, color = Color.White) },
+                    title = { Text(titleSettings, color = Color.White) },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.action_back),
                                 tint = Color.White
                             )
                         }
@@ -129,7 +129,7 @@ fun SettingsScreen(
             ) {
                 if (restrictInFlightSettings) {
                     Text(
-                        text = "\uBE44\uD589 \uC911\uC5D0\uB294 \uD654\uBA74 \uBC29\uD5A5 \uC124\uC815\uB9CC \uC7A0\uAE08\uB2C8\uB2E4.",
+                        text = stringResource(R.string.settings_inflight_lock_notice),
                         style = MaterialTheme.typography.bodySmall,
                         color = FlightGray,
                         modifier = Modifier.padding(top = 8.dp, start = 4.dp)
@@ -137,27 +137,27 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.padding(top = 16.dp))
                 }
 
-                SectionHeader(TITLE_UNIT_SYSTEM)
+                SectionHeader(titleUnitSystem)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = unitSystem == "km",
                         onClick = { scope.launch { repository.setUnitSystem("km") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                    ) { Text("Kilometers (km)") }
+                    ) { Text(stringResource(R.string.settings_unit_kilometers)) }
                     SegmentedButton(
                         selected = unitSystem == "mi",
                         onClick = { scope.launch { repository.setUnitSystem("mi") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                    ) { Text("Miles (mi)") }
+                    ) { Text(stringResource(R.string.settings_unit_miles)) }
                 }
 
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                SectionHeader(TITLE_SCREEN_ORIENTATION)
+                SectionHeader(titleScreenOrientation)
                 val orientationModes = listOf(
-                    "auto" to LABEL_AUTO,
-                    "portrait" to LABEL_PORTRAIT,
-                    "landscape" to LABEL_LANDSCAPE
+                    "auto" to labelAuto,
+                    "portrait" to labelPortrait,
+                    "landscape" to labelLandscape
                 )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     orientationModes.forEachIndexed { index, (id, label) ->
@@ -170,7 +170,7 @@ fun SettingsScreen(
                     }
                 }
                 Text(
-                    text = "\uC790\uB3D9\uC740 \uAE30\uAE30 \uD68C\uC804\uC5D0 \uB9DE\uCDB0 \uBC14\uB00C\uACE0, \uC138\uB85C/\uAC00\uB85C\uB294 \uD574\uB2F9 \uBC29\uD5A5\uC73C\uB85C \uACE0\uC815\uB429\uB2C8\uB2E4.",
+                    text = stringResource(R.string.settings_screen_orientation_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp)
@@ -178,11 +178,11 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                SectionHeader(TITLE_MAP_STYLE)
+                SectionHeader(titleMapStyle)
                 val styles = listOf(
-                    "standard" to "\uC77C\uBC18",
-                    "satellite" to "\uC704\uC131",
-                    "hybrid" to "\uD558\uC774\uBE0C\uB9AC\uB4DC"
+                    "standard" to stringResource(R.string.settings_map_style_standard),
+                    "satellite" to stringResource(R.string.settings_map_style_satellite),
+                    "hybrid" to stringResource(R.string.settings_map_style_hybrid)
                 )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     styles.forEachIndexed { index, (id, label) ->
@@ -197,21 +197,21 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
                 ToggleSettingItem(
-                    title = TITLE_AIRPLANE_MODE_CHECK,
-                    description = "\uC138\uC158 \uC2DC\uC791 \uC804 \uBE44\uD589\uAE30 \uBAA8\uB4DC \uD65C\uC131\uD654 \uC5EC\uBD80\uB97C \uD655\uC778\uD569\uB2C8\uB2E4.",
+                    title = titleAirplaneModeCheck,
+                    description = stringResource(R.string.settings_airplane_mode_check_description),
                     checked = airplaneModeCheck,
                     onCheckedChange = { scope.launch { repository.setAirplaneModeCheck(it) } }
                 )
 
                 ToggleSettingItem(
-                    title = TITLE_NOTIFICATIONS,
-                    description = "\uC138\uC158 \uC644\uB8CC \uBC0F \uC911\uC694 \uC54C\uB9BC\uC744 \uBC1B\uC2B5\uB2C8\uB2E4.",
+                    title = titleNotifications,
+                    description = stringResource(R.string.settings_notifications_description),
                     checked = notificationsEnabled,
                     onCheckedChange = { scope.launch { repository.setNotificationsEnabled(it) } }
                 )
 
                 if (notificationsEnabled) {
-                    SectionHeader(TITLE_NOTIFICATION_INTERVAL)
+                    SectionHeader(titleNotificationInterval)
                     val notificationIntervalRows = listOf(
                         listOf(1, 2, 5),
                         listOf(10, 20, 30)
@@ -231,7 +231,7 @@ fun SettingsScreen(
                         }
                     }
                     Text(
-                        text = "\uAE30\uBCF8\uAC12 10\uCD08. \uBE44\uD589 \uC911 \uC54C\uB9BC \uAC31\uC2E0 \uC8FC\uAE30\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.",
+                        text = stringResource(R.string.settings_notification_interval_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = FlightGray,
                         modifier = Modifier.padding(top = 8.dp, start = 4.dp)
@@ -242,37 +242,37 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.padding(top = 24.dp))
 
-                SectionHeader(TITLE_FOCUS_LOCK)
+                SectionHeader(titleFocusLock)
                 ToggleSettingItem(
-                    title = TITLE_FOCUS_LOCK,
-                    description = "\uBE44\uD589 \uC911 \uB2E4\uB978 \uC571\uC73C\uB85C \uB098\uAC00\uBA74 \uC624\uBC84\uB808\uC774\uB85C \uBCF5\uADC0\uB97C \uC720\uB3C4\uD569\uB2C8\uB2E4.",
+                    title = titleFocusLock,
+                    description = stringResource(R.string.settings_focus_lock_description),
                     checked = focusLockEnabled,
                     onCheckedChange = { enabled ->
                         scope.launch { repository.setFocusLockEnabled(enabled) }
                     }
                 )
                 Text(
-                    text = "\uC791\uB3D9 \uC870\uAC74: \uC0AC\uC6A9 \uC815\uBCF4 \uC811\uADFC + \uB2E4\uB978 \uC571 \uC704\uC5D0 \uD45C\uC2DC \uAD8C\uD55C\uC774 \uBAA8\uB450 \uD544\uC694\uD569\uB2C8\uB2E4.",
+                    text = stringResource(R.string.settings_focus_lock_requirements),
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp)
                 )
                 if (focusLockEnabled) {
                     PermissionSettingItem(
-                        title = "\uC0AC\uC6A9 \uC815\uBCF4 \uC811\uADFC",
+                        title = stringResource(R.string.settings_usage_access),
                         description = if (hasUsageAccess) {
-                            "\uD5C8\uC6A9\uB428"
+                            stringResource(R.string.settings_permission_allowed)
                         } else {
-                            "\uD544\uC694 \u2014 \uD604\uC7AC \uC804\uBA74 \uC571\uC744 \uD655\uC778\uD558\uAE30 \uC704\uD574 \uD5C8\uC6A9\uD574\uC57C \uD569\uB2C8\uB2E4."
+                            stringResource(R.string.settings_permission_required_usage)
                         },
                         onClick = { FocusLockUtils.openUsageAccessSettings(context) }
                     )
                     PermissionSettingItem(
-                        title = "\uB2E4\uB978 \uC571 \uC704\uC5D0 \uD45C\uC2DC",
+                        title = stringResource(R.string.settings_overlay_permission),
                         description = if (canDrawOverlays) {
-                            "\uD5C8\uC6A9\uB428"
+                            stringResource(R.string.settings_permission_allowed)
                         } else {
-                            "\uD544\uC694 \u2014 \uB2E4\uB978 \uC571 \uC774\uD0C8 \uC2DC \uBCF5\uADC0 \uC624\uBC84\uB808\uC774\uB97C \uB744\uC6B0\uAE30 \uC704\uD574 \uD5C8\uC6A9\uD574\uC57C \uD569\uB2C8\uB2E4."
+                            stringResource(R.string.settings_permission_required_overlay)
                         },
                         onClick = { FocusLockUtils.openOverlaySettings(context) }
                     )
@@ -281,7 +281,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.padding(top = 48.dp))
 
                 Text(
-                    text = "\uBC84\uC804 ${BuildConfig.VERSION_NAME}",
+                    text = stringResource(R.string.label_version_format, BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.labelSmall,
                     color = FlightGray,
                     modifier = Modifier.fillMaxWidth(),
@@ -403,14 +403,18 @@ fun BatteryOptimizationItem() {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = TITLE_BATTERY_OPT_OUT,
+                    text = stringResource(R.string.settings_title_battery_optimization),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isIgnoring) "\uD5C8\uC6A9\uB428" else "\uAEBC\uC9D0",
+                    text = if (isIgnoring) {
+                        stringResource(R.string.settings_permission_allowed)
+                    } else {
+                        stringResource(R.string.settings_battery_optimization_off)
+                    },
                     color = if (isIgnoring) MaterialTheme.colorScheme.primary else FlightGray,
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier
@@ -427,9 +431,9 @@ fun BatteryOptimizationItem() {
             }
             Text(
                 text = if (isIgnoring) {
-                    "\uBC31\uADF8\uB77C\uC6B4\uB4DC \uCD5C\uC801\uD654 \uC608\uC678\uAC00 \uD5C8\uC6A9\uB41C \uC0C1\uD0DC\uC785\uB2C8\uB2E4."
+                    stringResource(R.string.settings_battery_optimization_allowed_description)
                 } else {
-                    "\uD604\uC7AC \uAEBC\uC838 \uC788\uC2B5\uB2C8\uB2E4. \uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C\uB3C4 \uBE44\uD589\uC774 \uC911\uB2E8\uB418\uC9C0 \uC54A\uB3C4\uB85D \uD5C8\uC6A9\uD558\uC138\uC694."
+                    stringResource(R.string.settings_battery_optimization_off_description)
                 },
                 color = FlightGray,
                 style = MaterialTheme.typography.bodySmall

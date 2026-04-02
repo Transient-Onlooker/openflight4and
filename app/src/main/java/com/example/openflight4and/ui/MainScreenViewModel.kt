@@ -2,12 +2,12 @@ package com.example.openflight4and.ui
 
 import android.app.Application
 import android.content.Intent
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
@@ -39,11 +39,16 @@ sealed interface MainScreenEvent {
 }
 
 class MainScreenViewModel(
-    application: Application
-) : AndroidViewModel(application) {
+    private val repository: AppRepositoryDataSource,
+    private val isAirplaneModeOn: () -> Boolean,
+    private val startFlightService: (FlightDraft, Int) -> Unit,
+    private val estimateFlight: (Airport, Airport) -> Pair<Int, Int> = { origin, destination ->
+        val distance = FlightUtils.calculateDistance(origin, destination)
+        distance.toInt() to FlightUtils.estimateDurationMinutes(distance)
+    },
+    private val allAirports: List<Airport> = repository.getAirports()
+) : ViewModel() {
 
-    private val repository = AppRepository(application)
-    private val allAirports = repository.getAirports()
     private val fallbackOrigin = allAirports.find { it.iata == "ICN" }
         ?: allAirports.firstOrNull()
         ?: Airport(
@@ -99,19 +104,23 @@ class MainScreenViewModel(
     fun prepareNewFlight() {
         _uiState.update { state ->
             state.copy(
-                currentDraft = FlightDraft(origin = state.currentLocation ?: resolveDefaultOrigin(state.currentLocation, state.recentSessions))
+                currentDraft = FlightDraft(
+                    origin = state.currentLocation ?: resolveDefaultOrigin(
+                        state.currentLocation,
+                        state.recentSessions
+                    )
+                )
             )
         }
     }
 
     fun updateDestination(destination: Airport) {
         _uiState.update { state ->
-            val distance = FlightUtils.calculateDistance(state.currentDraft.origin, destination)
-            val duration = FlightUtils.estimateDurationMinutes(distance)
+            val (distance, duration) = estimateFlight(state.currentDraft.origin, destination)
             state.copy(
                 currentDraft = state.currentDraft.copy(
                     destination = destination,
-                    distanceKm = distance.toInt(),
+                    distanceKm = distance,
                     estimatedMinutes = duration
                 )
             )
@@ -165,7 +174,7 @@ class MainScreenViewModel(
             return
         }
 
-        if (airplaneModeCheckEnabled && !FlightUtils.isAirplaneModeOn(getApplication())) {
+        if (airplaneModeCheckEnabled && !isAirplaneModeOn()) {
             _uiState.update { it.copy(showAirplaneModeDialog = true) }
             return
         }
@@ -180,10 +189,12 @@ class MainScreenViewModel(
                 _events.tryEmit(MainScreenEvent.ShowToast("\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694."))
                 false
             }
+
             ticketBalance <= 0 -> {
                 _events.tryEmit(MainScreenEvent.ShowToast("\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."))
                 false
             }
+
             else -> true
         }
     }
@@ -229,23 +240,17 @@ class MainScreenViewModel(
         viewModelScope.launch {
             val spendResult = repository.canStartFlight(_uiState.value.currentDraft.estimatedMinutes)
             if (!spendResult.success) {
-                _events.emit(MainScreenEvent.ShowToast(spendResult.message ?: "\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."))
+                _events.emit(
+                    MainScreenEvent.ShowToast(
+                        spendResult.message ?: "\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."
+                    )
+                )
                 return@launch
             }
 
             val draftToStart = _uiState.value.currentDraft.copy(timeScale = sandboxTimeScale)
             _uiState.update { it.copy(currentDraft = draftToStart) }
-
-            val intent = Intent(getApplication(), FlightService::class.java).apply {
-                putExtra("origin_iata", draftToStart.origin.iata)
-                putExtra("destination_iata", draftToStart.destination?.iata ?: "N/A")
-                putExtra("origin_name", draftToStart.origin.nameKo)
-                putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
-                putExtra("duration_minutes", draftToStart.estimatedMinutes)
-                putExtra("time_scale", sandboxTimeScale)
-                putExtra("notification_update_seconds", notificationUpdateSeconds)
-            }
-            getApplication<Application>().startForegroundService(intent)
+            startFlightService(draftToStart, notificationUpdateSeconds)
             _events.emit(MainScreenEvent.NavigateToInFlight)
         }
     }
@@ -267,7 +272,27 @@ class MainScreenViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(MainScreenViewModel::class.java)) {
-                return MainScreenViewModel(application) as T
+                val repository = AppRepository(application)
+                return MainScreenViewModel(
+                    repository = repository,
+                    isAirplaneModeOn = { FlightUtils.isAirplaneModeOn(application) },
+                    startFlightService = { draftToStart, notificationUpdateSeconds ->
+                        val intent = Intent(application, FlightService::class.java).apply {
+                            putExtra("origin_iata", draftToStart.origin.iata)
+                            putExtra("destination_iata", draftToStart.destination?.iata ?: "N/A")
+                            putExtra("origin_name", draftToStart.origin.nameKo)
+                            putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
+                            putExtra("duration_minutes", draftToStart.estimatedMinutes)
+                            putExtra("time_scale", draftToStart.timeScale)
+                            putExtra("notification_update_seconds", notificationUpdateSeconds)
+                        }
+                        application.startForegroundService(intent)
+                    },
+                    estimateFlight = { origin, destination ->
+                        val distance = FlightUtils.calculateDistance(origin, destination)
+                        distance.toInt() to FlightUtils.estimateDurationMinutes(distance)
+                    }
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

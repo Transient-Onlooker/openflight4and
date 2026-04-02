@@ -1,11 +1,11 @@
 package com.example.openflight4and.ui.tickets
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
 import com.example.openflight4and.model.FlightTicketHistoryEntry
@@ -33,10 +33,8 @@ sealed interface TicketCenterEvent {
 }
 
 class TicketCenterViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
-    private val repository = AppRepository(application)
+    private val repository: AppRepositoryDataSource
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TicketCenterUiState())
     val uiState = _uiState.asStateFlow()
@@ -147,7 +145,7 @@ class TicketCenterViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TicketCenterViewModel::class.java)) {
-                return TicketCenterViewModel(application) as T
+                return TicketCenterViewModel(AppRepository(application)) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

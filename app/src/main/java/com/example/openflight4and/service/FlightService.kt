@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.openflight4and.MainActivity
+import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
@@ -146,7 +147,7 @@ class FlightService : Service() {
         }
 
         // 珥덇린 ?뚮┝怨??④퍡 ?ш렇?쇱슫???쒖옉
-        val initialContent = "$originIata -> $destinationIata | 비행 준비 중..."
+        val initialContent = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_preparing)}"
         startForeground(NOTIFICATION_ID, createNotification(initialContent, originIata, destinationIata))
         Log.d(TAG, "Foreground service started with notification ID: $NOTIFICATION_ID")
         updateNotification(
@@ -273,7 +274,7 @@ class FlightService : Service() {
                 if (remaining <= 0) {
                     Log.d(TAG, "Flight completed! Remaining: 0")
                     FlightStatusManager.stopFlight()
-                    val completedText = "$originIata -> $destinationIata | 비행 완료!"
+                    val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
                     // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
@@ -308,7 +309,7 @@ class FlightService : Service() {
             // 猷⑦봽 ?꾨즺 ??泥섎━ (?덉쟾?μ튂)
             Log.d(TAG, "Flight completed! (loop finished)")
             FlightStatusManager.stopFlight()
-            val completedText = "$originIata -> $destinationIata | 비행 완료!"
+            val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
             // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
@@ -390,7 +391,10 @@ class FlightService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(if (isCompleted) "\uBE44\uD589 \uC644\uB8CC" else "\uD604\uC7AC \uBE44\uD589 \uC911")
+            .setContentTitle(
+                if (isCompleted) getString(R.string.flight_notification_title_completed)
+                else getString(R.string.flight_notification_title_active)
+            )
             .setContentText(content)
             .setSubText("$originIata -> $destinationIata")
             .setSmallIcon(android.R.drawable.ic_dialog_map)
@@ -411,10 +415,10 @@ class FlightService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "\uBE44\uD589 \uC0C1\uD0DC \uC54C\uB9BC",
+                getString(R.string.flight_notification_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             )
-            channel.description = "\uBE44\uD589 \uC911 \uC0C1\uD0DC\uC640 \uB0A8\uC740 \uC2DC\uAC04\uC744 \uD45C\uC2DC\uD569\uB2C8\uB2E4."
+            channel.description = getString(R.string.flight_notification_channel_description)
             channel.enableLights(true)
             channel.enableVibration(false)
             val manager = getSystemService(NotificationManager::class.java)

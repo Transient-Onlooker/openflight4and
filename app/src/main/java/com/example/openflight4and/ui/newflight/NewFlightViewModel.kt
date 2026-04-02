@@ -1,10 +1,10 @@
 package com.example.openflight4and.ui.newflight
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.model.Airport
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,10 +21,8 @@ data class NewFlightUiState(
 )
 
 class NewFlightViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
-    private val repository = AppRepository(application)
+    repository: AppRepositoryDataSource
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         NewFlightUiState(allAirports = repository.getAirports())
@@ -83,7 +81,7 @@ class NewFlightViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(NewFlightViewModel::class.java)) {
-                return NewFlightViewModel(application) as T
+                return NewFlightViewModel(AppRepository(application)) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
