@@ -269,7 +269,10 @@ fun BoardingPassScreen(
                                     ) {
                                         TicketInfoItem(stringResource(R.string.boardingpass_info_flight), draft.flightNumber)
                                         TicketInfoItem(stringResource(R.string.boardingpass_info_distance), FlightUtils.formatDistance(draft.distanceKm, unitSystem))
-                                        TicketInfoItem(stringResource(R.string.boardingpass_info_boarding_time), draft.boardingTime)
+                                        TicketInfoItem(
+                                            stringResource(R.string.boardingpass_info_boarding_time),
+                                            draft.boardingTime.ifBlank { stringResource(R.string.label_now) }
+                                        )
                                     }
                                 }
                             }

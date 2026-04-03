@@ -51,7 +51,7 @@ data class FlightDraft(
     val distanceKm: Int = 0,
     val estimatedMinutes: Int = 0,
     val flightNumber: String = generateFlightNumber(),
-    val boardingTime: String = "Now",
+    val boardingTime: String = "",
     val seatNumber: String? = null,
     val focusCategory: String? = null,
     val status: String = "Scheduled",

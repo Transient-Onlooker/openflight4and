@@ -130,7 +130,6 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     }
     override val ticketHistory: Flow<List<FlightTicketHistoryEntry>> = context.dataStore.data.map { preferences ->
         decodeTicketHistory(preferences[KEY_TICKET_HISTORY])
-            .map(::localizeLegacyTicketHistoryEntry)
             .sortedByDescending { it.timestamp }
     }
 
@@ -392,73 +391,6 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
         }
     }
 
-    private fun localizeLegacyTicketHistoryEntry(entry: FlightTicketHistoryEntry): FlightTicketHistoryEntry {
-        val localizedTitle = when (entry.title.trim()) {
-            "Daily ticket" -> "출석 체크"
-            "일일 비행권" -> "출석 체크"
-            "異쒖꽍泥댄겕" -> "출석 체크"
-            "Flight ticket used" -> "비행권 사용"
-            "鍮꾪뻾沅?ъ슜" -> "비행권 사용"
-            "Ad reward" -> "광고 보상"
-            "愿묎퀬 蹂댁긽" -> "광고 보상"
-            "Redeem code" -> "리딤 코드"
-            "由щ뵥 肄붾뱶" -> "리딤 코드"
-            else -> entry.title
-        }
-
-        val localizedDetail = localizeLegacyTicketHistoryDetail(entry.detail)
-
-        return if (localizedTitle == entry.title && localizedDetail == entry.detail) {
-            entry
-        } else {
-            entry.copy(title = localizedTitle, detail = localizedDetail)
-        }
-    }
-
-    private fun localizeLegacyTicketHistoryDetail(detail: String): String {
-        val trimmed = detail.trim()
-        if (trimmed.isEmpty()) return detail
-
-        if (
-            trimmed.equals("Daily ticket granted.", ignoreCase = true) ||
-            trimmed.equals("일일 비행권 1개가 지급되었습니다.", ignoreCase = true) ||
-            (trimmed.contains("異쒖꽍泥댄겕") && trimmed.contains("鍮꾪뻾沅?"))
-        ) {
-            return context.getString(R.string.repo_legacy_daily_detail)
-        }
-
-        if (
-            trimmed.equals("Consumed 1 ticket for a 10+ minute flight.", ignoreCase = true) ||
-            trimmed.equals("Consumed 1 ticket for a flight over 10 minutes.", ignoreCase = true) ||
-            trimmed.equals("Consumed 1 ticket.", ignoreCase = true) ||
-            (trimmed.contains("10遺") && trimmed.contains("李④컧"))
-        ) {
-            return context.getString(R.string.repo_legacy_ticket_use_detail)
-        }
-
-        if (
-            trimmed.equals("Rewarded 3 tickets from ad reward.", ignoreCase = true) ||
-            trimmed.equals("Earned 3 tickets by watching an ad.", ignoreCase = true)
-        ) {
-            return context.getString(R.string.repo_legacy_ad_reward_detail)
-        }
-
-        if (trimmed.contains("愿묎퀬") && trimmed.contains("鍮꾪뻾沅?")) {
-            return context.getString(R.string.repo_legacy_ad_reward_detail)
-        }
-
-        val redeemMatch = Regex(
-            pattern = """Redeemed\s+(\d+)\s+tickets?\s+with\s+([A-Za-z0-9_-]+)\s+code\.?""",
-            option = RegexOption.IGNORE_CASE
-        ).matchEntire(trimmed)
-        if (redeemMatch != null) {
-            val amount = redeemMatch.groupValues[1]
-            val code = redeemMatch.groupValues[2].uppercase()
-            return context.getString(R.string.repo_redeem_detail_format, code, amount.toInt())
-        }
-
-        return detail
-    }
 }
 
 data class TicketSpendResult(
