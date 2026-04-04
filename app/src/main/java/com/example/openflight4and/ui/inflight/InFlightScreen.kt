@@ -35,7 +35,6 @@ import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.service.FlightService
-import com.example.openflight4and.service.FlightStatusManager
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
@@ -202,6 +201,7 @@ fun InFlightScreen(
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val repository = remember { AppRepository(context) }
     val scope = rememberCoroutineScope()
+    val serviceRuntimeState by FlightService.runtimeState.collectAsState()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
@@ -220,7 +220,6 @@ fun InFlightScreen(
 
     // UI ??????椰???? ??癲됱빖???嶺??????????(??
     var secondsElapsed by remember { mutableStateOf(0L) }
-    var isServiceSynced by remember { mutableStateOf(false) }
     var ticketCharged by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
@@ -286,7 +285,6 @@ fun InFlightScreen(
                 action = FlightService.ACTION_STOP
             }
         )
-        FlightStatusManager.stopFlight()
         isPaused = false
         inflightViewModel.hideGiveUpDialog()
         onFlightEnd()
@@ -312,28 +310,17 @@ fun InFlightScreen(
     // ????????⑤벡瑜??꿔꺂??????????썹땟??? ?????耀붾굝??????????嶺????????椰?????癲?濾곌풝源?????????쎛 ???????롮쾸?椰?嚥▲굧???븍툖??????????⑤벡瑜??꿔꺂??????????썹땟???? ?????????대첉??轅붽틓?????獒뺣폍???????????耀붾굝?????傭?끆????椰?
     LaunchedEffect(Unit) {
         if (FlightService.isServiceRunning()) {
-            val synced = FlightStatusManager.syncFromService()
-            if (synced) {
-                secondsElapsed = FlightService.getSecondsElapsed()
-                isServiceSynced = true
-                ticketCharged = FlightService.isTicketCharged()
-                isPaused = FlightService.isPaused()
-                if (!isDebugSliderDirty) {
-                    debugSliderSeconds = secondsElapsed.toFloat()
-                }
-                renderedElapsedSeconds = secondsElapsed.toFloat()
-                animationStartElapsed = renderedElapsedSeconds
-                animationTargetElapsed = renderedElapsedSeconds
-                animationStartedAtMillis = SystemClock.elapsedRealtime()
+            secondsElapsed = serviceRuntimeState.secondsElapsed
+            ticketCharged = serviceRuntimeState.ticketCharged
+            isPaused = serviceRuntimeState.isPaused
+            if (!isDebugSliderDirty) {
+                debugSliderSeconds = secondsElapsed.toFloat()
             }
+            renderedElapsedSeconds = secondsElapsed.toFloat()
+            animationStartElapsed = renderedElapsedSeconds
+            animationTargetElapsed = renderedElapsedSeconds
+            animationStartedAtMillis = SystemClock.elapsedRealtime()
         } else {
-            FlightStatusManager.startFlight(
-                originIata = draft.origin.iata,
-                destinationIata = draft.destination?.iata ?: "N/A",
-                originName = draft.origin.nameKo,
-                destinationName = draft.destination?.nameKo ?: "N/A",
-                totalSeconds = totalSeconds
-            )
             if (!isDebugSliderDirty) {
                 debugSliderSeconds = 0f
             }
@@ -341,6 +328,19 @@ fun InFlightScreen(
             animationStartElapsed = 0f
             animationTargetElapsed = 0f
             animationStartedAtMillis = SystemClock.elapsedRealtime()
+        }
+    }
+
+    LaunchedEffect(serviceRuntimeState) {
+        if (!serviceRuntimeState.isRunning) {
+            return@LaunchedEffect
+        }
+
+        secondsElapsed = serviceRuntimeState.secondsElapsed
+        ticketCharged = serviceRuntimeState.ticketCharged
+        isPaused = serviceRuntimeState.isPaused
+        if (!isDebugSliderDirty) {
+            debugSliderSeconds = secondsElapsed.toFloat()
         }
     }
 
@@ -451,41 +451,14 @@ fun InFlightScreen(
     }
 
     // ???耀붾굝??????????嶺??? ????????산뭐????? ??????μ떜媛?걫?????????????????????????????傭?끆????ш끽維??????븐뼐????傭?끆?????Β?ｊ콞???癲??????
-    LaunchedEffect(isFlying, isServiceSynced) {
-        if (isFlying && !isServiceSynced) {
+    LaunchedEffect(isFlying, serviceRuntimeState.isRunning) {
+        if (isFlying && !serviceRuntimeState.isRunning) {
             while (secondsElapsed < totalSeconds) {
                 delay(localTickDelayMillis)
                 if (FlightService.isServiceRunning()) {
-                    val synced = FlightStatusManager.syncFromService()
-                    if (synced) {
-                        secondsElapsed = FlightService.getSecondsElapsed()
-                        ticketCharged = FlightService.isTicketCharged()
-                        isPaused = FlightService.isPaused()
-                        isServiceSynced = true
-                        if (!isDebugSliderDirty) {
-                            debugSliderSeconds = secondsElapsed.toFloat()
-                        }
-                        break
-                    }
+                    break
                 }
                 secondsElapsed++
-                // FlightStatusManager ?? ??????????                FlightStatusManager.updateProgress(secondsElapsed)
-                if (!isDebugSliderDirty) {
-                    debugSliderSeconds = secondsElapsed.toFloat()
-                }
-            }
-        } else if (isFlying && isServiceSynced) {
-            while (secondsElapsed < totalSeconds) {
-                delay(localTickDelayMillis)
-                isPaused = FlightService.isPaused()
-                if (isPaused) {
-                    continue
-                }
-                val serviceElapsed = FlightService.getSecondsElapsed()
-                if (serviceElapsed > secondsElapsed) {
-                    secondsElapsed = serviceElapsed
-                }
-                FlightStatusManager.updateProgress(secondsElapsed)
                 if (!isDebugSliderDirty) {
                     debugSliderSeconds = secondsElapsed.toFloat()
                 }
@@ -526,7 +499,6 @@ fun InFlightScreen(
         renderedElapsedSeconds = clampedSeconds.toFloat()
         debugSliderSeconds = clampedSeconds.toFloat()
         isDebugSliderDirty = false
-        FlightStatusManager.updateProgress(clampedSeconds)
         if (FlightService.isServiceRunning()) {
             FlightService.jumpToElapsedSeconds(clampedSeconds)
         }

@@ -19,6 +19,9 @@ import com.example.openflight4and.model.Airport
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -53,6 +56,16 @@ class FlightService : Service() {
         const val ACTION_RESUME = "resume_flight"
         private const val TAG = "FlightService"
 
+        data class RuntimeState(
+            val isRunning: Boolean = false,
+            val isPaused: Boolean = false,
+            val secondsElapsed: Long = 0L,
+            val totalSeconds: Long = 0L,
+            val ticketCharged: Boolean = false,
+            val originIata: String = "N/A",
+            val destinationIata: String = "N/A"
+        )
+
         // UI ?먯꽌 ?쒕퉬???곹깭瑜??쎄린 ?꾪븳 怨듦컻 蹂??
         @Volatile private var instance: FlightService? = null
         @Volatile private var _secondsElapsed = 0L
@@ -62,6 +75,8 @@ class FlightService : Service() {
         @Volatile private var _ticketCharged = false
         @Volatile private var _pendingJumpSeconds: Long? = null
         @Volatile private var _isInFlightScreenVisible = false
+        private val _runtimeState = MutableStateFlow(RuntimeState())
+        val runtimeState: StateFlow<RuntimeState> = _runtimeState.asStateFlow()
 
         fun isServiceRunning(): Boolean = _isRunning
         fun isPaused(): Boolean = _isPaused
@@ -71,6 +86,7 @@ class FlightService : Service() {
         fun isTicketCharged(): Boolean = _ticketCharged
         fun markTicketCharged() {
             _ticketCharged = true
+            publishRuntimeState()
         }
         fun jumpToElapsedSeconds(seconds: Long) {
             _pendingJumpSeconds = seconds
@@ -78,6 +94,18 @@ class FlightService : Service() {
         fun setInFlightScreenVisible(isVisible: Boolean) {
             _isInFlightScreenVisible = isVisible
             instance?.handleInFlightScreenVisibilityChanged(isVisible)
+        }
+
+        private fun publishRuntimeState() {
+            _runtimeState.value = RuntimeState(
+                isRunning = _isRunning,
+                isPaused = _isPaused,
+                secondsElapsed = _secondsElapsed,
+                totalSeconds = _totalSeconds,
+                ticketCharged = _ticketCharged,
+                originIata = instance?.currentOriginIata ?: "N/A",
+                destinationIata = instance?.currentDestinationIata ?: "N/A"
+            )
         }
     }
 
@@ -108,12 +136,14 @@ class FlightService : Service() {
         if (intent?.action == ACTION_PAUSE) {
             Log.d(TAG, "Service pause requested")
             _isPaused = true
+            publishRuntimeState()
             return START_STICKY
         }
 
         if (intent?.action == ACTION_RESUME) {
             Log.d(TAG, "Service resume requested")
             _isPaused = false
+            publishRuntimeState()
             return START_STICKY
         }
 
@@ -143,6 +173,7 @@ class FlightService : Service() {
         currentOriginIata = originIata
         currentDestinationIata = destinationIata
         currentDurationMinutes = durationMinutes
+        publishRuntimeState()
         if (focusLockEnabled) {
             startFocusLockMonitor()
         }
@@ -265,6 +296,7 @@ class FlightService : Service() {
 
                 // ?쒕퉬???곹깭 ?낅뜲?댄듃 (UI ?곕룞??
                 _secondsElapsed = secondsElapsed
+                publishRuntimeState()
                 FlightStatusManager.updateProgress(secondsElapsed)
 
                 // ?뚮┝李?媛깆떊 (?ㅼ젣 ?쒓컙 湲곗? 30 珥덈쭏?ㅻ쭔 ?낅뜲?댄듃 - ?깅뒫 理쒖쟻??
@@ -289,6 +321,7 @@ class FlightService : Service() {
                     }
 
                     _isRunning = false
+                    publishRuntimeState()
                     stopFocusLockMonitor()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -324,6 +357,7 @@ class FlightService : Service() {
             }
 
             _isRunning = false
+            publishRuntimeState()
             stopFocusLockMonitor()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -436,6 +470,7 @@ class FlightService : Service() {
         _ticketCharged = false
         _pendingJumpSeconds = null
         _isInFlightScreenVisible = false
+        publishRuntimeState()
         instance = null
         stopFocusLockMonitor()
         focusLockSettingsJob?.cancel()
