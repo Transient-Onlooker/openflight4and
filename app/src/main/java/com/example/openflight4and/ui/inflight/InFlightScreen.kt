@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
-import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.service.FlightService
+import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.components.RealFlightMap
@@ -199,7 +199,7 @@ fun InFlightScreen(
     )
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-    val repository = remember { AppRepository(context) }
+    val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
     val serviceRuntimeState by FlightService.runtimeState.collectAsState()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")

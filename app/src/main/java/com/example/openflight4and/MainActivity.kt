@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,6 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.MainScreen
 import com.example.openflight4and.ui.theme.OpenFlightTheme
 import kotlinx.coroutines.flow.collect
@@ -31,6 +33,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private var inflightLaunchRequest by mutableStateOf<InFlightLaunchRequest?>(null)
+    private val repository by lazy(LazyThreadSafetyMode.NONE) { AppRepository(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,11 +48,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            OpenFlightTheme {
-                MainScreen(
-                    inflightLaunchRequest = inflightLaunchRequest,
-                    onInflightLaunchHandled = { inflightLaunchRequest = null }
-                )
+            CompositionLocalProvider(LocalAppRepository provides repository) {
+                OpenFlightTheme {
+                    MainScreen(
+                        inflightLaunchRequest = inflightLaunchRequest,
+                        onInflightLaunchHandled = { inflightLaunchRequest = null }
+                    )
+                }
             }
         }
     }
@@ -61,7 +66,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun observeScreenOrientationPreference() {
-        val repository = AppRepository(this)
         lifecycleScope.launch {
             repository.screenOrientationMode.collect { mode ->
                 requestedOrientation = when (mode) {
@@ -74,7 +78,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun observeAppLanguagePreference() {
-        val repository = AppRepository(this)
         lifecycleScope.launch {
             repository.appLanguage.collect { language ->
                 val locales = if (language == "system") {

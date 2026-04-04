@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,7 +24,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.R
-import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.boardingpass.BoardingPassScreen
 import com.example.openflight4and.ui.history.HistoryScreen
 import com.example.openflight4and.ui.home.HomeScreen
@@ -47,7 +45,7 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val repository = remember { AppRepository(context) }
+    val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
     val viewModel: MainScreenViewModel = viewModel(
         factory = MainScreenViewModel.Factory(context.applicationContext as Application)

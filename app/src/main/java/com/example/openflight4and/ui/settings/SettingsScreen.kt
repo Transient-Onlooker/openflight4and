@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
@@ -48,8 +47,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.openflight4and.R
 import com.example.openflight4and.BuildConfig
-import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.focus.FocusLockUtils
+import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.SectionHeader
 import com.example.openflight4and.ui.theme.FlightGray
@@ -80,7 +79,7 @@ fun SettingsScreen(
     restrictInFlightSettings: Boolean = false
 ) {
     val context = LocalContext.current
-    val repository = remember { AppRepository(context) }
+    val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
 
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")

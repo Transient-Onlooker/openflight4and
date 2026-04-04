@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,10 +36,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.openflight4and.R
-import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.theme.FlightGray
+import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.launch
 
@@ -51,7 +50,7 @@ fun TrendScreen(
     onNavigateToSandbox: () -> Unit
 ) {
     val context = LocalContext.current
-    val repository = remember { AppRepository(context) }
+    val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
 
     val totalFlights by repository.totalFlights.collectAsState(initial = 0)

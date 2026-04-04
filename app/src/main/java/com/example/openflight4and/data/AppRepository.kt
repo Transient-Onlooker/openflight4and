@@ -16,6 +16,9 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -41,9 +44,14 @@ interface AppRepositoryDataSource {
 }
 
 class AppRepository(private val context: Context) : AppRepositoryDataSource {
+    private companion object {
+        private const val TAG = "AppRepository"
+    }
 
     private val database = AppDatabase.getDatabase(context)
     private val flightDao = database.flightSessionDao()
+    private val _lastDataError = MutableStateFlow<String?>(null)
+    val lastDataError: StateFlow<String?> = _lastDataError.asStateFlow()
 
     override fun getAirports(): List<Airport> {
         return try {
@@ -52,7 +60,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
             val jsonString = reader.use { it.readText() }
             Json.decodeFromString<List<Airport>>(jsonString)
         } catch (e: Exception) {
-            e.printStackTrace()
+            reportDataError("Failed to load airports.json", e)
             emptyList()
         }
     }
@@ -111,14 +119,14 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     }
     override val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[KEY_CURRENT_LOCATION]
-        Log.d("AppRepository", "Reading current location from DataStore: $json")
+        Log.d(TAG, "Reading current location from DataStore: $json")
         json?.let {
             try {
                 val airport = Json.decodeFromString<Airport>(it)
-                Log.d("AppRepository", "Decoded airport: ${airport.iata}")
+                Log.d(TAG, "Decoded airport: ${airport.iata}")
                 airport
             } catch (e: Exception) {
-                Log.e("AppRepository", "Failed to decode airport", e)
+                reportDataError("Failed to decode current location", e)
                 null
             }
         }
@@ -389,7 +397,8 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     private fun decodeTicketHistory(json: String?): List<FlightTicketHistoryEntry> {
         return try {
             if (json.isNullOrBlank()) emptyList() else Json.decodeFromString(json)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            reportDataError("Failed to decode ticket history", e)
             emptyList()
         }
     }
@@ -397,9 +406,15 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     private fun decodeStringList(json: String?): List<String> {
         return try {
             if (json.isNullOrBlank()) emptyList() else Json.decodeFromString(json)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            reportDataError("Failed to decode used redeem codes", e)
             emptyList()
         }
+    }
+
+    private fun reportDataError(message: String, throwable: Throwable) {
+        Log.e(TAG, message, throwable)
+        _lastDataError.value = "$message: ${throwable.message ?: throwable::class.java.simpleName}"
     }
 
 }

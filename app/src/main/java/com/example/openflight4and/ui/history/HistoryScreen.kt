@@ -30,17 +30,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.openflight4and.R
-import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightSession
+import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.theme.FlightGray
@@ -54,8 +52,7 @@ import java.util.Locale
 fun HistoryScreen(
     onNavigateBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val repository = remember { AppRepository(context) }
+    val repository = LocalAppRepository.current
     val sessions by repository.allSessions.collectAsState(initial = emptyList())
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
 
