@@ -567,7 +567,19 @@ fun InFlightScreen(
     // ?????轅붽틓???????????袁⑸즴筌?씛彛?????????ル???? ??????
     LaunchedEffect(secondsElapsed, totalSeconds) {
         if (secondsElapsed >= totalSeconds && totalSeconds > 0) {
-            saveAndExit(repository, draft, 1f, true, System.currentTimeMillis() - (draft.estimatedMinutes * 60 * 1000), onFlightEnd, context)
+            if (hasServiceRuntimeState) {
+                onFlightEnd()
+            } else {
+                saveAndExit(
+                    repository = repository,
+                    draft = draft,
+                    progress = 1f,
+                    isCompleted = true,
+                    startTime = System.currentTimeMillis() - (draft.estimatedMinutes * 60 * 1000),
+                    onExit = onFlightEnd,
+                    context = context
+                )
+            }
         }
     }
 

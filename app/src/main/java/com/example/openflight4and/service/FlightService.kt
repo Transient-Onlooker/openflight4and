@@ -14,6 +14,7 @@ import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
+import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.utils.FlightUtils
@@ -41,6 +42,13 @@ class FlightService : Service() {
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
     private var currentDurationMinutes: Int = 0
+    private var currentFlightNumber: String = ""
+    private var currentOriginName: String = ""
+    private var currentDestinationName: String = ""
+    private var currentSeatNumber: String? = null
+    private var currentFocusCategory: String? = null
+    private var currentDistanceKm: Int = 0
+    private var flightStartedAtMillis: Long = 0L
     private val focusLockAllowedPackages = setOf(
         BuildConfig.APPLICATION_ID,
         "com.android.settings",
@@ -127,6 +135,9 @@ class FlightService : Service() {
 
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
+            runBlocking {
+                persistFlightSession(isCompleted = false)
+            }
             stopFocusLockMonitor()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -153,6 +164,10 @@ class FlightService : Service() {
         val destinationIata = intent?.getStringExtra("destination_iata") ?: "N/A"
         val originName = intent?.getStringExtra("origin_name") ?: ""
         val destinationName = intent?.getStringExtra("destination_name") ?: ""
+        val flightNumber = intent?.getStringExtra("flight_number") ?: ""
+        val seatNumber = intent?.getStringExtra("seat_number")
+        val focusCategory = intent?.getStringExtra("focus_category")
+        val distanceKm = intent?.getIntExtra("distance_km", 0) ?: 0
         val timeScale = intent?.getFloatExtra("time_scale", 1f) ?: 1f
         val notificationUpdateSeconds =
             (intent?.getIntExtra("notification_update_seconds", 10) ?: 10).coerceIn(1, 30)
@@ -173,6 +188,13 @@ class FlightService : Service() {
         currentOriginIata = originIata
         currentDestinationIata = destinationIata
         currentDurationMinutes = durationMinutes
+        currentFlightNumber = flightNumber
+        currentOriginName = originName
+        currentDestinationName = destinationName
+        currentSeatNumber = seatNumber
+        currentFocusCategory = focusCategory
+        currentDistanceKm = distanceKm
+        flightStartedAtMillis = System.currentTimeMillis()
         publishRuntimeState()
         if (focusLockEnabled) {
             startFocusLockMonitor()
@@ -308,7 +330,7 @@ class FlightService : Service() {
                     val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
-                    // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
+                    persistFlightSession(isCompleted = true)
                     saveDestinationAsCurrentLocation(destinationIata)
 
                     // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
@@ -343,7 +365,7 @@ class FlightService : Service() {
             val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
-            // ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(?ㅼ쓬 鍮꾪뻾???꾪븳 異쒕컻吏)
+            persistFlightSession(isCompleted = true)
             saveDestinationAsCurrentLocation(destinationIata)
 
             // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
@@ -369,6 +391,36 @@ class FlightService : Service() {
         val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
         val contentText = "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}"
         updateNotification(createNotification(contentText, currentOriginIata, currentDestinationIata))
+    }
+
+    private suspend fun persistFlightSession(isCompleted: Boolean) {
+        if (currentFlightNumber.isBlank()) {
+            return
+        }
+
+        val elapsedMinutes = ((System.currentTimeMillis() - flightStartedAtMillis) / 1000 / 60).toInt()
+        val progress = if (_totalSeconds > 0L) {
+            (_secondsElapsed.toFloat() / _totalSeconds.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+        repository.saveSession(
+            FlightSession(
+                flightNumber = currentFlightNumber,
+                originIata = currentOriginIata,
+                originName = currentOriginName,
+                destinationIata = currentDestinationIata,
+                destinationName = currentDestinationName,
+                seatNumber = currentSeatNumber,
+                focusCategory = currentFocusCategory,
+                distanceKm = (currentDistanceKm * progress).toInt(),
+                durationMinutes = elapsedMinutes,
+                startTime = flightStartedAtMillis,
+                endTime = System.currentTimeMillis(),
+                isCompleted = isCompleted
+            )
+        )
     }
 
     /**
