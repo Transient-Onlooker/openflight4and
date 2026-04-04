@@ -30,8 +30,8 @@ android {
         applicationId = "com.example.openflight4and"
         minSdk = 33
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.4.3"
+        versionCode = 14
+        versionName = "2.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -66,6 +66,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

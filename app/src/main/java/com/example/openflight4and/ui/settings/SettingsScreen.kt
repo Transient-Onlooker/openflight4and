@@ -66,6 +66,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
 
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
+    val appLanguage by repository.appLanguage.collectAsState(initial = "system")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
@@ -78,6 +79,7 @@ fun SettingsScreen(
     var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
     val titleSettings = stringResource(R.string.settings_title)
     val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
+    val titleLanguage = stringResource(R.string.settings_title_language)
     val titleScreenOrientation = stringResource(R.string.settings_title_screen_orientation)
     val titleMapStyle = stringResource(R.string.settings_title_map_style)
     val titleAirplaneModeCheck = stringResource(R.string.settings_title_airplane_mode_check)
@@ -85,6 +87,9 @@ fun SettingsScreen(
     val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
     val labelAuto = stringResource(R.string.settings_orientation_auto)
+    val labelLanguageSystem = stringResource(R.string.settings_language_system)
+    val labelLanguageKorean = stringResource(R.string.settings_language_korean)
+    val labelLanguageEnglish = stringResource(R.string.settings_language_english)
     val labelPortrait = stringResource(R.string.settings_orientation_portrait)
     val labelLandscape = stringResource(R.string.settings_orientation_landscape)
 
@@ -149,6 +154,24 @@ fun SettingsScreen(
                         onClick = { scope.launch { repository.setUnitSystem("mi") } },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                     ) { Text(stringResource(R.string.settings_unit_miles)) }
+                }
+
+                Spacer(modifier = Modifier.padding(top = 24.dp))
+
+                SectionHeader(titleLanguage)
+                val languageModes = listOf(
+                    "system" to labelLanguageSystem,
+                    "ko" to labelLanguageKorean,
+                    "en" to labelLanguageEnglish
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    languageModes.forEachIndexed { index, (id, label) ->
+                        SegmentedButton(
+                            selected = appLanguage == id,
+                            onClick = { scope.launch { repository.setAppLanguage(id) } },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = languageModes.size)
+                        ) { Text(label) }
+                    }
                 }
 
                 Spacer(modifier = Modifier.padding(top = 24.dp))

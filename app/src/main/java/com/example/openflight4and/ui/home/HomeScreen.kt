@@ -51,6 +51,25 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
 
+private const val HomeMapZoom = 10f
+private const val HomePanelAlpha = 0.6f
+private const val HomeMutedTextAlpha = 0.72f
+private const val HomeStartButtonAlpha = 0.4f
+private val HomeLandscapePadding = 16.dp
+private val HomePortraitPadding = 24.dp
+private val HomeTicketPanelHorizontalPadding = 14.dp
+private val HomeTicketPanelVerticalPadding = 10.dp
+private val HomeTicketPanelSpacing = 10.dp
+private val HomeLandscapePanelSpacing = 20.dp
+private val HomeLandscapeMenuWidth = 340.dp
+private val HomeLandscapeStartButtonMaxWidth = 260.dp
+private val HomeButtonShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+private val HomeMenuItemHorizontalPadding = 20.dp
+private val HomeMenuItemVerticalPadding = 16.dp
+private val HomeMenuItemIconSize = 24.dp
+private val HomeMenuItemSpacing = 16.dp
+private val HomeSectionSpacing = 24.dp
+
 @Composable
 fun HomeScreen(
     onNavigateToNewFlight: () -> Unit,
@@ -81,14 +100,14 @@ fun HomeScreen(
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
             LatLng(currentAirport.latitude, currentAirport.longitude),
-            10f
+            HomeMapZoom
         )
     }
 
     LaunchedEffect(currentAirport.iata, currentAirport.latitude, currentAirport.longitude) {
         cameraPositionState.position = CameraPosition.fromLatLngZoom(
             LatLng(currentAirport.latitude, currentAirport.longitude),
-            10f
+            HomeMapZoom
         )
     }
 
@@ -102,7 +121,7 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(HomeLandscapePadding)
                         .systemBarsPadding(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
@@ -141,12 +160,15 @@ fun HomeScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .clickable(onClick = onNavigateToTickets),
-                            backgroundColor = Color.White.copy(alpha = 0.6f),
+                            backgroundColor = Color.White.copy(alpha = HomePanelAlpha),
                             borderColor = overlayPalette.panelBorder
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = HomeTicketPanelHorizontalPadding,
+                                    vertical = HomeTicketPanelVerticalPadding
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(HomeTicketPanelSpacing),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -158,7 +180,7 @@ fun HomeScreen(
                                     Text(
                                         text = labelTickets,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color.Black.copy(alpha = 0.72f)
+                                        color = Color.Black.copy(alpha = HomeMutedTextAlpha)
                                     )
                                     Text(
                                         text = "$ticketBalance",
@@ -173,10 +195,10 @@ fun HomeScreen(
 
                     GlassPanel(
                         modifier = Modifier
-                            .padding(start = 20.dp)
-                            .width(340.dp)
+                            .padding(start = HomeLandscapePanelSpacing)
+                            .width(HomeLandscapeMenuWidth)
                             .fillMaxHeight(),
-                        backgroundColor = Color.White.copy(alpha = 0.6f),
+                        backgroundColor = Color.White.copy(alpha = HomePanelAlpha),
                         borderColor = overlayPalette.panelBorder
                     ) {
                         Column(
@@ -223,8 +245,8 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .widthIn(max = 260.dp)
                                         .fillMaxWidth()
-                                        .graphicsLayer(alpha = 0.4f),
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                                        .graphicsLayer(alpha = HomeStartButtonAlpha),
+                                    shape = HomeButtonShape,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = Color.Black
@@ -245,7 +267,7 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp)
+                        .padding(HomePortraitPadding)
                         .systemBarsPadding(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -279,12 +301,15 @@ fun HomeScreen(
 
                         GlassPanel(
                             modifier = Modifier.clickable(onClick = onNavigateToTickets),
-                            backgroundColor = Color.White.copy(alpha = 0.6f),
+                            backgroundColor = Color.White.copy(alpha = HomePanelAlpha),
                             borderColor = overlayPalette.panelBorder
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = HomeTicketPanelHorizontalPadding,
+                                    vertical = HomeTicketPanelVerticalPadding
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(HomeTicketPanelSpacing),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -296,7 +321,7 @@ fun HomeScreen(
                                     Text(
                                         text = labelTickets,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color.Black.copy(alpha = 0.72f)
+                                        color = Color.Black.copy(alpha = HomeMutedTextAlpha)
                                     )
                                     Text(
                                         text = "$ticketBalance",
@@ -309,13 +334,13 @@ fun HomeScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(HomeSectionSpacing)) {
                         Button(
                             onClick = onNavigateToNewFlight,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .graphicsLayer(alpha = 0.4f),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                                .graphicsLayer(alpha = HomeStartButtonAlpha),
+                            shape = HomeButtonShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = Color.Black
@@ -331,7 +356,7 @@ fun HomeScreen(
 
                         GlassPanel(
                             modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = Color.White.copy(alpha = 0.6f),
+                            backgroundColor = Color.White.copy(alpha = HomePanelAlpha),
                             borderColor = overlayPalette.panelBorder
                         ) {
                             Column(modifier = Modifier.padding(vertical = 8.dp)) {
@@ -383,7 +408,7 @@ fun HomeMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = HomeMenuItemHorizontalPadding, vertical = HomeMenuItemVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -392,9 +417,9 @@ fun HomeMenuItem(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(HomeMenuItemIconSize)
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(HomeMenuItemSpacing))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,

@@ -75,6 +75,35 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.sin
 
+private const val BoardingPassTearLineWidth = 1000f
+private const val BoardingPassTearLineHeight = 8f
+private const val BoardingPassTearLineZigzagCount = 80
+private val BoardingPassTearDistance = 150.dp
+private const val BoardingPassRotationProgressMultiplier = 30f
+private const val BoardingPassVerticalOffsetProgressMultiplier = 50f
+private const val BoardingPassHapticSteps = 8
+private const val BoardingPassDismissTranslateX = 1000f
+private const val BoardingPassDismissTranslateY = 2000f
+private const val BoardingPassDismissRotation = -120f
+private const val BoardingPassHorizontalAnimationMillis = 400
+private const val BoardingPassVerticalAnimationMillis = 800
+private const val BoardingPassShakeDurationMillis = 800
+private const val BoardingPassShakeSteps = 20
+private const val BoardingPassShakeWaveCount = 4
+private const val BoardingPassShakeAmplitude = 30.0
+private const val BoardingPassRotationWobbleWaveCount = 6
+private const val BoardingPassRotationWobbleAmplitude = 15.0
+private const val BoardingPassNavigateDelayMillis = 1500L
+private val BoardingPassScreenPadding = 24.dp
+private val BoardingPassLandscapeMaxWidth = 280.dp
+private val BoardingPassCardCornerRadius = 24.dp
+private val BoardingPassBarcodeHeight = 60.dp
+private val BoardingPassTopBottomSpacing = 32.dp
+private val BoardingPassInnerSpacing = 16.dp
+private val BoardingPassGreetingPaddingHorizontal = 48.dp
+private val BoardingPassGreetingPaddingVertical = 32.dp
+private val BoardingPassGreetingCornerRadius = 16.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoardingPassScreen(
@@ -98,9 +127,9 @@ fun BoardingPassScreen(
 
     val tearLinePath = remember {
         Path().apply {
-            val width = 1000f
-            val height = 8f
-            val zigzagCount = 80
+            val width = BoardingPassTearLineWidth
+            val height = BoardingPassTearLineHeight
+            val zigzagCount = BoardingPassTearLineZigzagCount
             moveTo(0f, height / 2)
             for (i in 0..zigzagCount) {
                 val x = (i.toFloat() / zigzagCount) * width
@@ -111,7 +140,7 @@ fun BoardingPassScreen(
         }
     }
 
-    val tearDistancePx = with(density) { 150.dp.toPx() }
+    val tearDistancePx = with(density) { BoardingPassTearDistance.toPx() }
     val offsetX = remember { Animatable(0f) }
     val offsetY = remember { Animatable(0f) }
     val rotation = remember { Animatable(0f) }
@@ -140,12 +169,12 @@ fun BoardingPassScreen(
                 val progress = (newX / tearDistancePx).coerceIn(0f, 1f)
                 tearProgress = progress
 
-                rotation.snapTo(progress * 30f)
-                offsetY.snapTo(progress * 50f)
+                rotation.snapTo(progress * BoardingPassRotationProgressMultiplier)
+                offsetY.snapTo(progress * BoardingPassVerticalOffsetProgressMultiplier)
 
-                val currentHapticIndex = (progress * 8).toInt()
-                val prevHapticIndex = ((progress - 0.01f).coerceAtLeast(0f) * 8).toInt()
-                if (currentHapticIndex > prevHapticIndex && currentHapticIndex < 8) {
+                val currentHapticIndex = (progress * BoardingPassHapticSteps).toInt()
+                val prevHapticIndex = ((progress - 0.01f).coerceAtLeast(0f) * BoardingPassHapticSteps).toInt()
+                if (currentHapticIndex > prevHapticIndex && currentHapticIndex < BoardingPassHapticSteps) {
                     triggerHapticTick()
                 }
 
@@ -153,17 +182,17 @@ fun BoardingPassScreen(
                     isTorn = true
                     showGreeting = true
 
-                    launch { offsetX.animateTo(1000f, animationSpec = tween(400, easing = LinearEasing)) }
-                    launch { offsetY.animateTo(2000f, animationSpec = tween(800, easing = LinearEasing)) }
-                    launch { rotation.animateTo(-120f, animationSpec = tween(800, easing = LinearEasing)) }
+                    launch { offsetX.animateTo(BoardingPassDismissTranslateX, animationSpec = tween(BoardingPassHorizontalAnimationMillis, easing = LinearEasing)) }
+                    launch { offsetY.animateTo(BoardingPassDismissTranslateY, animationSpec = tween(BoardingPassVerticalAnimationMillis, easing = LinearEasing)) }
+                    launch { rotation.animateTo(BoardingPassDismissRotation, animationSpec = tween(BoardingPassVerticalAnimationMillis, easing = LinearEasing)) }
                     launch {
-                        val shakeDuration = 800
-                        val shakeSteps = 20
+                        val shakeDuration = BoardingPassShakeDurationMillis
+                        val shakeSteps = BoardingPassShakeSteps
                         for (i in 0 until shakeSteps) {
                             val t = i.toFloat() / shakeSteps
-                            val shake = (sin(t * PI * 4) * 30.0 * (1.0 - t.toDouble())).toFloat()
+                            val shake = (sin(t * PI * BoardingPassShakeWaveCount) * BoardingPassShakeAmplitude * (1.0 - t.toDouble())).toFloat()
                             wobbleX.snapTo(shake)
-                            val wobbleRot = (sin(t * PI * 6) * 15.0 * (1.0 - t.toDouble())).toFloat()
+                            val wobbleRot = (sin(t * PI * BoardingPassRotationWobbleWaveCount) * BoardingPassRotationWobbleAmplitude * (1.0 - t.toDouble())).toFloat()
                             wobbleRotation.snapTo(wobbleRot)
                             delay((shakeDuration / shakeSteps).toLong())
                         }
@@ -171,7 +200,7 @@ fun BoardingPassScreen(
                         wobbleRotation.snapTo(0f)
                     }
 
-                    delay(1500)
+                    delay(BoardingPassNavigateDelayMillis)
                     onNavigateToSeatSelection()
                 }
             }
@@ -206,9 +235,9 @@ fun BoardingPassScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(24.dp),
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(BoardingPassScreenPadding),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -221,22 +250,22 @@ fun BoardingPassScreen(
                                 Modifier
                                     .weight(1f, fill = false)
                                     .fillMaxWidth()
-                                    .widthIn(max = 280.dp)
+                                    .widthIn(max = BoardingPassLandscapeMaxWidth)
                             } else {
                                 Modifier
                                     .fillMaxWidth()
-                                    .widthIn(max = 280.dp)
+                                    .widthIn(max = BoardingPassLandscapeMaxWidth)
                             }
                         ) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .zIndex(1f),
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                                shape = RoundedCornerShape(topStart = BoardingPassCardCornerRadius, topEnd = BoardingPassCardCornerRadius),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                             ) {
-                                Column(modifier = Modifier.padding(24.dp)) {
+                                Column(modifier = Modifier.padding(BoardingPassScreenPadding)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -262,7 +291,7 @@ fun BoardingPassScreen(
                                             Text(draft.destination?.iata ?: "---", color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(32.dp))
+                                    Spacer(modifier = Modifier.height(BoardingPassTopBottomSpacing))
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -303,18 +332,18 @@ fun BoardingPassScreen(
                                         }
                                     }
                                     .draggable(state = draggableState, orientation = Orientation.Horizontal),
-                                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                                shape = RoundedCornerShape(bottomStart = BoardingPassCardCornerRadius, bottomEnd = BoardingPassCardCornerRadius),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(24.dp),
+                                    modifier = Modifier.padding(BoardingPassScreenPadding),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(60.dp)
+                                            .height(BoardingPassBarcodeHeight)
                                             .background(FlightGray.copy(alpha = 0.1f))
                                     ) {
                                         Text(
@@ -325,7 +354,7 @@ fun BoardingPassScreen(
                                             letterSpacing = 4.sp
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(BoardingPassInnerSpacing))
                                     Text(
                                         if (isTorn) {
                                             stringResource(R.string.boardingpass_confirmed)
@@ -353,14 +382,17 @@ fun BoardingPassScreen(
                 ) {
                     Surface(
                         color = FlightBlack.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.padding(24.dp)
+                        shape = RoundedCornerShape(BoardingPassGreetingCornerRadius),
+                        modifier = Modifier.padding(BoardingPassScreenPadding)
                     ) {
                         Text(
                             stringResource(R.string.boardingpass_greeting),
                             color = Color.White,
                             style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.padding(vertical = 32.dp, horizontal = 48.dp),
+                            modifier = Modifier.padding(
+                                vertical = BoardingPassGreetingPaddingVertical,
+                                horizontal = BoardingPassGreetingPaddingHorizontal
+                            ),
                             fontWeight = FontWeight.Bold
                         )
                     }

@@ -1,6 +1,7 @@
 package com.example.openflight4and.ui.tickets
 
 import android.app.Application
+import com.example.openflight4and.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -72,7 +73,7 @@ class TicketCenterViewModel(
                 is DailyCheckInResult.Success -> {
                     _events.emit(
                         TicketCenterEvent.ShowToast(
-                            "\uCD9C\uC11D\uCCB4\uD06C \uBCF4\uC0C1\uC73C\uB85C \uBE44\uD589\uAD8C ${result.amount}\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4."
+                            messageFor(R.string.tickets_toast_daily_check_in_reward, result.amount)
                         )
                     )
                 }
@@ -101,7 +102,7 @@ class TicketCenterViewModel(
                 _uiState.update { it.copy(isWatchingAd = false) }
                 _events.emit(
                     TicketCenterEvent.ShowToast(
-                        "\uAD11\uACE0 \uBCF4\uC0C1\uC73C\uB85C \uBE44\uD589\uAD8C 1\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4."
+                        messageFor(R.string.tickets_toast_ad_reward, 1)
                     )
                 )
             }
@@ -116,7 +117,7 @@ class TicketCenterViewModel(
         val code = _uiState.value.redeemCode
         if (code.isBlank()) {
             viewModelScope.launch {
-                _events.emit(TicketCenterEvent.ShowToast("\uCF54\uB4DC\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694."))
+                _events.emit(TicketCenterEvent.ShowToast(messageFor(R.string.repo_redeem_enter_code)))
             }
             return
         }
@@ -127,7 +128,7 @@ class TicketCenterViewModel(
                     _uiState.update { it.copy(redeemCode = "") }
                     _events.emit(
                         TicketCenterEvent.ShowToast(
-                            "\uBE44\uD589\uAD8C ${result.amount}\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4."
+                            messageFor(R.string.tickets_toast_redeem_success, result.amount)
                         )
                     )
                 }
@@ -149,5 +150,9 @@ class TicketCenterViewModel(
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
+    }
+
+    private fun messageFor(resId: Int, vararg formatArgs: Any): String {
+        return repository.getString(resId, *formatArgs)
     }
 }

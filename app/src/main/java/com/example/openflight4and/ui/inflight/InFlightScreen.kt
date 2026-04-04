@@ -56,6 +56,24 @@ import kotlin.math.*
 
 private const val TrackingTiltDegrees = 60f
 private const val MinTickDelayMillis = 100L
+private const val InFlightInitialZoom = 14f
+private const val InFlightMinTrackedZoom = 2f
+private const val InFlightAnimationDurationCapMillis = 1000L
+private const val InFlightSingleSpeedFrameDelayMillis = 16L
+private const val InFlightLowSpeedFrameDelayMillis = 24L
+private const val InFlightDefaultFrameDelayMillis = 33L
+private const val InFlightSingleSpeedCameraUpdateMillis = 48L
+private const val InFlightLowSpeedCameraUpdateMillis = 90L
+private const val InFlightMediumSpeedCameraUpdateMillis = 140L
+private const val InFlightHighSpeedCameraUpdateMillis = 180L
+private const val InFlightLowSpeedThreshold = 1f
+private const val InFlightMediumSpeedThreshold = 3f
+private const val InFlightHighSpeedThreshold = 10f
+private const val InFlightPanelAlpha = 0.5f
+private const val InFlightPanelBorderAlpha = 0.18f
+private const val InFlightSecondaryTextAlpha = 0.72f
+private const val InFlightDividerAlpha = 0.12f
+private const val InFlightTrackAlpha = 0.16f
 private const val Perspective2D = "2d"
 private const val Perspective2_5D = "2_5d"
 private const val Perspective3D = "3d"
@@ -189,13 +207,13 @@ fun InFlightScreen(
     val mapPerspective by repository.mapPerspective.collectAsState(initial = Perspective2_5D)
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
     val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
-    val inflightPanelBackground = Color.White.copy(alpha = 0.5f)
-    val inflightPanelBorder = Color.Black.copy(alpha = 0.18f)
+    val inflightPanelBackground = Color.White.copy(alpha = InFlightPanelAlpha)
+    val inflightPanelBorder = Color.Black.copy(alpha = InFlightPanelBorderAlpha)
     val inflightPrimaryText = Color.Black
-    val inflightSecondaryText = Color.Black.copy(alpha = 0.72f)
+    val inflightSecondaryText = Color.Black.copy(alpha = InFlightSecondaryTextAlpha)
     val inflightAccentText = Color.Black
-    val inflightDivider = Color.Black.copy(alpha = 0.12f)
-    val inflightTrackColor = Color.Black.copy(alpha = 0.16f)
+    val inflightDivider = Color.Black.copy(alpha = InFlightDividerAlpha)
+    val inflightTrackColor = Color.Black.copy(alpha = InFlightTrackAlpha)
 
     // ???????轅붽틓???????????(??
     val totalSeconds = (draft.estimatedMinutes * 60).toLong()
@@ -220,17 +238,17 @@ fun InFlightScreen(
     }
     val renderFrameDelayMillis = remember(draft.timeScale) {
         when {
-            draft.timeScale <= 1f -> 16L
-            draft.timeScale <= 3f -> 24L
-            else -> 33L
+            draft.timeScale <= InFlightLowSpeedThreshold -> InFlightSingleSpeedFrameDelayMillis
+            draft.timeScale <= InFlightMediumSpeedThreshold -> InFlightLowSpeedFrameDelayMillis
+            else -> InFlightDefaultFrameDelayMillis
         }
     }
     val cameraTrackingUpdateIntervalMillis = remember(draft.timeScale) {
         when {
-            draft.timeScale <= 1f -> 48L
-            draft.timeScale <= 3f -> 90L
-            draft.timeScale <= 10f -> 140L
-            else -> 180L
+            draft.timeScale <= InFlightLowSpeedThreshold -> InFlightSingleSpeedCameraUpdateMillis
+            draft.timeScale <= InFlightMediumSpeedThreshold -> InFlightLowSpeedCameraUpdateMillis
+            draft.timeScale <= InFlightHighSpeedThreshold -> InFlightMediumSpeedCameraUpdateMillis
+            else -> InFlightHighSpeedCameraUpdateMillis
         }
     }
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
@@ -366,7 +384,7 @@ fun InFlightScreen(
     var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
     val isCameraTracking = inflightUiState.isCameraTracking
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(origin, 14f)
+        position = CameraPosition.fromLatLngZoom(origin, InFlightInitialZoom)
     }
     val zoomLabel by remember {
         derivedStateOf {
@@ -384,7 +402,7 @@ fun InFlightScreen(
                 renderedElapsedSeconds = secondsElapsed.toFloat()
             } else {
                 val now = SystemClock.elapsedRealtime()
-                val durationMillis = localTickDelayMillis.coerceAtMost(1000L).toFloat().coerceAtLeast(1f)
+                val durationMillis = localTickDelayMillis.coerceAtMost(InFlightAnimationDurationCapMillis).toFloat().coerceAtLeast(1f)
                 val fraction = ((now - animationStartedAtMillis).toFloat() / durationMillis).coerceIn(0f, 1f)
                 renderedElapsedSeconds = animationStartElapsed + (animationTargetElapsed - animationStartElapsed) * fraction
             }
@@ -406,7 +424,7 @@ fun InFlightScreen(
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastCameraTrackingUpdateAt >= cameraTrackingUpdateIntervalMillis) {
                     lastCameraTrackingUpdateAt = now
-                    val currentZoom = cameraPositionState.position.zoom.takeIf { it >= 2f } ?: 14f
+                    val currentZoom = cameraPositionState.position.zoom.takeIf { it >= InFlightMinTrackedZoom } ?: InFlightInitialZoom
                     cameraPositionState.move(
                         CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()

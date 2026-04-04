@@ -55,6 +55,40 @@ import com.example.openflight4and.ui.theme.FlightBlack
 import com.example.openflight4and.ui.theme.FlightDarkGray
 import com.example.openflight4and.ui.theme.FlightGray
 
+private const val SeatSelectionLandscapeWidthFraction = 0.33f
+private val SeatSelectionHorizontalPadding = 24.dp
+private val SeatSelectionTopHeaderBottomPadding = 16.dp
+private val SeatSelectionCockpitHeight = 60.dp
+private val SeatSelectionContentMaxWidth = 280.dp
+private val SeatSelectionHeaderCornerRadius = 100.dp
+private val SeatSelectionHeaderBackgroundAlpha = 0.05f
+private val SeatSelectionHeaderBorderAlpha = 0.1f
+private val SeatSelectionHeaderLetterSpacing = 4.sp
+private val SeatSelectionColumnBottomPadding = 8.dp
+private val SeatSelectionListItemSpacing = 16.dp
+private val SeatSelectionCardVerticalPadding = 16.dp
+private val SeatSelectionCardInnerPadding = 16.dp
+private val SeatSelectionActionButtonHeight = 48.dp
+private val SeatSelectionActionButtonCornerRadius = 8.dp
+private val SeatSelectionModalMaxWidth = 560.dp
+private val SeatSelectionModalHorizontalPadding = 24.dp
+private val SeatSelectionModalBottomPadding = 32.dp
+private val SeatSelectionModalSpacing = 16.dp
+private val SeatSelectionModalRowSpacing = 12.dp
+private val SeatSelectionSeatIconSize = 42.dp
+private val SeatSelectionSeatLabelFontSize = 14.sp
+private val SeatSelectionSeatNumberAlpha = 0.5f
+private val SeatSelectionUnselectedSeatAlpha = 0.2f
+private val SeatSelectionCategoryHeight = 56.dp
+private val SeatSelectionCategoryCornerRadius = 12.dp
+private val SeatSelectionCategoryUnselectedAlpha = 0.05f
+private val SeatSelectionThinDividerWidth = 1.dp
+private val SeatSelectionAisleSpacerSize = 1.dp
+private val SeatSelectionHeaderDividerAlpha = 0.1f
+private val SeatSelectionContentHorizontalPadding = 24.dp
+private val SeatSelectionSelectedCardBackgroundAlpha = 0.1f
+private val SeatSelectionSelectedCategoryFontSize = 14.sp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SeatSelectionScreen(
@@ -102,21 +136,21 @@ fun SeatSelectionScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 16.dp),
+                            .padding(horizontal = SeatSelectionHorizontalPadding)
+                            .padding(bottom = SeatSelectionTopHeaderBottomPadding),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(if (isLandscape) 0.33f else 1f)
-                                .widthIn(max = 280.dp)
-                                .height(60.dp)
-                                .clip(RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp))
-                                .background(Color.White.copy(alpha = 0.05f))
+                                .fillMaxWidth(if (isLandscape) SeatSelectionLandscapeWidthFraction else 1f)
+                                .widthIn(max = SeatSelectionContentMaxWidth)
+                                .height(SeatSelectionCockpitHeight)
+                                .clip(RoundedCornerShape(topStart = SeatSelectionHeaderCornerRadius, topEnd = SeatSelectionHeaderCornerRadius))
+                                .background(Color.White.copy(alpha = SeatSelectionHeaderBackgroundAlpha))
                                 .border(
-                                    1.dp,
-                                    Color.White.copy(alpha = 0.1f),
-                                    RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp)
+                                    SeatSelectionThinDividerWidth,
+                                    Color.White.copy(alpha = SeatSelectionHeaderBorderAlpha),
+                                    RoundedCornerShape(topStart = SeatSelectionHeaderCornerRadius, topEnd = SeatSelectionHeaderCornerRadius)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -124,7 +158,7 @@ fun SeatSelectionScreen(
                                 text = stringResource(R.string.seatselection_cockpit),
                                 color = FlightGray,
                                 style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 4.sp,
+                                letterSpacing = SeatSelectionHeaderLetterSpacing,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -133,38 +167,38 @@ fun SeatSelectionScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                            .padding(bottom = SeatSelectionColumnBottomPadding),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth(if (isLandscape) 0.33f else 1f)
-                                .widthIn(max = 280.dp),
+                                .fillMaxWidth(if (isLandscape) SeatSelectionLandscapeWidthFraction else 1f)
+                                .widthIn(max = SeatSelectionContentMaxWidth),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    Text("A", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("A", color = FlightGray, fontSize = SeatSelectionSeatLabelFontSize, fontWeight = FontWeight.Bold)
                                 }
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    Text("B", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("B", color = FlightGray, fontSize = SeatSelectionSeatLabelFontSize, fontWeight = FontWeight.Bold)
                                 }
                             }
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                Spacer(modifier = Modifier.size(1.dp))
+                                Spacer(modifier = Modifier.size(SeatSelectionAisleSpacerSize))
                             }
                             Row(modifier = Modifier.weight(2f), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    Text("C", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("C", color = FlightGray, fontSize = SeatSelectionSeatLabelFontSize, fontWeight = FontWeight.Bold)
                                 }
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    Text("D", color = FlightGray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("D", color = FlightGray, fontSize = SeatSelectionSeatLabelFontSize, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    HorizontalDivider(color = Color.White.copy(alpha = SeatSelectionHeaderDividerAlpha))
                 }
             }
         ) { innerPadding ->
@@ -172,7 +206,7 @@ fun SeatSelectionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = SeatSelectionContentHorizontalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -183,10 +217,10 @@ fun SeatSelectionScreen(
                 ) {
                     LazyColumn(
                         modifier = Modifier
-                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
-                            .widthIn(max = 280.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(vertical = 16.dp)
+                            .fillMaxWidth(if (isLandscape) SeatSelectionLandscapeWidthFraction else 1f)
+                            .widthIn(max = SeatSelectionContentMaxWidth),
+                        verticalArrangement = Arrangement.spacedBy(SeatSelectionListItemSpacing),
+                        contentPadding = PaddingValues(vertical = SeatSelectionCardVerticalPadding)
                     ) {
                         items(40) { rowIndex ->
                             val rowNum = rowIndex + 1
@@ -201,7 +235,7 @@ fun SeatSelectionScreen(
 
                                 Text(
                                     text = rowNum.toString(),
-                                    color = FlightGray.copy(alpha = 0.5f),
+                                    color = FlightGray.copy(alpha = SeatSelectionSeatNumberAlpha),
                                     style = MaterialTheme.typography.labelMedium,
                                     modifier = Modifier.weight(1f),
                                     textAlign = TextAlign.Center
@@ -219,15 +253,15 @@ fun SeatSelectionScreen(
                 if (uiState.selectedSeat != null && uiState.selectedCategory != null) {
                     Surface(
                         modifier = Modifier
-                            .fillMaxWidth(if (isLandscape) 0.33f else 1f)
-                            .widthIn(max = 280.dp)
-                            .padding(vertical = 16.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                            .fillMaxWidth(if (isLandscape) SeatSelectionLandscapeWidthFraction else 1f)
+                            .widthIn(max = SeatSelectionContentMaxWidth)
+                            .padding(vertical = SeatSelectionCardVerticalPadding),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = SeatSelectionSelectedCardBackgroundAlpha),
+                        shape = RoundedCornerShape(SeatSelectionCardInnerPadding),
+                        border = androidx.compose.foundation.BorderStroke(SeatSelectionThinDividerWidth, MaterialTheme.colorScheme.primary)
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(SeatSelectionCardInnerPadding),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -237,7 +271,11 @@ fun SeatSelectionScreen(
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Text(uiState.selectedCategory!!, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                                Text(
+                                    uiState.selectedCategory!!,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = SeatSelectionSelectedCategoryFontSize
+                                )
                             }
                             Button(
                                 onClick = {
@@ -247,8 +285,8 @@ fun SeatSelectionScreen(
                                     }
                                     onFinish()
                                 },
-                                modifier = Modifier.height(48.dp),
-                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(SeatSelectionActionButtonHeight),
+                                shape = RoundedCornerShape(SeatSelectionActionButtonCornerRadius),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
                                 Text(
@@ -274,10 +312,10 @@ fun SeatSelectionScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = 560.dp)
-                        .padding(24.dp)
-                        .padding(bottom = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .widthIn(max = SeatSelectionModalMaxWidth)
+                        .padding(SeatSelectionModalHorizontalPadding)
+                        .padding(bottom = SeatSelectionModalBottomPadding),
+                    verticalArrangement = Arrangement.spacedBy(SeatSelectionModalSpacing)
                 ) {
                     Text(
                         stringResource(R.string.seatselection_choose_category),
@@ -297,7 +335,7 @@ fun SeatSelectionScreen(
                     categories.chunked(3).forEach { row ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(SeatSelectionModalRowSpacing)
                         ) {
                             row.forEach { category ->
                                 CategoryCard(
@@ -327,9 +365,9 @@ private fun SeatIcon(row: Int, letter: String, selectedSeat: String?, onClick: (
     Icon(
         imageVector = Icons.Default.Chair,
         contentDescription = seatId,
-        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f),
+        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = SeatSelectionUnselectedSeatAlpha),
         modifier = Modifier
-            .size(42.dp)
+            .size(SeatSelectionSeatIconSize)
             .clickable(onClick = onClick)
     )
 }
@@ -338,9 +376,9 @@ private fun SeatIcon(row: Int, letter: String, selectedSeat: String?, onClick: (
 private fun CategoryCard(category: String, isSelected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
-            .height(56.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.05f))
+            .height(SeatSelectionCategoryHeight)
+            .clip(RoundedCornerShape(SeatSelectionCategoryCornerRadius))
+            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = SeatSelectionCategoryUnselectedAlpha))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

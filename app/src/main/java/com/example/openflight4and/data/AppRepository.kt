@@ -25,6 +25,7 @@ val Context.dataStore by preferencesDataStore(name = "settings")
 
 interface AppRepositoryDataSource {
     fun getAirports(): List<Airport>
+    fun getString(resId: Int, vararg formatArgs: Any): String
 
     val recentSessions: Flow<List<FlightSession>>
     val currentLocation: Flow<Airport?>
@@ -66,8 +67,13 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
         flightDao.insertSession(session)
     }
 
+    override fun getString(resId: Int, vararg formatArgs: Any): String {
+        return context.getString(resId, *formatArgs)
+    }
+
     companion object {
         val KEY_UNIT_SYSTEM = stringPreferencesKey("unit_system")
+        val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         val KEY_MAP_STYLE = stringPreferencesKey("map_style")
         val KEY_MAP_OVERLAY_STYLE = stringPreferencesKey("map_overlay_style")
         val KEY_MAP_PERSPECTIVE = stringPreferencesKey("map_perspective")
@@ -87,6 +93,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     }
 
     val unitSystem: Flow<String> = context.dataStore.data.map { it[KEY_UNIT_SYSTEM] ?: "km" }
+    val appLanguage: Flow<String> = context.dataStore.data.map { it[KEY_APP_LANGUAGE] ?: "system" }
     val mapStyle: Flow<String> = context.dataStore.data.map { it[KEY_MAP_STYLE] ?: "standard" }
     val mapOverlayStyle: Flow<String> = context.dataStore.data.map { it[KEY_MAP_OVERLAY_STYLE] ?: "dark" }
     val mapPerspective: Flow<String> = context.dataStore.data.map { it[KEY_MAP_PERSPECTIVE] ?: "2_5d" }
@@ -135,6 +142,10 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setUnitSystem(unit: String) {
         context.dataStore.edit { it[KEY_UNIT_SYSTEM] = unit }
+    }
+
+    suspend fun setAppLanguage(language: String) {
+        context.dataStore.edit { it[KEY_APP_LANGUAGE] = language }
     }
 
     suspend fun setMapStyle(style: String) {

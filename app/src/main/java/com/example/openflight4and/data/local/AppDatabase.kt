@@ -50,5 +50,10 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+
+        fun resetForTests() {
+            INSTANCE?.close()
+            INSTANCE = null
+        }
     }
 }

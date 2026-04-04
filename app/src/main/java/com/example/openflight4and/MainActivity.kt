@@ -9,10 +9,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.ui.MainScreen
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inflightLaunchRequest = intent.toInFlightLaunchRequest()
+        observeAppLanguagePreference()
         observeScreenOrientationPreference()
 
         // 알림 권한 요청 (Android 13+)
@@ -66,6 +69,20 @@ class MainActivity : ComponentActivity() {
                     "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     else -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
                 }
+            }
+        }
+    }
+
+    private fun observeAppLanguagePreference() {
+        val repository = AppRepository(this)
+        lifecycleScope.launch {
+            repository.appLanguage.collect { language ->
+                val locales = if (language == "system") {
+                    LocaleListCompat.getEmptyLocaleList()
+                } else {
+                    LocaleListCompat.forLanguageTags(language)
+                }
+                AppCompatDelegate.setApplicationLocales(locales)
             }
         }
     }

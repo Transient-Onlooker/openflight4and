@@ -40,6 +40,7 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_title_unit_system">Measurement unit</string>
+    <string name="settings_title_language">Language</string>
     <string name="settings_title_screen_orientation">Screen orientation</string>
     <string name="settings_title_map_style">Map style</string>
     <string name="settings_title_airplane_mode_check">Airplane mode check</string>
@@ -48,6 +49,9 @@
     <string name="settings_title_focus_lock">Focus lock</string>
     <string name="settings_title_battery_optimization">Battery optimization exemption</string>
     <string name="settings_orientation_auto">Auto</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_korean">한국어</string>
+    <string name="settings_language_english">English</string>
     <string name="settings_orientation_portrait">Portrait</string>
     <string name="settings_orientation_landscape">Landscape</string>
     <string name="settings_unit_kilometers">Kilometers (km)</string>
@@ -92,6 +96,9 @@
     <string name="tickets_history_empty">No ticket history yet.</string>
     <string name="tickets_ad_dialog_title">Ad playing</string>
     <string name="tickets_ad_dialog_description">A ticket will be granted when the timer ends.</string>
+    <string name="tickets_toast_daily_check_in_reward">%1$d ticket(s) granted as a check-in reward.</string>
+    <string name="tickets_toast_ad_reward">%1$d ticket(s) granted as an ad reward.</string>
+    <string name="tickets_toast_redeem_success">%1$d ticket(s) granted.</string>
 
     <!-- Main -->
     <string name="main_airplane_mode_dialog_title">Airplane mode check</string>
