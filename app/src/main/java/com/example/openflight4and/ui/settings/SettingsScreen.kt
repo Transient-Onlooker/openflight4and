@@ -55,6 +55,24 @@ import com.example.openflight4and.ui.components.SectionHeader
 import com.example.openflight4and.ui.theme.FlightGray
 import kotlinx.coroutines.launch
 
+private val SettingsHorizontalPadding = 24.dp
+private val SettingsSectionSpacing = 24.dp
+private val SettingsNoticeTopPadding = 8.dp
+private val SettingsNoticeStartPadding = 4.dp
+private val SettingsNoticeBottomSpacing = 16.dp
+private val SettingsItemVerticalPadding = 12.dp
+private val SettingsChevronSpacing = 12.dp
+private val SettingsBatteryBadgeSpacing = 8.dp
+private val SettingsBatteryBadgeHorizontalPadding = 6.dp
+private val SettingsBatteryBadgeVerticalPadding = 2.dp
+private val SettingsFooterTopSpacing = 48.dp
+private val SettingsFooterBottomSpacing = 32.dp
+private val SettingsNotificationRowSpacing = 8.dp
+private val SettingsNotificationRows = listOf(
+    listOf(1, 2, 5),
+    listOf(10, 20, 30)
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -129,7 +147,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = SettingsHorizontalPadding)
                     .verticalScroll(rememberScrollState())
             ) {
                 if (restrictInFlightSettings) {
@@ -137,9 +155,9 @@ fun SettingsScreen(
                         text = stringResource(R.string.settings_inflight_lock_notice),
                         style = MaterialTheme.typography.bodySmall,
                         color = FlightGray,
-                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                        modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
                     )
-                    Spacer(modifier = Modifier.padding(top = 16.dp))
+                    Spacer(modifier = Modifier.padding(top = SettingsNoticeBottomSpacing))
                 }
 
                 SectionHeader(titleUnitSystem)
@@ -156,7 +174,7 @@ fun SettingsScreen(
                     ) { Text(stringResource(R.string.settings_unit_miles)) }
                 }
 
-                Spacer(modifier = Modifier.padding(top = 24.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
                 SectionHeader(titleLanguage)
                 val languageModes = listOf(
@@ -174,7 +192,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.padding(top = 24.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
                 SectionHeader(titleScreenOrientation)
                 val orientationModes = listOf(
@@ -196,10 +214,10 @@ fun SettingsScreen(
                     text = stringResource(R.string.settings_screen_orientation_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
                 )
 
-                Spacer(modifier = Modifier.padding(top = 24.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
                 SectionHeader(titleMapStyle)
                 val styles = listOf(
@@ -217,7 +235,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.padding(top = 24.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
                 ToggleSettingItem(
                     title = titleAirplaneModeCheck,
@@ -235,12 +253,8 @@ fun SettingsScreen(
 
                 if (notificationsEnabled) {
                     SectionHeader(titleNotificationInterval)
-                    val notificationIntervalRows = listOf(
-                        listOf(1, 2, 5),
-                        listOf(10, 20, 30)
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        notificationIntervalRows.forEach { row ->
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsNotificationRowSpacing)) {
+                        SettingsNotificationRows.forEach { row ->
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                 row.forEachIndexed { index, seconds ->
                                     SegmentedButton(
@@ -257,13 +271,13 @@ fun SettingsScreen(
                         text = stringResource(R.string.settings_notification_interval_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = FlightGray,
-                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                        modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
                     )
                 }
 
                 BatteryOptimizationItem()
 
-                Spacer(modifier = Modifier.padding(top = 24.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
                 SectionHeader(titleFocusLock)
                 ToggleSettingItem(
@@ -278,7 +292,7 @@ fun SettingsScreen(
                     text = stringResource(R.string.settings_focus_lock_requirements),
                     style = MaterialTheme.typography.bodySmall,
                     color = FlightGray,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
                 )
                 if (focusLockEnabled) {
                     PermissionSettingItem(
@@ -301,7 +315,7 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.padding(top = 48.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsFooterTopSpacing))
 
                 Text(
                     text = stringResource(R.string.label_version_format, BuildConfig.VERSION_NAME),
@@ -311,7 +325,7 @@ fun SettingsScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.padding(top = 32.dp))
+                Spacer(modifier = Modifier.padding(top = SettingsFooterBottomSpacing))
             }
         }
     }
@@ -327,7 +341,7 @@ fun ToggleSettingItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = SettingsItemVerticalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -366,7 +380,7 @@ fun PermissionSettingItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp)
+            .padding(vertical = SettingsItemVerticalPadding)
             .clickable(onClick = onClick),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -384,7 +398,7 @@ fun PermissionSettingItem(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(SettingsChevronSpacing))
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
@@ -402,7 +416,7 @@ fun BatteryOptimizationItem() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp)
+            .padding(vertical = SettingsItemVerticalPadding)
             .clickable {
                 val intent = if (isIgnoring) {
                     android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
@@ -431,7 +445,7 @@ fun BatteryOptimizationItem() {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(SettingsBatteryBadgeSpacing))
                 Text(
                     text = if (isIgnoring) {
                         stringResource(R.string.settings_permission_allowed)
@@ -449,7 +463,10 @@ fun BatteryOptimizationItem() {
                             },
                             shape = MaterialTheme.shapes.small
                         )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(
+                            horizontal = SettingsBatteryBadgeHorizontalPadding,
+                            vertical = SettingsBatteryBadgeVerticalPadding
+                        )
                 )
             }
             Text(

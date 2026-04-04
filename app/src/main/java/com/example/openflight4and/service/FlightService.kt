@@ -297,7 +297,6 @@ class FlightService : Service() {
                 // ?쒕퉬???곹깭 ?낅뜲?댄듃 (UI ?곕룞??
                 _secondsElapsed = secondsElapsed
                 publishRuntimeState()
-                FlightStatusManager.updateProgress(secondsElapsed)
 
                 // ?뚮┝李?媛깆떊 (?ㅼ젣 ?쒓컙 湲곗? 30 珥덈쭏?ㅻ쭔 ?낅뜲?댄듃 - ?깅뒫 理쒖쟻??
                 val currentTime = System.currentTimeMillis()
@@ -306,7 +305,6 @@ class FlightService : Service() {
                 // ?⑥? ?쒓컙??0 ?대㈃ 利됱떆 ?꾨즺 泥섎━
                 if (remaining <= 0) {
                     Log.d(TAG, "Flight completed! Remaining: 0")
-                    FlightStatusManager.stopFlight()
                     val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
@@ -342,7 +340,6 @@ class FlightService : Service() {
 
             // 猷⑦봽 ?꾨즺 ??泥섎━ (?덉쟾?μ튂)
             Log.d(TAG, "Flight completed! (loop finished)")
-            FlightStatusManager.stopFlight()
             val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
@@ -477,7 +474,6 @@ class FlightService : Service() {
         timerJob?.cancel()
         serviceScope.cancel()
         focusLockOverlayController.destroy()
-        FlightStatusManager.stopFlight()
         super.onDestroy()
     }
 }

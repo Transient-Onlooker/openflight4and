@@ -54,6 +54,20 @@ private data class QuickFlightSuggestion(
     val distanceKm: Double
 )
 
+private const val NewFlightInitialMapZoom = 5f
+private const val NewFlightUnlimitedRadiusKm = 20000
+private const val NewFlightSelectionSnapDistanceKm = 300.0
+private const val NewFlightSmallRadiusThresholdKm = 300
+private const val NewFlightRingFilterMarginKm = 300.0
+private const val NewFlightZoomRadius10000 = 10000
+private const val NewFlightZoomRadius5000 = 5000
+private const val NewFlightZoomRadius2000 = 2000
+private const val NewFlightZoomRadius1000 = 1000
+private const val NewFlightZoomRadius500 = 500
+private const val NewFlightZoomRadius300 = 300
+private const val NewFlightRadiusStepKm = 100
+private val NewFlightQuickSuggestionMinutes = listOf(60, 120, 180)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewFlightScreen(
@@ -94,7 +108,10 @@ fun NewFlightScreen(
     
     // 카메라 상태 (초기 위치: 출발 공항)
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(originAirport.latitude, originAirport.longitude), 5f)
+        position = CameraPosition.fromLatLngZoom(
+            LatLng(originAirport.latitude, originAirport.longitude),
+            NewFlightInitialMapZoom
+        )
     }
 
     // 3. Derived Data (정렬된 리스트)
@@ -141,7 +158,7 @@ fun NewFlightScreen(
                 }
                 
                 // 2. 거리 필터
-                if (searchRadiusKm >= 20000) {
+                if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
                     // 무제한: 모든 공항 표시
                     return@filter true
                 }
@@ -150,11 +167,11 @@ fun NewFlightScreen(
                 if (airport.iata == originIata) return@filter true
                 
                 // 300km 이하에서는 테두리 필터링 끄고 일반 필터링
-                if (searchRadiusKm <= 300) {
+                if (searchRadiusKm <= NewFlightSmallRadiusThresholdKm) {
                     distFromOrigin <= searchRadiusKm.toDouble()
                 } else {
                     // 테두리 안쪽만 표시 (테두리부터 -300km 구간)
-                    val margin = 300.0 // 테두리 마진 (km)
+                    val margin = NewFlightRingFilterMarginKm
                     val lowerBound = (searchRadiusKm.toDouble() - margin).coerceAtLeast(0.0)
                     val upperBound = searchRadiusKm.toDouble()
                     
@@ -202,7 +219,7 @@ fun NewFlightScreen(
             
             closest?.let {
                 val dist = FlightUtils.calculateDistance(center.latitude, center.longitude, it.latitude, it.longitude)
-                if (dist < 300) { 
+                if (dist < NewFlightSelectionSnapDistanceKm) { 
                      viewModel.selectDestination(it)
                      onAirportSelected(it)
                 }
@@ -213,13 +230,13 @@ fun NewFlightScreen(
     // Zoom Sync
     LaunchedEffect(searchRadiusKm) {
         val zoom = when {
-            searchRadiusKm >= 20000 -> 2f
-            searchRadiusKm >= 10000 -> 3f
-            searchRadiusKm >= 5000 -> 4f
-            searchRadiusKm >= 2000 -> 5f
-            searchRadiusKm >= 1000 -> 6f
-            searchRadiusKm >= 500 -> 7f
-            searchRadiusKm < 500 -> 8f
+            searchRadiusKm >= NewFlightUnlimitedRadiusKm -> 2f
+            searchRadiusKm >= NewFlightZoomRadius10000 -> 3f
+            searchRadiusKm >= NewFlightZoomRadius5000 -> 4f
+            searchRadiusKm >= NewFlightZoomRadius2000 -> 5f
+            searchRadiusKm >= NewFlightZoomRadius1000 -> 6f
+            searchRadiusKm >= NewFlightZoomRadius500 -> 7f
+            searchRadiusKm < NewFlightZoomRadius500 -> 8f
             else -> 5f
         }
         cameraPositionState.animate(CameraUpdateFactory.zoomTo(zoom))
@@ -319,8 +336,8 @@ fun NewFlightScreen(
                         )
                     )
 
-                    val radiusText = if (searchRadiusKm >= 20000) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
-                    val durationText = if (searchRadiusKm >= 20000) "" else " • ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+                    val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
+                    val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else " • ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
                     Text(
                         text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                         color = FlightPrimary,
@@ -330,8 +347,8 @@ fun NewFlightScreen(
                     RulerPicker(
                         initialValue = searchRadiusKm,
                         minRequest = 100,
-                        maxRequest = 20000,
-                        step = 100,
+                        maxRequest = NewFlightUnlimitedRadiusKm,
+                        step = NewFlightRadiusStepKm,
                         onValueChange = { viewModel.updateSearchRadius(it) }
                     )
                 }
@@ -427,7 +444,7 @@ fun NewFlightScreen(
             ) {
                 // Circle
                 // Circle (무제한일 때는 표시 안 함)
-                if (searchRadiusKm < 20000) {
+                if (searchRadiusKm < NewFlightUnlimitedRadiusKm) {
                     Circle(
                         center = LatLng(originAirport.latitude, originAirport.longitude),
                         radius = searchRadiusKm * 1000.0,
@@ -472,7 +489,7 @@ fun NewFlightScreen(
                     }
                     
                     // 무제한일 때만 모든 공항 표시
-                    if (searchRadiusKm >= 20000) {
+                    if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
                         val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
                         val isSelected = airport == selectedDestination
                         val markerIcon = remember(airport.iata, isSelected, isOrigin) {
@@ -492,7 +509,7 @@ fun NewFlightScreen(
                     }
                     
                     // 300km 이하에서는 테두리 필터링 끄고 일반 필터링
-                    if (searchRadiusKm <= 300) {
+                    if (searchRadiusKm <= NewFlightSmallRadiusThresholdKm) {
                         val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
                         if (distFromOrigin <= searchRadiusKm.toDouble()) {
                             // 마커 표시
@@ -514,7 +531,7 @@ fun NewFlightScreen(
                     } else {
                         // 테두리 안쪽만 표시 (테두리부터 -300km 구간)
                         val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
-                        val margin = 300.0
+                        val margin = NewFlightRingFilterMarginKm
                         val lowerBound = (searchRadiusKm - margin).coerceAtLeast(0.0)
                         val upperBound = searchRadiusKm.toDouble()
 
@@ -912,8 +929,8 @@ private fun NewFlightLandscapePanel(
                 )
             )
 
-            val radiusText = if (searchRadiusKm >= 20000) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
-            val durationText = if (searchRadiusKm >= 20000) "" else "  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+            val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
+            val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else "  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
             Text(
                 text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                 color = FlightPrimary,
@@ -924,8 +941,8 @@ private fun NewFlightLandscapePanel(
             RulerPicker(
                 initialValue = searchRadiusKm,
                 minRequest = 100,
-                maxRequest = 20000,
-                step = 100,
+                maxRequest = NewFlightUnlimitedRadiusKm,
+                step = NewFlightRadiusStepKm,
                 onValueChange = onSearchRadiusChange
             )
 
@@ -988,7 +1005,7 @@ private fun buildQuickFlightSuggestions(
         .toMutableList()
     val suggestions = mutableListOf<QuickFlightSuggestion>()
 
-    for (targetMinutes in listOf(60, 120, 180)) {
+    for (targetMinutes in NewFlightQuickSuggestionMinutes) {
         val bestAirport = remaining.minByOrNull { airport ->
             val distanceKm = FlightUtils.calculateDistance(origin, airport)
             val durationMinutes = FlightUtils.estimateDurationMinutes(distanceKm)

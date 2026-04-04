@@ -35,6 +35,7 @@ data class MainScreenUiState(
 
 sealed interface MainScreenEvent {
     data class ShowToast(val message: String) : MainScreenEvent
+    data object NavigateToBoardingPass : MainScreenEvent
     data object NavigateToInFlight : MainScreenEvent
 }
 
@@ -149,19 +150,15 @@ class MainScreenViewModel(
         _uiState.update { it.copy(showAirplaneModeDialog = false) }
     }
 
-    fun confirmAirplaneModeStart(
-        sandboxTimeScale: Float,
-        notificationUpdateSeconds: Int
-    ) {
+    fun confirmAirplaneModeStart() {
         _uiState.update { it.copy(showAirplaneModeDialog = false) }
-        startFlightInternal(sandboxTimeScale, notificationUpdateSeconds)
+        prepareBoardingPass()
+        _events.tryEmit(MainScreenEvent.NavigateToBoardingPass)
     }
 
-    fun requestStartFlight(
+    fun requestBoardingPass(
         ticketBalance: Int,
-        airplaneModeCheckEnabled: Boolean,
-        sandboxTimeScale: Float,
-        notificationUpdateSeconds: Int
+        airplaneModeCheckEnabled: Boolean
     ) {
         val draft = _uiState.value.currentDraft
         if (draft.destination == null) {
@@ -179,7 +176,8 @@ class MainScreenViewModel(
             return
         }
 
-        startFlightInternal(sandboxTimeScale, notificationUpdateSeconds)
+        prepareBoardingPass()
+        _events.tryEmit(MainScreenEvent.NavigateToBoardingPass)
     }
 
     fun validateSeatSelection(ticketBalance: Int): Boolean {
@@ -253,6 +251,13 @@ class MainScreenViewModel(
             startFlightService(draftToStart, notificationUpdateSeconds)
             _events.emit(MainScreenEvent.NavigateToInFlight)
         }
+    }
+
+    fun startFlightAfterBoardingPass(
+        sandboxTimeScale: Float,
+        notificationUpdateSeconds: Int
+    ) {
+        startFlightInternal(sandboxTimeScale, notificationUpdateSeconds)
     }
 
     private fun resolveDefaultOrigin(

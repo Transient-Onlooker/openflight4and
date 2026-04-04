@@ -14,6 +14,17 @@ import android.widget.TextView
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 
+private const val FocusLockPanelCornerRadius = 42f
+private const val FocusLockPanelStrokeWidth = 3
+private const val FocusLockPanelHorizontalPadding = 56
+private const val FocusLockPanelVerticalPadding = 72
+private const val FocusLockMessageTopPadding = 28
+private const val FocusLockMessageBottomPadding = 44
+private const val FocusLockTitleTextSize = 24f
+private const val FocusLockMessageTextSize = 17f
+private const val FocusLockPanelHorizontalMargin = 28
+private const val FocusLockPanelVerticalMargin = 52
+
 class FocusLockOverlayController(
     private val context: Context
 ) {
@@ -47,16 +58,21 @@ class FocusLockOverlayController(
 
         val panelBackground = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = 42f
+            cornerRadius = FocusLockPanelCornerRadius
             setColor(0xF2131313.toInt())
-            setStroke(3, 0xFF565656.toInt())
+            setStroke(FocusLockPanelStrokeWidth, 0xFF565656.toInt())
         }
 
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             background = panelBackground
-            setPadding(56, 72, 56, 72)
+            setPadding(
+                FocusLockPanelHorizontalPadding,
+                FocusLockPanelVerticalPadding,
+                FocusLockPanelHorizontalPadding,
+                FocusLockPanelVerticalPadding
+            )
             setOnClickListener {
                 // Prevent clicks on the panel from falling through.
             }
@@ -64,17 +80,17 @@ class FocusLockOverlayController(
 
         val title = TextView(context).apply {
             text = context.getString(R.string.focus_lock_overlay_title)
-            textSize = 24f
+            textSize = FocusLockTitleTextSize
             setTextColor(0xFFFFFFFF.toInt())
             gravity = Gravity.CENTER
         }
 
         val message = TextView(context).apply {
             text = context.getString(R.string.focus_lock_overlay_message)
-            textSize = 17f
+            textSize = FocusLockMessageTextSize
             gravity = Gravity.CENTER
             setTextColor(0xFFE2E2E2.toInt())
-            setPadding(0, 28, 0, 44)
+            setPadding(0, FocusLockMessageTopPadding, 0, FocusLockMessageBottomPadding)
         }
 
         val button = Button(context).apply {
@@ -113,10 +129,10 @@ class FocusLockOverlayController(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER
             ).apply {
-                marginStart = 28
-                marginEnd = 28
-                topMargin = 52
-                bottomMargin = 52
+                marginStart = FocusLockPanelHorizontalMargin
+                marginEnd = FocusLockPanelHorizontalMargin
+                topMargin = FocusLockPanelVerticalMargin
+                bottomMargin = FocusLockPanelVerticalMargin
             }
         )
 

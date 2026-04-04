@@ -67,6 +67,10 @@ fun MainScreen(
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
 
+                MainScreenEvent.NavigateToBoardingPass -> {
+                    navController.navigate(Screen.BoardingPass.route)
+                }
+
                 MainScreenEvent.NavigateToInFlight -> {
                     navController.navigate(Screen.InFlight.route) {
                         popUpTo(Screen.Home.route) { inclusive = false }
@@ -133,8 +137,7 @@ fun MainScreen(
                     },
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToBoardingPass = {
-                        viewModel.prepareBoardingPass()
-                        navController.navigate(Screen.BoardingPass.route)
+                        navController.navigate(Screen.SeatSelection.route)
                     },
                     unitSystem = unitSystem,
                     isSandboxMode = isSandboxMode,
@@ -156,7 +159,12 @@ fun MainScreen(
                 BoardingPassScreen(
                     draft = uiState.currentDraft,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToSeatSelection = { navController.navigate(Screen.SeatSelection.route) },
+                    onNavigateToSeatSelection = {
+                        viewModel.startFlightAfterBoardingPass(
+                            sandboxTimeScale = sandboxTimeScale,
+                            notificationUpdateSeconds = notificationUpdateSeconds
+                        )
+                    },
                     unitSystem = unitSystem
                 )
             }
@@ -176,11 +184,9 @@ fun MainScreen(
                             return@SeatSelectionScreen
                         }
 
-                        viewModel.requestStartFlight(
+                        viewModel.requestBoardingPass(
                             ticketBalance = ticketBalance,
-                            airplaneModeCheckEnabled = airplaneModeCheckEnabled,
-                            sandboxTimeScale = sandboxTimeScale,
-                            notificationUpdateSeconds = notificationUpdateSeconds
+                            airplaneModeCheckEnabled = airplaneModeCheckEnabled
                         )
                     }
                 )
@@ -255,10 +261,7 @@ fun MainScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.confirmAirplaneModeStart(
-                            sandboxTimeScale = sandboxTimeScale,
-                            notificationUpdateSeconds = notificationUpdateSeconds
-                        )
+                        viewModel.confirmAirplaneModeStart()
                     }
                 ) { Text(stringResource(R.string.action_start_anyway)) }
             },

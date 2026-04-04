@@ -215,13 +215,9 @@ fun InFlightScreen(
     val inflightDivider = Color.Black.copy(alpha = InFlightDividerAlpha)
     val inflightTrackColor = Color.Black.copy(alpha = InFlightTrackAlpha)
 
-    // ???????轅붽틓???????????(??
-    val totalSeconds = (draft.estimatedMinutes * 60).toLong()
-
-    // UI ??????椰???? ??癲됱빖???嶺??????????(??
-    var secondsElapsed by remember { mutableStateOf(0L) }
-    var ticketCharged by remember { mutableStateOf(false) }
-    var isPaused by remember { mutableStateOf(false) }
+    var fallbackSecondsElapsed by remember { mutableStateOf(0L) }
+    var fallbackTicketCharged by remember { mutableStateOf(false) }
+    var fallbackIsPaused by remember { mutableStateOf(false) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
@@ -230,6 +226,12 @@ fun InFlightScreen(
     var animationStartElapsed by remember { mutableFloatStateOf(0f) }
     var animationTargetElapsed by remember { mutableFloatStateOf(0f) }
     var animationStartedAtMillis by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
+    val hasServiceRuntimeState = serviceRuntimeState.isRunning
+    val totalSeconds = serviceRuntimeState.totalSeconds.takeIf { hasServiceRuntimeState && it > 0L }
+        ?: (draft.estimatedMinutes * 60).toLong()
+    val secondsElapsed = if (hasServiceRuntimeState) serviceRuntimeState.secondsElapsed else fallbackSecondsElapsed
+    val ticketCharged = if (hasServiceRuntimeState) serviceRuntimeState.ticketCharged else fallbackTicketCharged
+    val isPaused = if (hasServiceRuntimeState) serviceRuntimeState.isPaused else fallbackIsPaused
 
     // ???????????????????椰????
     val localTickDelayMillis = remember(draft.timeScale) {
@@ -266,7 +268,9 @@ fun InFlightScreen(
                 action = FlightService.ACTION_PAUSE
             }
         )
-        isPaused = true
+        if (!hasServiceRuntimeState) {
+            fallbackIsPaused = true
+        }
         inflightViewModel.hideGiveUpDialog()
     }
 
@@ -276,7 +280,9 @@ fun InFlightScreen(
                 action = FlightService.ACTION_RESUME
             }
         )
-        isPaused = false
+        if (!hasServiceRuntimeState) {
+            fallbackIsPaused = false
+        }
     }
 
     fun stopFlight() {
@@ -285,7 +291,7 @@ fun InFlightScreen(
                 action = FlightService.ACTION_STOP
             }
         )
-        isPaused = false
+        fallbackIsPaused = false
         inflightViewModel.hideGiveUpDialog()
         onFlightEnd()
     }
@@ -310,9 +316,6 @@ fun InFlightScreen(
     // ????????⑤벡瑜??꿔꺂??????????썹땟??? ?????耀붾굝??????????嶺????????椰?????癲?濾곌풝源?????????쎛 ???????롮쾸?椰?嚥▲굧???븍툖??????????⑤벡瑜??꿔꺂??????????썹땟???? ?????????대첉??轅붽틓?????獒뺣폍???????????耀붾굝?????傭?끆????椰?
     LaunchedEffect(Unit) {
         if (FlightService.isServiceRunning()) {
-            secondsElapsed = serviceRuntimeState.secondsElapsed
-            ticketCharged = serviceRuntimeState.ticketCharged
-            isPaused = serviceRuntimeState.isPaused
             if (!isDebugSliderDirty) {
                 debugSliderSeconds = secondsElapsed.toFloat()
             }
@@ -321,6 +324,9 @@ fun InFlightScreen(
             animationTargetElapsed = renderedElapsedSeconds
             animationStartedAtMillis = SystemClock.elapsedRealtime()
         } else {
+            fallbackSecondsElapsed = 0L
+            fallbackTicketCharged = false
+            fallbackIsPaused = false
             if (!isDebugSliderDirty) {
                 debugSliderSeconds = 0f
             }
@@ -331,14 +337,11 @@ fun InFlightScreen(
         }
     }
 
-    LaunchedEffect(serviceRuntimeState) {
+    LaunchedEffect(serviceRuntimeState.secondsElapsed, serviceRuntimeState.ticketCharged, serviceRuntimeState.isPaused, serviceRuntimeState.isRunning) {
         if (!serviceRuntimeState.isRunning) {
             return@LaunchedEffect
         }
 
-        secondsElapsed = serviceRuntimeState.secondsElapsed
-        ticketCharged = serviceRuntimeState.ticketCharged
-        isPaused = serviceRuntimeState.isPaused
         if (!isDebugSliderDirty) {
             debugSliderSeconds = secondsElapsed.toFloat()
         }
@@ -453,14 +456,14 @@ fun InFlightScreen(
     // ???耀붾굝??????????嶺??? ????????산뭐????? ??????μ떜媛?걫?????????????????????????????傭?끆????ш끽維??????븐뼐????傭?끆?????Β?ｊ콞???癲??????
     LaunchedEffect(isFlying, serviceRuntimeState.isRunning) {
         if (isFlying && !serviceRuntimeState.isRunning) {
-            while (secondsElapsed < totalSeconds) {
+            while (fallbackSecondsElapsed < totalSeconds) {
                 delay(localTickDelayMillis)
                 if (FlightService.isServiceRunning()) {
                     break
                 }
-                secondsElapsed++
+                fallbackSecondsElapsed++
                 if (!isDebugSliderDirty) {
-                    debugSliderSeconds = secondsElapsed.toFloat()
+                    debugSliderSeconds = fallbackSecondsElapsed.toFloat()
                 }
             }
         }
@@ -486,8 +489,11 @@ fun InFlightScreen(
 
         val spendResult = repository.consumeTicketForLongFlight()
         if (spendResult.success) {
-            ticketCharged = true
-            FlightService.markTicketCharged()
+            if (hasServiceRuntimeState) {
+                FlightService.markTicketCharged()
+            } else {
+                fallbackTicketCharged = true
+            }
             Toast.makeText(context, context.getString(R.string.ticket_deducted_after_ten_minutes), Toast.LENGTH_SHORT).show()
         }
     }
@@ -495,13 +501,14 @@ fun InFlightScreen(
     // ?????轅붽틓??????饔낅떽???????????袁⑸즴筌?씛彛?????????????????????(??????????⑤벡瑜?????- Great Circle Interpolation)
     fun applyDebugElapsed(targetSeconds: Long) {
         val clampedSeconds = targetSeconds.coerceIn(0L, totalSeconds)
-        secondsElapsed = clampedSeconds
+        if (hasServiceRuntimeState) {
+            FlightService.jumpToElapsedSeconds(clampedSeconds)
+        } else {
+            fallbackSecondsElapsed = clampedSeconds
+        }
         renderedElapsedSeconds = clampedSeconds.toFloat()
         debugSliderSeconds = clampedSeconds.toFloat()
         isDebugSliderDirty = false
-        if (FlightService.isServiceRunning()) {
-            FlightService.jumpToElapsedSeconds(clampedSeconds)
-        }
     }
 
     fun formatTimeScale(scale: Float): String {
@@ -1352,4 +1359,3 @@ private suspend fun saveAndExit(
     repository.saveSession(session)
     onExit()
 }
-

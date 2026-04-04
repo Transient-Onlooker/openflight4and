@@ -33,6 +33,9 @@ private const val Maps3DRangeMeters = 4500.0
 private const val Maps3DAltitudeMeters = 1200.0
 private const val Maps3DManualHeadingPerPixel = 0.18
 private const val Maps3DManualTiltPerPixel = 0.12
+private const val Maps3DMinTiltDegrees = 5.0
+private const val Maps3DMaxTiltDegrees = 88.0
+private const val Maps3DDragThresholdPixels = 0.5f
 
 private fun normalizeMaps3DHeading(bearing: Float): Double {
     return ((bearing % 360f) + 360f).toDouble() % 360.0
@@ -50,7 +53,8 @@ private fun adjustedCameraForDrag(
     val currentHeading = camera.heading ?: 0.0
     val currentTilt = camera.tilt ?: Maps3DTiltDegrees
     val updatedHeading = normalizedHeadingDouble(currentHeading - deltaX * Maps3DManualHeadingPerPixel)
-    val updatedTilt = (currentTilt + deltaY * Maps3DManualTiltPerPixel).coerceIn(5.0, 88.0)
+    val updatedTilt = (currentTilt + deltaY * Maps3DManualTiltPerPixel)
+        .coerceIn(Maps3DMinTiltDegrees, Maps3DMaxTiltDegrees)
     return camera {
         center = camera.center
         heading = updatedHeading
@@ -136,7 +140,7 @@ fun Map3DVRView(
                                 if (event.pointerCount == 1) {
                                     val deltaX = event.x - lastTouchX
                                     val deltaY = event.y - lastTouchY
-                                    if (abs(deltaX) > 0.5f || abs(deltaY) > 0.5f) {
+                                    if (abs(deltaX) > Maps3DDragThresholdPixels || abs(deltaY) > Maps3DDragThresholdPixels) {
                                         map3D?.getCamera()?.let { currentCamera ->
                                             map3D?.setCamera(
                                                 adjustedCameraForDrag(
