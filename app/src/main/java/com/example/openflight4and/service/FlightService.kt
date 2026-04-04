@@ -135,12 +135,12 @@ class FlightService : Service() {
 
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
-            runBlocking {
+            serviceScope.launch {
                 persistFlightSession(isCompleted = false)
+                stopFocusLockMonitor()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
-            stopFocusLockMonitor()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
             return START_NOT_STICKY
         }
 
@@ -426,7 +426,7 @@ class FlightService : Service() {
     /**
      * ?꾩갑吏瑜??꾩옱 ?꾩튂濡????(DataStore)
      */
-    private fun saveDestinationAsCurrentLocation(destinationIata: String) {
+    private suspend fun saveDestinationAsCurrentLocation(destinationIata: String) {
         try {
             // 怨듯빆 紐⑸줉?먯꽌 ?꾩갑吏 李얘린
             val inputStream = applicationContext.assets.open("airports.json")
@@ -440,12 +440,10 @@ class FlightService : Service() {
                 // DataStore ?????- AppRepository ? ?숈씪?????ъ슜
                 val key = com.example.openflight4and.data.AppRepository.KEY_CURRENT_LOCATION
                 Log.d(TAG, "Saving current location with key: $key")
-                runBlocking {
-                    applicationContext.dataStore.edit { preferences ->
-                        preferences[key] =
-                            Json.encodeToString(Airport.serializer(), destinationAirport)
-                        Log.d(TAG, "DataStore updated: ${preferences[key]}")
-                    }
+                applicationContext.dataStore.edit { preferences ->
+                    preferences[key] =
+                        Json.encodeToString(Airport.serializer(), destinationAirport)
+                    Log.d(TAG, "DataStore updated: ${preferences[key]}")
                 }
                 Log.d(TAG, "Current location saved to: $destinationIata")
             } else {
