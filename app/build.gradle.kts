@@ -43,8 +43,8 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 19
-        versionName = "2.5.11"
+        versionCode = 2600
+        versionName = "2.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
