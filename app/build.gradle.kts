@@ -21,6 +21,19 @@ val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")?.takeUnless
 val maps3dApiKey: String = localProperties.getProperty("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: System.getenv("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: mapsApiKey
+val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
+    ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
+val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
+    ?: System.getenv("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
+val releaseKeyAlias: String? = localProperties.getProperty("KEY_ALIAS")?.takeUnless { it.isBlank() }
+    ?: System.getenv("KEY_ALIAS")?.takeUnless { it.isBlank() }
+val releaseKeyPassword: String? = localProperties.getProperty("KEY_PASSWORD")?.takeUnless { it.isBlank() }
+    ?: System.getenv("KEY_PASSWORD")?.takeUnless { it.isBlank() }
+val hasReleaseSigning =
+    releaseKeystorePath != null &&
+        releaseKeystorePassword != null &&
+        releaseKeyAlias != null &&
+        releaseKeyPassword != null
 
 android {
     namespace = "com.example.openflight4and"
@@ -40,9 +53,23 @@ android {
         manifestPlaceholders["MAPS3D_API_KEY"] = maps3dApiKey
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

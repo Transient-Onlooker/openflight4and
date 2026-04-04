@@ -59,14 +59,24 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > release-keystore.jks
+
+      - name: Build Release APK
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
           MAPS3D_API_KEY: ${{ secrets.MAPS3D_API_KEY }}
-        run: ./gradlew assembleDebug
+          RELEASE_KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
 
       - name: Rename APK for release
-        run: cp app/build/outputs/apk/debug/app-debug.apk "openflight4and-${{ github.ref_name }}-debug.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "openflight4and-${{ github.ref_name }}-release.apk"
 
       - name: Create release if missing
         env:
@@ -77,4 +87,4 @@ jobs:
       - name: Upload APK to release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.ref_name }}" "openflight4and-${{ github.ref_name }}-debug.apk" --clobber
+        run: gh release upload "${{ github.ref_name }}" "openflight4and-${{ github.ref_name }}-release.apk" --clobber
