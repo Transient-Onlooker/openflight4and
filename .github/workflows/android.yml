@@ -75,8 +75,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
-      - name: Rename APK for release
-        run: cp app/build/outputs/apk/release/app-release.apk "openflight4and-${{ github.ref_name }}-release.apk"
+      - name: Prepare release APK
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -maxdepth 1 -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No release APK found in app/build/outputs/apk/release"
+            exit 1
+          fi
+          cp "$APK_PATH" "openflight4and-${{ github.ref_name }}-release.apk"
 
       - name: Create release if missing
         env:
