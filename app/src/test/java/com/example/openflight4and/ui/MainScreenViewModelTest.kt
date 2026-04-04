@@ -8,9 +8,9 @@ import com.example.openflight4and.model.FlightDraft
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,7 +24,7 @@ class MainScreenViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun requestStartFlight_withoutDestination_emitsToast() = runTest {
+    fun requestBoardingPass_withoutDestination_emitsToast() = runTest {
         val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
         val viewModel = MainScreenViewModel(
             repository = repository,
@@ -36,19 +36,14 @@ class MainScreenViewModelTest {
             viewModel.events.first()
         }
 
-        viewModel.requestStartFlight(
-            ticketBalance = 1,
-            airplaneModeCheckEnabled = false,
-            sandboxTimeScale = 1f,
-            notificationUpdateSeconds = 10
-        )
+        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = false)
         advanceUntilIdle()
 
-        assertEquals(MainScreenEvent.ShowToast("목적지를 먼저 선택하세요."), eventDeferred.await())
+        assertTrue(eventDeferred.await() is MainScreenEvent.ShowToast)
     }
 
     @Test
-    fun requestStartFlight_withAirplaneModeCheck_showsDialog() = runTest {
+    fun requestBoardingPass_withAirplaneModeCheck_showsDialog() = runTest {
         val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
         val viewModel = MainScreenViewModel(
             repository = repository,
@@ -58,19 +53,14 @@ class MainScreenViewModelTest {
         )
 
         viewModel.updateDestination(TestAirports.hnd)
-        viewModel.requestStartFlight(
-            ticketBalance = 1,
-            airplaneModeCheckEnabled = true,
-            sandboxTimeScale = 1f,
-            notificationUpdateSeconds = 10
-        )
+        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = true)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.showAirplaneModeDialog)
     }
 
     @Test
-    fun requestStartFlight_whenValid_startsServiceAndNavigates() = runTest {
+    fun requestBoardingPass_whenValid_navigatesToBoardingPass() = runTest {
         val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
         repository.nextStartFlightResult = TicketSpendResult(success = true, spent = 0)
         val startedDrafts = mutableListOf<Pair<FlightDraft, Int>>()
@@ -85,9 +75,30 @@ class MainScreenViewModelTest {
         }
 
         viewModel.updateDestination(TestAirports.hnd)
-        viewModel.requestStartFlight(
-            ticketBalance = 1,
-            airplaneModeCheckEnabled = false,
+        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = false)
+        advanceUntilIdle()
+
+        assertTrue(startedDrafts.isEmpty())
+        assertEquals(MainScreenEvent.NavigateToBoardingPass, eventDeferred.await())
+    }
+
+    @Test
+    fun startFlightAfterBoardingPass_whenValid_startsServiceAndNavigates() = runTest {
+        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
+        repository.nextStartFlightResult = TicketSpendResult(success = true, spent = 0)
+        val startedDrafts = mutableListOf<Pair<FlightDraft, Int>>()
+        val viewModel = MainScreenViewModel(
+            repository = repository,
+            isAirplaneModeOn = { true },
+            startFlightService = { draft, updateSeconds -> startedDrafts += draft to updateSeconds },
+            estimateFlight = { _, _ -> 1200 to 115 }
+        )
+        val eventDeferred = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.events.first()
+        }
+
+        viewModel.updateDestination(TestAirports.hnd)
+        viewModel.startFlightAfterBoardingPass(
             sandboxTimeScale = 4f,
             notificationUpdateSeconds = 20
         )

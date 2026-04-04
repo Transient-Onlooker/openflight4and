@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
+import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.service.FlightService
@@ -1342,12 +1343,14 @@ private suspend fun saveAndExit(
     onExit: () -> Unit,
     context: android.content.Context
 ) {
+    val languageTag = context.resources.configuration.locales[0]?.toLanguageTag()
+        ?: java.util.Locale.getDefault().toLanguageTag()
     val session = FlightSession(
         flightNumber = draft.flightNumber,
         originIata = draft.origin.iata,
-        originName = draft.origin.nameKo,
+        originName = draft.origin.localizedName(languageTag),
         destinationIata = draft.destination?.iata ?: "Unknown",
-        destinationName = draft.destination?.nameKo ?: "Unknown",
+        destinationName = draft.destination?.localizedName(languageTag) ?: "Unknown",
         seatNumber = draft.seatNumber,
         focusCategory = draft.focusCategory,
         distanceKm = (draft.distanceKm * progress).toInt(),

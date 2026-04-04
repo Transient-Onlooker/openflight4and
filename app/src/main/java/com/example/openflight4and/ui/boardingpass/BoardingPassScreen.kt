@@ -72,6 +72,7 @@ import com.example.openflight4and.ui.theme.FlightGray
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -115,6 +116,7 @@ fun BoardingPassScreen(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val languageTag = configuration.locales[0]?.toLanguageTag() ?: Locale.getDefault().toLanguageTag()
     val density = LocalDensity.current
     val vibrator = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -271,7 +273,7 @@ fun BoardingPassScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Column {
-                                            Text(draft.origin.cityKo, color = FlightGray, style = MaterialTheme.typography.labelSmall)
+                                            Text(draft.origin.localizedCity(languageTag), color = FlightGray, style = MaterialTheme.typography.labelSmall)
                                             Text(draft.origin.iata, color = FlightBlack, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
                                         }
                                         Icon(
@@ -284,7 +286,7 @@ fun BoardingPassScreen(
                                         )
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text(
-                                                draft.destination?.cityKo ?: stringResource(R.string.boardingpass_destination_tbd),
+                                                draft.destination?.localizedCity(languageTag) ?: stringResource(R.string.boardingpass_destination_tbd),
                                                 color = FlightGray,
                                                 style = MaterialTheme.typography.labelSmall
                                             )

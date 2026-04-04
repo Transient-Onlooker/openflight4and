@@ -45,6 +45,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private data class QuickFlightSuggestion(
@@ -84,6 +85,7 @@ fun NewFlightScreen(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val languageTag = configuration.locales[0]?.toLanguageTag() ?: Locale.getDefault().toLanguageTag()
     val viewModel: NewFlightViewModel = viewModel(
         factory = NewFlightViewModel.Factory(context.applicationContext as android.app.Application)
     )
@@ -273,7 +275,7 @@ fun NewFlightScreen(
                     // Destination Info
                     Text(
                         text = selectedDestination?.let {
-                            stringResource(R.string.newflight_selected_destination_format, it.cityKo, it.iata)
+                            stringResource(R.string.newflight_selected_destination_format, it.localizedCity(languageTag), it.iata)
                         } ?: stringResource(R.string.newflight_select_airport_on_map),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
@@ -372,6 +374,7 @@ fun NewFlightScreen(
                             isSelected = isSelected,
                             isOrigin = isOrigin,
                             unitSystem = unitSystem,
+                            languageTag = languageTag,
                              onClick = {
                                  if (!isOrigin) {
                                      selectDestination(airport)
@@ -493,7 +496,7 @@ fun NewFlightScreen(
                         val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
                         val isSelected = airport == selectedDestination
                         val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                            val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
+                            val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
                             MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                         }
                         Marker(
@@ -515,7 +518,7 @@ fun NewFlightScreen(
                             // 마커 표시
                             val isSelected = airport == selectedDestination
                             val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
                                 MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                             }
                             Marker(
@@ -539,7 +542,7 @@ fun NewFlightScreen(
                             // 마커 표시
                             val isSelected = airport == selectedDestination
                             val markerIcon = remember(airport.iata, isSelected, isOrigin) {
-                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.cityKo.split("/")[0]
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
                                 MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
                             }
                             Marker(
@@ -618,6 +621,7 @@ fun NewFlightScreen(
                     searchRadiusKm = searchRadiusKm,
                     onSearchRadiusChange = { viewModel.updateSearchRadius(it) },
                     sortedAirports = sortedAirports,
+                    languageTag = languageTag,
                     onAirportClick = { airport ->
                         if (airport.iata != originIata) {
                             selectDestination(airport)
@@ -650,6 +654,7 @@ fun NewFlightScreen(
                 QuickFlightDialogCards(
                     suggestions = quickFlightSuggestions,
                     unitSystem = unitSystem,
+                    languageTag = languageTag,
                     onDismiss = { viewModel.hideQuickFlightDialog() },
                     onSelect = { airport ->
                         viewModel.hideQuickFlightDialog()
@@ -668,6 +673,7 @@ fun AirportListItem(
     isSelected: Boolean,
     isOrigin: Boolean,
     unitSystem: String,
+    languageTag: String,
     onClick: () -> Unit
 ) {
     val distanceKm = FlightUtils.calculateDistance(origin, airport)
@@ -700,7 +706,7 @@ fun AirportListItem(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = airport.nameKo,
+                    text = airport.localizedName(languageTag),
                     color = Color.White,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     style = MaterialTheme.typography.titleMedium,
@@ -720,7 +726,7 @@ fun AirportListItem(
                 }
             }
             Text(
-                text = "${airport.cityKo}, ${airport.country}",
+                text = "${airport.localizedCity(languageTag)}, ${airport.country}",
                 color = FlightGray,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -762,6 +768,7 @@ fun SameAirportDialog(
 private fun QuickFlightDialogCards(
     suggestions: List<QuickFlightSuggestion>,
     unitSystem: String,
+    languageTag: String,
     onDismiss: () -> Unit,
     onSelect: (Airport) -> Unit
 ) {
@@ -795,14 +802,14 @@ private fun QuickFlightDialogCards(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "${suggestion.airport.nameKo} (${suggestion.airport.iata})",
+                                    "${suggestion.airport.localizedName(languageTag)} (${suggestion.airport.iata})",
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 2
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "${suggestion.airport.cityKo}, ${suggestion.airport.country}",
+                                    "${suggestion.airport.localizedCity(languageTag)}, ${suggestion.airport.country}",
                                     color = FlightGray,
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 2
@@ -840,6 +847,7 @@ private fun NewFlightLandscapePanel(
     searchRadiusKm: Int,
     onSearchRadiusChange: (Int) -> Unit,
     sortedAirports: List<Airport>,
+    languageTag: String,
     onAirportClick: (Airport) -> Unit,
     isSandboxMode: Boolean,
     isSettingCurrentLocation: Boolean,
@@ -864,7 +872,7 @@ private fun NewFlightLandscapePanel(
             ) {
                 Text(
                     text = selectedDestination?.let {
-                        stringResource(R.string.newflight_selected_destination_format, it.cityKo, it.iata)
+                        stringResource(R.string.newflight_selected_destination_format, it.localizedCity(languageTag), it.iata)
                     } ?: stringResource(R.string.newflight_select_airport_on_map),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
@@ -963,6 +971,7 @@ private fun NewFlightLandscapePanel(
                         isSelected = airport == selectedDestination,
                         isOrigin = airport.iata == originIata,
                         unitSystem = unitSystem,
+                        languageTag = languageTag,
                         onClick = { onAirportClick(airport) }
                     )
                 }
@@ -1030,6 +1039,7 @@ private fun buildQuickFlightSuggestions(
 private fun QuickFlightDialog(
     suggestions: List<QuickFlightSuggestion>,
     unitSystem: String,
+    languageTag: String,
     onDismiss: () -> Unit,
     onSelect: (Airport) -> Unit
 ) {
@@ -1062,12 +1072,12 @@ private fun QuickFlightDialog(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "${suggestion.airport.nameKo} (${suggestion.airport.iata})",
+                                "${suggestion.airport.localizedName(languageTag)} (${suggestion.airport.iata})",
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "${suggestion.airport.cityKo}, ${suggestion.airport.country}",
+                                "${suggestion.airport.localizedCity(languageTag)}, ${suggestion.airport.country}",
                                 color = FlightGray,
                                 style = MaterialTheme.typography.bodyMedium
                             )

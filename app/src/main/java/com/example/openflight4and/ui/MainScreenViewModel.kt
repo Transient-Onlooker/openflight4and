@@ -282,11 +282,13 @@ class MainScreenViewModel(
                     repository = repository,
                     isAirplaneModeOn = { FlightUtils.isAirplaneModeOn(application) },
                     startFlightService = { draftToStart, notificationUpdateSeconds ->
+                        val languageTag = application.resources.configuration.locales[0]?.toLanguageTag()
+                            ?: Locale.getDefault().toLanguageTag()
                         val intent = Intent(application, FlightService::class.java).apply {
                             putExtra("origin_iata", draftToStart.origin.iata)
                             putExtra("destination_iata", draftToStart.destination?.iata ?: "N/A")
-                            putExtra("origin_name", draftToStart.origin.nameKo)
-                            putExtra("destination_name", draftToStart.destination?.nameKo ?: "N/A")
+                            putExtra("origin_name", draftToStart.origin.localizedName(languageTag))
+                            putExtra("destination_name", draftToStart.destination?.localizedName(languageTag) ?: "N/A")
                             putExtra("duration_minutes", draftToStart.estimatedMinutes)
                             putExtra("time_scale", draftToStart.timeScale)
                             putExtra("notification_update_seconds", notificationUpdateSeconds)

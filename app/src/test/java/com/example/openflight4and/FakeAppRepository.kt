@@ -60,7 +60,7 @@ class FakeAppRepository(
         }
     }
 
-    override suspend fun canStartFlight(_estimatedMinutes: Int): TicketSpendResult {
+    override suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult {
         return nextStartFlightResult
     }
 

@@ -1,0 +1,30 @@
+package com.example.openflight4and.data
+
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+
+val Context.dataStore by preferencesDataStore(name = "settings")
+
+object AppPreferenceKeys {
+    val KEY_UNIT_SYSTEM = stringPreferencesKey("unit_system")
+    val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
+    val KEY_MAP_STYLE = stringPreferencesKey("map_style")
+    val KEY_MAP_OVERLAY_STYLE = stringPreferencesKey("map_overlay_style")
+    val KEY_MAP_PERSPECTIVE = stringPreferencesKey("map_perspective")
+    val KEY_AIRPLANE_MODE_CHECK = booleanPreferencesKey("airplane_mode_check")
+    val KEY_NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
+    val KEY_NOTIFICATION_UPDATE_SECONDS = intPreferencesKey("notification_update_seconds")
+    val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
+    val KEY_FOCUS_LOCK_ENABLED = booleanPreferencesKey("focus_lock_enabled")
+    val KEY_SCREEN_ORIENTATION_MODE = stringPreferencesKey("screen_orientation_mode")
+    val KEY_CURRENT_LOCATION = stringPreferencesKey("current_location")
+    val KEY_SANDBOX_TIME_SCALE = stringPreferencesKey("sandbox_time_scale")
+    val KEY_FLIGHT_TICKETS = intPreferencesKey("flight_tickets")
+    val KEY_LAST_DAILY_TICKET_DATE = stringPreferencesKey("last_daily_ticket_date")
+    val KEY_TICKET_HISTORY = stringPreferencesKey("ticket_history")
+    val KEY_USED_REDEEM_CODES = stringPreferencesKey("used_redeem_codes")
+    val KEY_DEBUG_FLIGHT_MODE = booleanPreferencesKey("debug_flight_mode")
+}

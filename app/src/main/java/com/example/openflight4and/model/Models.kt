@@ -5,6 +5,7 @@ import androidx.room.PrimaryKey
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import java.util.Locale
 
 @Serializable
 data class Airport(
@@ -21,8 +22,16 @@ data class Airport(
     val location: LatLng = LatLng(latitude, longitude)
 
     // UI 표시용 헬퍼
-    val displayName: String get() = nameKo
-    val displayCity: String get() = cityKo
+    fun localizedName(languageTag: String = Locale.getDefault().toLanguageTag()): String {
+        return if (languageTag.lowercase().startsWith("ko")) nameKo else nameEn.ifBlank { nameKo }
+    }
+
+    fun localizedCity(languageTag: String = Locale.getDefault().toLanguageTag()): String {
+        return if (languageTag.lowercase().startsWith("ko")) cityKo else cityEn.ifBlank { cityKo }
+    }
+
+    val displayName: String get() = localizedName()
+    val displayCity: String get() = localizedCity()
 }
 
 // Room Database Entity for Flight Logs

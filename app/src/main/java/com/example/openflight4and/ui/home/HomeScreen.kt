@@ -111,7 +111,7 @@ fun HomeScreen(
     RealFlightMap(
         cameraPositionState = cameraPositionState,
         mapStyle = mapStyle,
-        isInteractive = false,
+        isInteractive = true,
         useDarkOverlay = false,
         overlayContent = {
             if (isLandscape) {
@@ -241,11 +241,10 @@ fun HomeScreen(
                                     onClick = onNavigateToNewFlight,
                                     modifier = Modifier
                                         .widthIn(max = 260.dp)
-                                        .fillMaxWidth()
-                                        .graphicsLayer(alpha = HomeStartButtonAlpha),
+                                        .fillMaxWidth(),
                                     shape = HomeButtonShape,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = HomeStartButtonAlpha),
                                         contentColor = Color.Black
                                     )
                                 ) {
@@ -335,11 +334,10 @@ fun HomeScreen(
                         Button(
                             onClick = onNavigateToNewFlight,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer(alpha = HomeStartButtonAlpha),
+                                .fillMaxWidth(),
                             shape = HomeButtonShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = HomeStartButtonAlpha),
                                 contentColor = Color.Black
                             )
                         ) {
