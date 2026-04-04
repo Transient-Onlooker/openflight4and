@@ -204,7 +204,7 @@ fun InFlightScreen(
     val scope = rememberCoroutineScope()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
-    val mapPerspective by repository.mapPerspective.collectAsState(initial = Perspective2_5D)
+    var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
     val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
     val inflightPanelBackground = Color.White.copy(alpha = InFlightPanelAlpha)
@@ -309,12 +309,6 @@ fun InFlightScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (mapPerspective == Perspective3D) {
-            repository.setMapPerspective(Perspective2_5D)
-        }
-    }
-
     // ????????⑤벡瑜??꿔꺂??????????썹땟??? ?????耀붾굝??????????嶺????????椰?????癲?濾곌풝源?????????쎛 ???????롮쾸?椰?嚥▲굧???븍툖??????????⑤벡瑜??꿔꺂??????????썹땟???? ?????????대첉??轅붽틓?????獒뺣폍???????????耀붾굝?????傭?끆????椰?
     LaunchedEffect(Unit) {
         if (FlightService.isServiceRunning()) {
@@ -382,6 +376,7 @@ fun InFlightScreen(
     val trackingTilt = if (mapPerspective == Perspective2D) 0f else TrackingTiltDegrees
     val planeRotation = planeMarkerRotationForBearing(liveBearing.floatValue)
     var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
+    var hasUserAdjustedMapZoom by remember { mutableStateOf(false) }
     val isCameraTracking = inflightUiState.isCameraTracking
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(origin, InFlightInitialZoom)
@@ -393,6 +388,21 @@ fun InFlightScreen(
             } else {
                 "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x"
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        hasUserAdjustedMapZoom = false
+        mapPerspective = Perspective2_5D
+        repository.setMapPerspective(Perspective2_5D)
+    }
+
+    fun trackedZoom(): Float {
+        val currentZoom = cameraPositionState.position.zoom
+        return if (hasUserAdjustedMapZoom) {
+            currentZoom.takeIf { it >= InFlightMinTrackedZoom } ?: InFlightInitialZoom
+        } else {
+            currentZoom.coerceAtLeast(InFlightInitialZoom)
         }
     }
 
@@ -424,12 +434,11 @@ fun InFlightScreen(
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastCameraTrackingUpdateAt >= cameraTrackingUpdateIntervalMillis) {
                     lastCameraTrackingUpdateAt = now
-                    val currentZoom = cameraPositionState.position.zoom.takeIf { it >= InFlightMinTrackedZoom } ?: InFlightInitialZoom
                     cameraPositionState.move(
                         CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()
                                 .target(updatedPos)
-                                .zoom(currentZoom)
+                                .zoom(trackedZoom())
                                 .tilt(trackingTilt)
                                 .bearing(if (mapPerspective == Perspective2D) 0f else updatedBearing)
                                 .build()
@@ -543,6 +552,7 @@ fun InFlightScreen(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder(cameraPositionState.position)
                     .target(target)
+                    .zoom(trackedZoom())
                     .tilt(updatedTilt)
                     .bearing(updatedBearing)
                     .build()
@@ -556,7 +566,7 @@ fun InFlightScreen(
                 CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(liveCurrentPos.value)
-                    .zoom(14f)
+                    .zoom(trackedZoom())
                     .tilt(trackingTilt)
                     .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
                     .build()
@@ -569,6 +579,7 @@ fun InFlightScreen(
             cameraPositionState.isMoving &&
             cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE
         ) {
+            hasUserAdjustedMapZoom = true
             inflightViewModel.disableCameraTracking()
         }
     }
@@ -588,10 +599,11 @@ fun InFlightScreen(
                 isCameraTracking = isCameraTracking,
                 modifier = Modifier.fillMaxSize(),
                 onUserInteraction = { inflightViewModel.disableCameraTracking() },
-                onMapError = {
-                    scope.launch {
-                        repository.setMapPerspective(Perspective2_5D)
-                    }
+                    onMapError = {
+                        scope.launch {
+                            mapPerspective = Perspective2_5D
+                            repository.setMapPerspective(Perspective2_5D)
+                        }
                     Toast.makeText(
                         context,
                         context.getString(R.string.inflight_3d_fallback_message),
@@ -713,6 +725,7 @@ fun InFlightScreen(
                                                 perspective = nextPerspective,
                                                 keepTrackingTarget = isCameraTracking
                                             )
+                                            mapPerspective = nextPerspective
                                             repository.setMapPerspective(nextPerspective)
                                         }
                                     },
@@ -734,6 +747,7 @@ fun InFlightScreen(
                                                 perspective = nextPerspective,
                                                 keepTrackingTarget = isCameraTracking
                                             )
+                                            mapPerspective = nextPerspective
                                             repository.setMapPerspective(nextPerspective)
                                         }
                                     },
@@ -990,6 +1004,7 @@ fun InFlightScreen(
                                             perspective = nextPerspective,
                                             keepTrackingTarget = isCameraTracking
                                         )
+                                        mapPerspective = nextPerspective
                                         repository.setMapPerspective(nextPerspective)
                                     }
                                 },
@@ -1012,6 +1027,7 @@ fun InFlightScreen(
                                             perspective = nextPerspective,
                                             keepTrackingTarget = isCameraTracking
                                         )
+                                        mapPerspective = nextPerspective
                                         repository.setMapPerspective(nextPerspective)
                                     }
                                 },

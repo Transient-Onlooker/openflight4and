@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
@@ -38,7 +39,7 @@ class FlightService : Service() {
     private var focusLockEnabled = false
     private var currentDurationMinutes: Int = 0
     private val focusLockAllowedPackages = setOf(
-        "com.example.openflight4and",
+        BuildConfig.APPLICATION_ID,
         "com.android.settings",
         "com.google.android.permissioncontroller",
         "com.android.permissioncontroller"

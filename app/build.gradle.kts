@@ -27,11 +27,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.openflight4and"
+        applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 14
-        versionName = "2.5.1"
+        versionCode = 15
+        versionName = "2.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
