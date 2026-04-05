@@ -419,7 +419,7 @@ fun InFlightScreen(
             liveBearing.floatValue = updatedBearing
             planeMarkerState.position = updatedPos
 
-            if (mapPerspective != Perspective3D &&
+            if (mapPerspective == Perspective2_5D &&
                 inflightUiState.isCameraTracking &&
                 !cameraPositionState.isMoving
             ) {
