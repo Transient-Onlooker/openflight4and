@@ -41,6 +41,7 @@ class FlightService : Service() {
     private var focusLockSettingsJob: Job? = null
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
+    private var focusLockAllowedPackages = defaultFocusLockAllowedPackages
     private var currentDurationMinutes: Int = 0
     private var currentFlightNumber: String = ""
     private var currentOriginName: String = ""
@@ -49,13 +50,6 @@ class FlightService : Service() {
     private var currentFocusCategory: String? = null
     private var currentDistanceKm: Int = 0
     private var flightStartedAtMillis: Long = 0L
-    private val focusLockAllowedPackages = setOf(
-        BuildConfig.APPLICATION_ID,
-        "com.android.settings",
-        "com.google.android.permissioncontroller",
-        "com.android.permissioncontroller"
-    )
-
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
         const val NOTIFICATION_ID = 1001
@@ -63,6 +57,13 @@ class FlightService : Service() {
         const val ACTION_PAUSE = "pause_flight"
         const val ACTION_RESUME = "resume_flight"
         private const val TAG = "FlightService"
+
+        private val defaultFocusLockAllowedPackages = setOf(
+        BuildConfig.APPLICATION_ID,
+        "com.android.settings",
+        "com.google.android.permissioncontroller",
+        "com.android.permissioncontroller"
+        )
 
         data class RuntimeState(
             val isRunning: Boolean = false,
@@ -227,12 +228,19 @@ class FlightService : Service() {
     private fun observeFocusLockSettings() {
         focusLockSettingsJob?.cancel()
         focusLockSettingsJob = serviceScope.launch {
-            repository.focusLockEnabled.collect { enabled ->
-                focusLockEnabled = enabled
-                if (_isRunning && enabled) {
-                    startFocusLockMonitor()
-                } else {
-                    stopFocusLockMonitor()
+            launch {
+                repository.focusLockEnabled.collect { enabled ->
+                    focusLockEnabled = enabled
+                    if (_isRunning && enabled) {
+                        startFocusLockMonitor()
+                    } else {
+                        stopFocusLockMonitor()
+                    }
+                }
+            }
+            launch {
+                repository.focusLockAllowedApps.collect { packages ->
+                    focusLockAllowedPackages = defaultFocusLockAllowedPackages + packages
                 }
             }
         }
@@ -269,7 +277,8 @@ class FlightService : Service() {
                         focusLockOverlayController.show(
                             originIata = currentOriginIata,
                             destinationIata = currentDestinationIata,
-                            durationMinutes = currentDurationMinutes
+                            durationMinutes = currentDurationMinutes,
+                            allowedPackages = focusLockAllowedPackages
                         )
                     } else {
                         focusLockOverlayController.hide()

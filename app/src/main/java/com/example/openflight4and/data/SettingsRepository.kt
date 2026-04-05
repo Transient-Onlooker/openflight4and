@@ -32,6 +32,19 @@ class SettingsRepository(
     val focusLockEnabled: Flow<Boolean> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED] ?: false
     }
+    val focusLockAllowedApps: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        val json = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS]
+        if (json.isNullOrBlank()) {
+            emptySet()
+        } else {
+            runCatching {
+                Json.decodeFromString<List<String>>(json).toSet()
+            }.getOrElse {
+                reportDataError("Failed to decode focus lock allowed apps", it)
+                emptySet()
+            }
+        }
+    }
     val screenOrientationMode: Flow<String> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_SCREEN_ORIENTATION_MODE] ?: "auto"
     }
@@ -88,6 +101,13 @@ class SettingsRepository(
 
     suspend fun setFocusLockEnabled(enabled: Boolean) {
         context.dataStore.edit { it[AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED] = enabled }
+    }
+
+    suspend fun setFocusLockAllowedApps(packages: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS] =
+                Json.encodeToString(packages.sorted())
+        }
     }
 
     suspend fun setScreenOrientationMode(mode: String) {

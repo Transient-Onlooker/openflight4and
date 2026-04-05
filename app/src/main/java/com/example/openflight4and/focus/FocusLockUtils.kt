@@ -9,6 +9,11 @@ import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 
+data class LaunchableApp(
+    val packageName: String,
+    val label: String
+)
+
 object FocusLockUtils {
 
     @Suppress("DEPRECATION")
@@ -58,5 +63,20 @@ object FocusLockUtils {
         }
 
         return lastForegroundPackage
+    }
+
+    fun getLaunchableApps(context: Context): List<LaunchableApp> {
+        val packageManager = context.packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        return packageManager.queryIntentActivities(intent, 0)
+            .mapNotNull { resolveInfo ->
+                val packageName = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
+                if (packageName == context.packageName) return@mapNotNull null
+                val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
+                if (label.isBlank()) return@mapNotNull null
+                LaunchableApp(packageName = packageName, label = label)
+            }
+            .distinctBy { it.packageName }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
     }
 }

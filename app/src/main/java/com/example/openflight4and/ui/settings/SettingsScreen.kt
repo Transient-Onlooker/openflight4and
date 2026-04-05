@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +29,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -46,8 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.openflight4and.R
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import com.example.openflight4and.BuildConfig
+import com.example.openflight4and.R
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
@@ -90,11 +97,15 @@ fun SettingsScreen(
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
+    val focusLockAllowedPackages by repository.focusLockAllowedApps.collectAsState(initial = emptySet())
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
     val isScreenOrientationLocked = restrictInFlightSettings
     val lifecycleOwner = LocalLifecycleOwner.current
+    val launchableApps = remember(context) { FocusLockUtils.getLaunchableApps(context) }
     var hasUsageAccess by remember { mutableStateOf(FocusLockUtils.hasUsageAccess(context)) }
     var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
+    var showAllowedAppsDialog by remember { mutableStateOf(false) }
+    var allowedAppsSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
     val titleSettings = stringResource(R.string.settings_title)
     val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
     val titleLanguage = stringResource(R.string.settings_title_language)
@@ -104,6 +115,7 @@ fun SettingsScreen(
     val titleNotifications = stringResource(R.string.settings_title_notifications)
     val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
+    val titleAllowedApps = stringResource(R.string.settings_focus_lock_allowed_apps)
     val labelAuto = stringResource(R.string.settings_orientation_auto)
     val labelLanguageSystem = stringResource(R.string.settings_language_system)
     val labelLanguageKorean = stringResource(R.string.settings_language_korean)
@@ -313,6 +325,21 @@ fun SettingsScreen(
                         },
                         onClick = { FocusLockUtils.openOverlaySettings(context) }
                     )
+                    PermissionSettingItem(
+                        title = titleAllowedApps,
+                        description = if (focusLockAllowedPackages.isEmpty()) {
+                            stringResource(R.string.settings_focus_lock_allowed_apps_empty)
+                        } else {
+                            stringResource(
+                                R.string.settings_focus_lock_allowed_apps_count,
+                                focusLockAllowedPackages.size
+                            )
+                        },
+                        onClick = {
+                            allowedAppsSelection = focusLockAllowedPackages
+                            showAllowedAppsDialog = true
+                        }
+                    )
                 }
 
                 Spacer(modifier = Modifier.padding(top = SettingsFooterTopSpacing))
@@ -328,6 +355,92 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.padding(top = SettingsFooterBottomSpacing))
             }
         }
+    }
+
+    if (showAllowedAppsDialog) {
+        AlertDialog(
+            onDismissRequest = { showAllowedAppsDialog = false },
+            title = { Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_title)) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray
+                    )
+                    Spacer(modifier = Modifier.padding(top = 12.dp))
+                    if (launchableApps.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                            items(launchableApps, key = { it.packageName }) { app ->
+                                val checked = allowedAppsSelection.contains(app.packageName)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            allowedAppsSelection =
+                                                if (checked) {
+                                                    allowedAppsSelection - app.packageName
+                                                } else {
+                                                    allowedAppsSelection + app.packageName
+                                                }
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = {
+                                            allowedAppsSelection =
+                                                if (it) {
+                                                    allowedAppsSelection + app.packageName
+                                                } else {
+                                                    allowedAppsSelection - app.packageName
+                                                }
+                                        }
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = app.label,
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = app.packageName,
+                                            color = FlightGray,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            repository.setFocusLockAllowedApps(allowedAppsSelection)
+                        }
+                        showAllowedAppsDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAllowedAppsDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }
 

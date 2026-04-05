@@ -19,6 +19,7 @@ object AppPreferenceKeys {
     val KEY_NOTIFICATION_UPDATE_SECONDS = intPreferencesKey("notification_update_seconds")
     val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
     val KEY_FOCUS_LOCK_ENABLED = booleanPreferencesKey("focus_lock_enabled")
+    val KEY_FOCUS_LOCK_ALLOWED_APPS = stringPreferencesKey("focus_lock_allowed_apps")
     val KEY_SCREEN_ORIENTATION_MODE = stringPreferencesKey("screen_orientation_mode")
     val KEY_CURRENT_LOCATION = stringPreferencesKey("current_location")
     val KEY_SANDBOX_TIME_SCALE = stringPreferencesKey("sandbox_time_scale")

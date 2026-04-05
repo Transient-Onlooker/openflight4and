@@ -10,6 +10,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
@@ -34,7 +35,8 @@ class FocusLockOverlayController(
     fun show(
         originIata: String,
         destinationIata: String,
-        durationMinutes: Int
+        durationMinutes: Int,
+        allowedPackages: Collection<String> = emptyList()
     ) {
         if (overlayView != null) return
 
@@ -78,6 +80,11 @@ class FocusLockOverlayController(
             }
         }
 
+        val panelScroll = ScrollView(context).apply {
+            isFillViewport = true
+            setBackgroundColor(0x00000000)
+        }
+
         val title = TextView(context).apply {
             text = context.getString(R.string.focus_lock_overlay_title)
             textSize = FocusLockTitleTextSize
@@ -109,9 +116,56 @@ class FocusLockOverlayController(
             }
         }
 
+        val allowedApps = allowedPackages
+            .mapNotNull { packageName ->
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return@mapNotNull null
+                val label = runCatching {
+                    context.packageManager.getApplicationLabel(
+                        context.packageManager.getApplicationInfo(packageName, 0)
+                    ).toString()
+                }.getOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                FocusLockAllowedApp(packageName, label, launchIntent)
+            }
+            .distinctBy { it.packageName }
+            .sortedBy { it.label.lowercase() }
+
+        val allowedAppsTitle = TextView(context).apply {
+            text = context.getString(R.string.focus_lock_overlay_allowed_apps_title)
+            textSize = 18f
+            setTextColor(0xFFE2E2E2.toInt())
+            gravity = Gravity.CENTER
+            setPadding(0, 36, 0, 20)
+        }
+
+        fun addAllowedAppButton(app: FocusLockAllowedApp) {
+            val appButton = Button(context).apply {
+                text = app.label
+                isAllCaps = false
+                setOnClickListener {
+                    hide()
+                    context.startActivity(app.launchIntent.apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    })
+                }
+            }
+            panel.addView(appButton)
+        }
+
         panel.addView(title)
         panel.addView(message)
         panel.addView(button)
+        if (allowedApps.isNotEmpty()) {
+            panel.addView(allowedAppsTitle)
+            allowedApps.forEach(::addAllowedAppButton)
+        }
+
+        panelScroll.addView(
+            panel,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         root.addView(
             blocker,
@@ -119,11 +173,13 @@ class FocusLockOverlayController(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER
-            )
+            ).apply {
+                // background blocker
+            }
         )
 
         root.addView(
-            panel,
+            panelScroll,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -162,3 +218,9 @@ class FocusLockOverlayController(
         hide()
     }
 }
+
+private data class FocusLockAllowedApp(
+    val packageName: String,
+    val label: String,
+    val launchIntent: Intent
+)

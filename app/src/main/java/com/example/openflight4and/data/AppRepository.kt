@@ -63,6 +63,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val notificationsEnabled: Flow<Boolean> = settingsRepository.notificationsEnabled
     val notificationUpdateSeconds: Flow<Int> = settingsRepository.notificationUpdateSeconds
     val focusLockEnabled: Flow<Boolean> = settingsRepository.focusLockEnabled
+    val focusLockAllowedApps: Flow<Set<String>> = settingsRepository.focusLockAllowedApps
     val screenOrientationMode: Flow<String> = settingsRepository.screenOrientationMode
     override val currentLocation: Flow<Airport?> = settingsRepository.currentLocation
     val sandboxTimeScale: Flow<Float> = settingsRepository.sandboxTimeScale
@@ -106,6 +107,10 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setFocusLockEnabled(enabled: Boolean) {
         settingsRepository.setFocusLockEnabled(enabled)
+    }
+
+    suspend fun setFocusLockAllowedApps(packages: Set<String>) {
+        settingsRepository.setFocusLockAllowedApps(packages)
     }
 
     suspend fun setScreenOrientationMode(mode: String) {
