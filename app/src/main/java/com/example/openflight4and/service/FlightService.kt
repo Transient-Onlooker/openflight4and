@@ -332,6 +332,11 @@ class FlightService : Service() {
 
                     persistFlightSession(isCompleted = true)
                     saveDestinationAsCurrentLocation(destinationIata)
+                    _isRunning = false
+                    _isPaused = false
+                    _secondsElapsed = totalSeconds
+                    publishRuntimeState()
+                    stopFocusLockMonitor()
 
                     // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
                     withContext(Dispatchers.IO) {
@@ -340,9 +345,6 @@ class FlightService : Service() {
                         notificationManager.cancel(NOTIFICATION_ID)
                     }
 
-                    _isRunning = false
-                    publishRuntimeState()
-                    stopFocusLockMonitor()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return@launch
@@ -367,6 +369,11 @@ class FlightService : Service() {
 
             persistFlightSession(isCompleted = true)
             saveDestinationAsCurrentLocation(destinationIata)
+            _isRunning = false
+            _isPaused = false
+            _secondsElapsed = totalSeconds
+            publishRuntimeState()
+            stopFocusLockMonitor()
 
             // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
             withContext(Dispatchers.IO) {
@@ -375,9 +382,6 @@ class FlightService : Service() {
                 notificationManager.cancel(NOTIFICATION_ID)
             }
 
-            _isRunning = false
-            publishRuntimeState()
-            stopFocusLockMonitor()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }

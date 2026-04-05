@@ -410,8 +410,23 @@ fun PermissionSettingItem(
 @Composable
 fun BatteryOptimizationItem() {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val powerManager = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
-    val isIgnoring = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    var isIgnoring by remember {
+        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+    }
+
+    DisposableEffect(lifecycleOwner, context, powerManager) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isIgnoring = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Row(
         modifier = Modifier
