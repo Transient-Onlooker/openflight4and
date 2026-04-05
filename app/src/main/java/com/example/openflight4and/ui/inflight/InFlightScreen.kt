@@ -150,6 +150,14 @@ fun nextStandardMapPerspective(current: String): String {
     return if (current == Perspective2D) Perspective2_5D else Perspective2D
 }
 
+private fun tiltForPerspective(perspective: String): Float {
+    return if (perspective == Perspective2D) 0f else TrackingTiltDegrees
+}
+
+private fun bearingForPerspective(perspective: String, flightBearing: Float): Float {
+    return if (perspective == Perspective2D) 0f else flightBearing
+}
+
 @Composable
 fun InFlightScreen(
     draft: FlightDraft,
@@ -358,7 +366,6 @@ fun InFlightScreen(
     val liveBearing = remember(origin, dest) {
         mutableFloatStateOf(calculateGreatCircleBearing(origin, dest, 0.0))
     }
-    val trackingTilt = if (mapPerspective == Perspective2D) 0f else TrackingTiltDegrees
     val planeRotation = planeMarkerRotationForBearing(liveBearing.floatValue)
     var lastCameraTrackingUpdateAt by remember { mutableStateOf(0L) }
     var hasUserAdjustedMapZoom by remember { mutableStateOf(false) }
@@ -414,18 +421,19 @@ fun InFlightScreen(
 
             if (mapPerspective != Perspective3D &&
                 inflightUiState.isCameraTracking &&
-                cameraPositionState.cameraMoveStartedReason != CameraMoveStartedReason.GESTURE
+                !cameraPositionState.isMoving
             ) {
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastCameraTrackingUpdateAt >= cameraTrackingUpdateIntervalMillis) {
+                    val currentTilt = tiltForPerspective(mapPerspective)
                     lastCameraTrackingUpdateAt = now
                     cameraPositionState.move(
                         CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()
                                 .target(updatedPos)
                                 .zoom(trackedZoom())
-                                .tilt(trackingTilt)
-                                .bearing(if (mapPerspective == Perspective2D) 0f else updatedBearing)
+                                .tilt(currentTilt)
+                                .bearing(bearingForPerspective(mapPerspective, updatedBearing))
                                 .build()
                         )
                     )
@@ -507,8 +515,8 @@ fun InFlightScreen(
         keepTrackingTarget: Boolean
     ) {
         val target = if (keepTrackingTarget) liveCurrentPos.value else cameraPositionState.position.target
-        val updatedTilt = if (perspective == Perspective2D) 0f else TrackingTiltDegrees
-        val updatedBearing = if (perspective == Perspective2D) 0f else liveBearing.floatValue
+        val updatedTilt = tiltForPerspective(perspective)
+        val updatedBearing = bearingForPerspective(perspective, liveBearing.floatValue)
         cameraPositionState.move(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder(cameraPositionState.position)
@@ -522,14 +530,14 @@ fun InFlightScreen(
     }
 
     // ??????嶺뚮∥?????????筌뤾퍓愿???????????袁⑸즴筌?씛彛?????????롮쾸?椰???(???????????????곗뵰??? ????????袁⑸즴筌?씛彛???돗????⑸뻿????????嚥싲갭큔?????????븐뼐???????????븐뼔???????????뀀맩鍮??????룸챶猷??????????????
-    LaunchedEffect(Unit) {
+    LaunchedEffect(mapPerspective) {
         cameraPositionState.animate(
-                CameraUpdateFactory.newCameraPosition(
+            CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(liveCurrentPos.value)
                     .zoom(trackedZoom())
-                    .tilt(trackingTilt)
-                    .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
+                    .tilt(tiltForPerspective(mapPerspective))
+                    .bearing(bearingForPerspective(mapPerspective, liveBearing.floatValue))
                     .build()
             )
         )
@@ -670,8 +678,8 @@ fun InFlightScreen(
                                                     CameraPosition.Builder()
                                                         .target(liveCurrentPos.value)
                                                         .zoom(cameraPositionState.position.zoom)
-                                                        .tilt(trackingTilt)
-                                                        .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
+                                                        .tilt(tiltForPerspective(mapPerspective))
+                                                        .bearing(bearingForPerspective(mapPerspective, liveBearing.floatValue))
                                                         .build()
                                                 )
                                             )
@@ -777,8 +785,8 @@ fun InFlightScreen(
                                                     CameraPosition.Builder()
                                                         .target(liveCurrentPos.value)
                                                         .zoom(cameraPositionState.position.zoom)
-                                                        .tilt(trackingTilt)
-                                                        .bearing(if (mapPerspective == Perspective2D) 0f else liveBearing.floatValue)
+                                                        .tilt(tiltForPerspective(mapPerspective))
+                                                        .bearing(bearingForPerspective(mapPerspective, liveBearing.floatValue))
                                                         .build()
                                                 )
                                             )

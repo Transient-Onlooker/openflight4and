@@ -1,6 +1,13 @@
 *.iml
 .gradle
+.gradle-user/
+.gradle-user-home/
+.gradle-user-test/
 /local.properties
+/.android-user/
+/.idea/
+/.kotlin/
+/android-maps3d-samples-main/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml

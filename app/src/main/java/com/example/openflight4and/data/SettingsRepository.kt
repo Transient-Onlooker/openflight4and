@@ -21,6 +21,9 @@ class SettingsRepository(
     val appLanguage: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_APP_LANGUAGE] ?: "system" }
     val mapStyle: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_MAP_STYLE] ?: "standard" }
     val mapOverlayStyle: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_MAP_OVERLAY_STYLE] ?: "dark" }
+    val mapPerspective: Flow<String> = context.dataStore.data.map {
+        it[AppPreferenceKeys.KEY_MAP_PERSPECTIVE] ?: "2_5d"
+    }
     val airplaneModeCheck: Flow<Boolean> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_AIRPLANE_MODE_CHECK] ?: true }
     val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_NOTIFICATIONS] ?: true }
     val notificationUpdateSeconds: Flow<Int> = context.dataStore.data.map {

@@ -217,7 +217,7 @@ fun InFlightFloatingControls(
             contentColor = overlayPalette.floatingButtonContent
         ) {
             Text(
-                text = if (mapPerspective == "2d") "2D" else "2.5D",
+                text = if (mapPerspective == "2d") "2.5D" else "2D",
                 style = MaterialTheme.typography.labelSmall
             )
         }

@@ -58,6 +58,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val appLanguage: Flow<String> = settingsRepository.appLanguage
     val mapStyle: Flow<String> = settingsRepository.mapStyle
     val mapOverlayStyle: Flow<String> = settingsRepository.mapOverlayStyle
+    val mapPerspective: Flow<String> = settingsRepository.mapPerspective
     val airplaneModeCheck: Flow<Boolean> = settingsRepository.airplaneModeCheck
     val notificationsEnabled: Flow<Boolean> = settingsRepository.notificationsEnabled
     val notificationUpdateSeconds: Flow<Int> = settingsRepository.notificationUpdateSeconds
