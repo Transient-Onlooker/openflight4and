@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -288,7 +289,7 @@ fun NewFlightScreen(
                             text = stringResource(
                                 R.string.newflight_selected_destination_distance_format,
                                 FlightUtils.formatDistance(distKm, unitSystem),
-                                FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))
+                                FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(distKm))
                             ),
                             style = MaterialTheme.typography.titleLarge,
                             color = FlightPrimary,
@@ -339,7 +340,7 @@ fun NewFlightScreen(
                     )
 
                     val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
-                    val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else " • ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+                    val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else " • ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
                     Text(
                         text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                         color = FlightPrimary,
@@ -369,6 +370,7 @@ fun NewFlightScreen(
                         val isOrigin = airport.iata == originIata
 
                         AirportListItem(
+                            context = context,
                             airport = airport,
                             origin = originAirport,
                             isSelected = isSelected,
@@ -612,6 +614,7 @@ fun NewFlightScreen(
                         .padding(top = 72.dp, end = 16.dp, bottom = 16.dp)
                         .width(340.dp)
                         .fillMaxHeight(),
+                    context = context,
                     selectedDestination = selectedDestination,
                     originAirport = originAirport,
                     originIata = originIata,
@@ -652,6 +655,7 @@ fun NewFlightScreen(
 
             if (showQuickFlightDialog) {
                 QuickFlightDialogCards(
+                    context = context,
                     suggestions = quickFlightSuggestions,
                     unitSystem = unitSystem,
                     languageTag = languageTag,
@@ -668,6 +672,7 @@ fun NewFlightScreen(
 
 @Composable
 fun AirportListItem(
+    context: android.content.Context,
     airport: Airport,
     origin: Airport,
     isSelected: Boolean,
@@ -679,7 +684,7 @@ fun AirportListItem(
     val distanceKm = FlightUtils.calculateDistance(origin, airport)
     val distStr = FlightUtils.formatDistance(distanceKm, unitSystem)
     val durationMinutes = FlightUtils.estimateDurationMinutes(distanceKm)
-    val durationStr = FlightUtils.formatDuration(durationMinutes)
+    val durationStr = FlightUtils.formatDuration(context, durationMinutes)
 
     Row(
         modifier = Modifier
@@ -704,13 +709,19 @@ fun AirportListItem(
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = airport.localizedName(languageTag),
+                    modifier = Modifier.weight(1f, fill = false),
                     color = Color.White,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    softWrap = false
                 )
                 if (isOrigin) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -719,6 +730,9 @@ fun AirportListItem(
                             text = stringResource(R.string.newflight_origin_badge),
                             color = FlightBlack,
                             fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            softWrap = false,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             fontWeight = FontWeight.Bold
                         )
@@ -766,6 +780,7 @@ fun SameAirportDialog(
 
 @Composable
 private fun QuickFlightDialogCards(
+    context: android.content.Context,
     suggestions: List<QuickFlightSuggestion>,
     unitSystem: String,
     languageTag: String,
@@ -816,7 +831,7 @@ private fun QuickFlightDialogCards(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)}  |  ${FlightUtils.formatDuration(suggestion.durationMinutes)}",
+                                    "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)}  |  ${FlightUtils.formatDuration(context, suggestion.durationMinutes)}",
                                     color = FlightGray,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -838,6 +853,7 @@ private fun QuickFlightDialogCards(
 @Composable
 private fun NewFlightLandscapePanel(
     modifier: Modifier,
+    context: android.content.Context,
     selectedDestination: Airport?,
     originAirport: Airport,
     originIata: String,
@@ -885,7 +901,7 @@ private fun NewFlightLandscapePanel(
                         text = stringResource(
                             R.string.newflight_distance_duration_format,
                             FlightUtils.formatDistance(distKm, unitSystem),
-                            FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(distKm))
+                            FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(distKm))
                         ),
                         style = MaterialTheme.typography.titleMedium,
                         color = FlightPrimary,
@@ -938,7 +954,7 @@ private fun NewFlightLandscapePanel(
             )
 
             val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
-            val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else "  |  ${FlightUtils.formatDuration(FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+            val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else "  |  ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
             Text(
                 text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                 color = FlightPrimary,
@@ -966,6 +982,7 @@ private fun NewFlightLandscapePanel(
             ) {
                 items(sortedAirports) { airport ->
                     AirportListItem(
+                        context = context,
                         airport = airport,
                         origin = originAirport,
                         isSelected = airport == selectedDestination,
@@ -1037,6 +1054,7 @@ private fun buildQuickFlightSuggestions(
 
 @Composable
 private fun QuickFlightDialog(
+    context: android.content.Context,
     suggestions: List<QuickFlightSuggestion>,
     unitSystem: String,
     languageTag: String,
@@ -1049,7 +1067,7 @@ private fun QuickFlightDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "1시간, 2시간, 3시간에 가장 가까운 비행 시간을 가진 공항입니다.",
+                    stringResource(R.string.newflight_quick_flight_description),
                     color = FlightGray
                 )
                 suggestions.forEach { suggestion ->
@@ -1066,7 +1084,7 @@ private fun QuickFlightDialog(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                "${suggestion.targetMinutes / 60}시간 추천",
+                                stringResource(R.string.newflight_quick_flight_recommendation_format, suggestion.targetMinutes / 60),
                                 color = FlightPrimary,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1083,7 +1101,7 @@ private fun QuickFlightDialog(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)} • 약 ${FlightUtils.formatDuration(suggestion.durationMinutes)}",
+                                "${FlightUtils.formatDistance(suggestion.distanceKm, unitSystem)} • ${FlightUtils.formatDuration(context, suggestion.durationMinutes)}",
                                 color = FlightGray,
                                 style = MaterialTheme.typography.bodySmall
                             )

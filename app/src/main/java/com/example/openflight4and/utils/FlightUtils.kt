@@ -3,12 +3,13 @@ package com.example.openflight4and.utils
 import android.content.Context
 import android.location.Location
 import android.provider.Settings
+import com.example.openflight4and.R
 import com.example.openflight4and.model.Airport
 import kotlin.math.roundToInt
 
 object FlightUtils {
     private const val AVERAGE_FLIGHT_SPEED_KMH = 800.0
-    private const val TAXI_AND_BUFFER_MINUTES = 25 // 대기 시간 현실화
+    private const val TAXI_AND_BUFFER_MINUTES = 25
 
     fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val results = FloatArray(1)
@@ -20,9 +21,6 @@ object FlightUtils {
         return calculateDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude)
     }
 
-    /**
-     * 두 지점 사이의 방위각(Bearing)을 계산합니다. (비행기 아이콘 회전용)
-     */
     fun calculateBearing(origin: Airport, destination: Airport): Float {
         val startLocation = Location("origin").apply {
             latitude = origin.latitude
@@ -54,19 +52,21 @@ object FlightUtils {
         return flightMinutes + TAXI_AND_BUFFER_MINUTES
     }
 
-    // "1시간 20분" 형태
-    fun formatDuration(minutes: Int): String {
-        val h = minutes / 60
-        val m = minutes % 60
-        return if (h > 0) "${h}시간 ${m}분" else "${m}분"
+    fun formatDuration(context: Context, minutes: Int): String {
+        val hours = minutes / 60
+        val remainingMinutes = minutes % 60
+        return if (hours > 0) {
+            context.getString(R.string.duration_hours_minutes_format, hours, remainingMinutes)
+        } else {
+            context.getString(R.string.duration_minutes_only_format, remainingMinutes)
+        }
     }
-    
-    // 타이머용 "MM:SS" 또는 "HH:MM:SS" 형태
+
     fun formatTimer(seconds: Long): String {
         val h = seconds / 3600
         val m = (seconds % 3600) / 60
         val s = seconds % 60
-        return if (h > 0) String.format("%02d:%02d:%02d", h, m, s) 
+        return if (h > 0) String.format("%02d:%02d:%02d", h, m, s)
         else String.format("%02d:%02d", m, s)
     }
 

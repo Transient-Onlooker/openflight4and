@@ -134,6 +134,8 @@
     <string name="trend_visited_airports_format">%1$d airports</string>
     <string name="trend_total_distance">Total distance</string>
     <string name="trend_focus_time">Focus time</string>
+    <string name="duration_hours_minutes_format">%1$d h %2$d m</string>
+    <string name="duration_minutes_only_format">%1$d m</string>
     <string name="trend_debug_enabled">Flight debug mode enabled</string>
     <string name="trend_debug_disabled">Flight debug mode disabled</string>
 
@@ -188,6 +190,8 @@
     <string name="inflight_title">In flight</string>
     <string name="inflight_remaining_time">Remaining time</string>
     <string name="inflight_time_scale_format">Time scale: %1$s</string>
+    <string name="inflight_zoom_label">Zoom: %1$d</string>
+    <string name="inflight_zoom_label_3d">Zoom: 3D</string>
     <string name="inflight_debug_title">Flight Debug</string>
     <string name="inflight_debug_elapsed_format">Elapsed: %1$s</string>
     <string name="inflight_debug_apply">Apply</string>

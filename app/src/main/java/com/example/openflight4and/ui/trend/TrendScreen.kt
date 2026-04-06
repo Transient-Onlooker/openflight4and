@@ -173,7 +173,7 @@ fun TrendScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     StatCard(
                         label = stringResource(R.string.trend_focus_time),
-                        value = FlightUtils.formatDuration(totalFocusMinutes ?: 0),
+                        value = FlightUtils.formatDuration(context, totalFocusMinutes ?: 0),
                         modifier = Modifier.weight(1f).clickable {
                             val now = System.currentTimeMillis()
                             val elapsed = now - debugClickTimestamp

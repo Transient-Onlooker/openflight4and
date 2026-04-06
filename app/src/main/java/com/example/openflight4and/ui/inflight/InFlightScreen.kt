@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -373,14 +374,13 @@ fun InFlightScreen(
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(origin, InFlightInitialZoom)
     }
-    val zoomLabel by remember {
-        derivedStateOf {
-            if (mapPerspective == Perspective3D) {
-                "\uD654\uBA74 \uBC30\uC728: 3D"
-            } else {
-                "\uD654\uBA74 \uBC30\uC728: ${cameraPositionState.position.zoom.roundToInt()}x"
-            }
-        }
+    val zoomLevel by remember {
+        derivedStateOf { cameraPositionState.position.zoom.roundToInt() }
+    }
+    val zoomLabel = if (mapPerspective == Perspective3D) {
+        stringResource(R.string.inflight_zoom_label_3d)
+    } else {
+        stringResource(R.string.inflight_zoom_label, zoomLevel)
     }
 
     LaunchedEffect(Unit) {
@@ -419,7 +419,7 @@ fun InFlightScreen(
             liveBearing.floatValue = updatedBearing
             planeMarkerState.position = updatedPos
 
-            if (mapPerspective == Perspective2_5D &&
+            if (mapPerspective != Perspective3D &&
                 inflightUiState.isCameraTracking &&
                 !cameraPositionState.isMoving
             ) {
@@ -514,7 +514,11 @@ fun InFlightScreen(
         perspective: String,
         keepTrackingTarget: Boolean
     ) {
-        val target = if (keepTrackingTarget) liveCurrentPos.value else cameraPositionState.position.target
+        val target = if (keepTrackingTarget || isCameraTracking) {
+            liveCurrentPos.value
+        } else {
+            cameraPositionState.position.target
+        }
         val updatedTilt = tiltForPerspective(perspective)
         val updatedBearing = bearingForPerspective(perspective, liveBearing.floatValue)
         cameraPositionState.move(
@@ -531,10 +535,15 @@ fun InFlightScreen(
 
     // ??????嶺뚮∥?????????筌뤾퍓愿???????????袁⑸즴筌?씛彛?????????롮쾸?椰???(???????????????곗뵰??? ????????袁⑸즴筌?씛彛???돗????⑸뻿????????嚥싲갭큔?????????븐뼐???????????븐뼔???????????뀀맩鍮??????룸챶猷??????????????
     LaunchedEffect(mapPerspective) {
+        val target = if (isCameraTracking) {
+            liveCurrentPos.value
+        } else {
+            cameraPositionState.position.target
+        }
         cameraPositionState.animate(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
-                    .target(liveCurrentPos.value)
+                    .target(target)
                     .zoom(trackedZoom())
                     .tilt(tiltForPerspective(mapPerspective))
                     .bearing(bearingForPerspective(mapPerspective, liveBearing.floatValue))
@@ -543,14 +552,17 @@ fun InFlightScreen(
         )
     }
 
-    LaunchedEffect(cameraPositionState.isMoving) {
-        if (mapPerspective != Perspective3D &&
-            cameraPositionState.isMoving &&
-            cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE
-        ) {
-            hasUserAdjustedMapZoom = true
-            inflightViewModel.disableCameraTracking()
-        }
+    LaunchedEffect(cameraPositionState) {
+        snapshotFlow { cameraPositionState.isMoving to cameraPositionState.cameraMoveStartedReason }
+            .collect { (isMoving, moveStartedReason) ->
+                if (mapPerspective != Perspective3D &&
+                    isMoving &&
+                    moveStartedReason == CameraMoveStartedReason.GESTURE
+                ) {
+                    hasUserAdjustedMapZoom = true
+                    inflightViewModel.disableCameraTracking()
+                }
+            }
     }
 
     // ?????轅붽틓???????????袁⑸즴筌?씛彛?????????ル???? ??????

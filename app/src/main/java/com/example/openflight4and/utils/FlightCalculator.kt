@@ -1,5 +1,6 @@
 package com.example.openflight4and.utils
 
+import android.content.Context
 import com.example.openflight4and.model.Airport
 
 object FlightCalculator {
@@ -11,7 +12,7 @@ object FlightCalculator {
         return FlightUtils.estimateDurationMinutes(distanceKm.toDouble())
     }
 
-    fun formatDuration(minutes: Int): String {
-        return FlightUtils.formatDuration(minutes)
+    fun formatDuration(context: Context, minutes: Int): String {
+        return FlightUtils.formatDuration(context, minutes)
     }
 }

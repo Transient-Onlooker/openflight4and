@@ -125,6 +125,8 @@
     <string name="trend_visited_airports_format">%1$d곳</string>
     <string name="trend_total_distance">누적 거리</string>
     <string name="trend_focus_time">집중 시간</string>
+    <string name="duration_hours_minutes_format">%1$d시간 %2$d분</string>
+    <string name="duration_minutes_only_format">%1$d분</string>
     <string name="trend_debug_enabled">Flight debug mode enabled</string>
     <string name="trend_debug_disabled">Flight debug mode disabled</string>
 
@@ -179,6 +181,8 @@
     <string name="inflight_title">비행 중</string>
     <string name="inflight_remaining_time">남은 시간</string>
     <string name="inflight_time_scale_format">시간 배율: %1$s</string>
+    <string name="inflight_zoom_label">줌: %1$d</string>
+    <string name="inflight_zoom_label_3d">줌: 3D</string>
     <string name="inflight_debug_title">Flight Debug</string>
     <string name="inflight_debug_elapsed_format">Elapsed: %1$s</string>
     <string name="inflight_debug_apply">Apply</string>
