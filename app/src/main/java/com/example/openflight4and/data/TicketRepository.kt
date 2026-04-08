@@ -8,6 +8,7 @@ import com.example.openflight4and.model.FlightTicketHistoryEntry
 import java.time.LocalDate
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -150,8 +151,10 @@ class TicketRepository(
             return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_enter_code))
         }
 
+        val installationId = getOrCreateInstallationId()
+
         val response = try {
-            redeemCodeRemote(normalized)
+            redeemCodeRemote(normalized, installationId)
         } catch (e: Exception) {
             reportDataError("Failed to redeem code from remote API", e)
             return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_network_error))
@@ -204,7 +207,7 @@ class TicketRepository(
         }
     }
 
-    private suspend fun redeemCodeRemote(code: String): RedeemApiResponse = withContext(Dispatchers.IO) {
+    private suspend fun redeemCodeRemote(code: String, installationId: String): RedeemApiResponse = withContext(Dispatchers.IO) {
         val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/redeem").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10_000
@@ -215,7 +218,12 @@ class TicketRepository(
         }
 
         try {
-            val payload = json.encodeToString(RedeemApiRequest(code = code.uppercase()))
+            val payload = json.encodeToString(
+                RedeemApiRequest(
+                    code = code.uppercase(),
+                    deviceId = installationId
+                )
+            )
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
                 writer.write(payload)
             }
@@ -234,6 +242,7 @@ class TicketRepository(
 
     private fun mapRedeemError(error: String?): String {
         return when (error) {
+            "Already redeemed by this device" -> context.getString(R.string.repo_redeem_already_used)
             "Code already fully used" -> context.getString(R.string.repo_redeem_already_used)
             "Code expired" -> context.getString(R.string.repo_redeem_expired)
             "Code is disabled" -> context.getString(R.string.repo_redeem_invalid)
@@ -242,11 +251,24 @@ class TicketRepository(
             else -> context.getString(R.string.repo_redeem_unavailable)
         }
     }
+
+    private suspend fun getOrCreateInstallationId(): String {
+        var installationId = ""
+        context.dataStore.edit { preferences ->
+            installationId = preferences[AppPreferenceKeys.KEY_INSTALLATION_ID]
+                ?.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString().also {
+                    preferences[AppPreferenceKeys.KEY_INSTALLATION_ID] = it
+                }
+        }
+        return installationId
+    }
 }
 
 @Serializable
 private data class RedeemApiRequest(
-    val code: String
+    val code: String,
+    val deviceId: String
 )
 
 @Serializable

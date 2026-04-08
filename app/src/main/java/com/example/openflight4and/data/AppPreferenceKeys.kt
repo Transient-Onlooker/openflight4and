@@ -27,5 +27,6 @@ object AppPreferenceKeys {
     val KEY_LAST_DAILY_TICKET_DATE = stringPreferencesKey("last_daily_ticket_date")
     val KEY_TICKET_HISTORY = stringPreferencesKey("ticket_history")
     val KEY_USED_REDEEM_CODES = stringPreferencesKey("used_redeem_codes")
+    val KEY_INSTALLATION_ID = stringPreferencesKey("installation_id")
     val KEY_DEBUG_FLIGHT_MODE = booleanPreferencesKey("debug_flight_mode")
 }
