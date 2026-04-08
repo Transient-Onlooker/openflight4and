@@ -21,6 +21,9 @@ val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")?.takeUnless
 val maps3dApiKey: String = localProperties.getProperty("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: System.getenv("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: mapsApiKey
+val redeemApiBaseUrl: String = localProperties.getProperty("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
+    ?: System.getenv("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
+    ?: "https://openflight-redeem-api.junuh145858.workers.dev"
 val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
     ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
 val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
@@ -43,11 +46,12 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2700
-        versionName = "2.7"
+        versionCode = 2701
+        versionName = "2.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+        buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")
+
         // Manifest에 API Key 주입
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         manifestPlaceholders["MAPS3D_API_KEY"] = maps3dApiKey
@@ -84,6 +88,7 @@ android {
         compose = true
         buildConfig = true
     }
+
 }
 
 kotlin {

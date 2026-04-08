@@ -242,6 +242,9 @@
     <string name="repo_redeem_enter_code">Please enter a code.</string>
     <string name="repo_redeem_invalid">Invalid code.</string>
     <string name="repo_redeem_already_used">This code has already been used.</string>
+    <string name="repo_redeem_expired">This code has expired.</string>
+    <string name="repo_redeem_unavailable">Redeem service is temporarily unavailable.</string>
+    <string name="repo_redeem_network_error">Could not connect to the redeem server.</string>
     <string name="repo_redeem_title">Redeem code</string>
     <string name="repo_redeem_detail_format">%1$s code granted %2$d tickets.</string>
 </resources>

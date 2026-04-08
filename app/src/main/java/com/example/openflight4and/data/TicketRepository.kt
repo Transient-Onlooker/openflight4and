@@ -2,12 +2,18 @@ package com.example.openflight4and.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.R
 import com.example.openflight4and.model.FlightTicketHistoryEntry
 import java.time.LocalDate
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -15,6 +21,8 @@ class TicketRepository(
     private val context: Context,
     private val reportDataError: (String, Throwable) -> Unit
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     val flightTickets: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
     }
@@ -141,50 +149,39 @@ class TicketRepository(
         if (normalized.isBlank()) {
             return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_enter_code))
         }
-        val isReusableAdminCode = normalized.startsWith("admin")
 
-        var result: RedeemCodeResult = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_invalid))
-        val rewardAmount = when (normalized) {
-            "admin" -> 1
-            "admin10" -> 10
-            "admin100" -> 100
-            else -> null
+        val response = try {
+            redeemCodeRemote(normalized)
+        } catch (e: Exception) {
+            reportDataError("Failed to redeem code from remote API", e)
+            return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_network_error))
         }
 
+        if (!response.ok || response.rewardAmount == null) {
+            return RedeemCodeResult.Error(mapRedeemError(response.error))
+        }
+
+        val rewardAmount = response.rewardAmount
         context.dataStore.edit { preferences ->
-            val usedCodes = decodeStringList(preferences[AppPreferenceKeys.KEY_USED_REDEEM_CODES]).toMutableSet()
-
-            if (!isReusableAdminCode && normalized in usedCodes) {
-                result = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_already_used))
-                return@edit
-            }
-
-            if (rewardAmount == null) {
-                result = RedeemCodeResult.Error(context.getString(R.string.repo_redeem_invalid))
-                return@edit
-            }
-
             val currentBalance = preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
             val updatedBalance = currentBalance + rewardAmount
-
             preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = updatedBalance
-            if (!isReusableAdminCode) {
-                usedCodes += normalized
-                preferences[AppPreferenceKeys.KEY_USED_REDEEM_CODES] = Json.encodeToString(usedCodes.toList())
-            }
             preferences[AppPreferenceKeys.KEY_TICKET_HISTORY] = appendHistoryEntry(
                 preferences[AppPreferenceKeys.KEY_TICKET_HISTORY],
                 FlightTicketHistoryEntry(
                     amount = rewardAmount,
                     balanceAfter = updatedBalance,
                     title = context.getString(R.string.repo_redeem_title),
-                    detail = context.getString(R.string.repo_redeem_detail_format, normalized.uppercase(), rewardAmount)
+                    detail = context.getString(
+                        R.string.repo_redeem_detail_format,
+                        normalized.uppercase(),
+                        rewardAmount
+                    )
                 )
             )
-            result = RedeemCodeResult.Success(rewardAmount)
         }
 
-        return result
+        return RedeemCodeResult.Success(rewardAmount)
     }
 
     private fun appendHistoryEntry(existingJson: String?, entry: FlightTicketHistoryEntry): String {
@@ -207,12 +204,54 @@ class TicketRepository(
         }
     }
 
-    private fun decodeStringList(json: String?): List<String> {
-        return try {
-            if (json.isNullOrBlank()) emptyList() else Json.decodeFromString(json)
-        } catch (e: Exception) {
-            reportDataError("Failed to decode used redeem codes", e)
-            emptyList()
+    private suspend fun redeemCodeRemote(code: String): RedeemApiResponse = withContext(Dispatchers.IO) {
+        val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/redeem").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 10_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Accept", "application/json")
+        }
+
+        try {
+            val payload = json.encodeToString(RedeemApiRequest(code = code.uppercase()))
+            connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.write(payload)
+            }
+
+            val stream = if (connection.responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream ?: connection.inputStream
+            }
+            val body = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            json.decodeFromString<RedeemApiResponse>(body)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun mapRedeemError(error: String?): String {
+        return when (error) {
+            "Code already fully used" -> context.getString(R.string.repo_redeem_already_used)
+            "Code expired" -> context.getString(R.string.repo_redeem_expired)
+            "Code is disabled" -> context.getString(R.string.repo_redeem_invalid)
+            "Code is required" -> context.getString(R.string.repo_redeem_enter_code)
+            "Invalid code" -> context.getString(R.string.repo_redeem_invalid)
+            else -> context.getString(R.string.repo_redeem_unavailable)
         }
     }
 }
+
+@Serializable
+private data class RedeemApiRequest(
+    val code: String
+)
+
+@Serializable
+private data class RedeemApiResponse(
+    val ok: Boolean,
+    val error: String? = null,
+    val rewardAmount: Int? = null
+)

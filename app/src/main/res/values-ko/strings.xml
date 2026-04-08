@@ -242,6 +242,9 @@
     <string name="repo_redeem_enter_code">코드를 입력해주세요.</string>
     <string name="repo_redeem_invalid">유효하지 않은 코드입니다.</string>
     <string name="repo_redeem_already_used">이미 사용한 코드입니다.</string>
+    <string name="repo_redeem_expired">만료된 코드입니다.</string>
+    <string name="repo_redeem_unavailable">리딤 서버를 일시적으로 사용할 수 없습니다.</string>
+    <string name="repo_redeem_network_error">리딤 서버에 연결할 수 없습니다.</string>
     <string name="repo_redeem_title">리딤 코드</string>
     <string name="repo_redeem_detail_format">%1$s 코드로 비행권 %2$d개가 지급되었습니다.</string>
 </resources>

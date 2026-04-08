@@ -212,11 +212,6 @@ fun TicketCenterScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            stringResource(R.string.tickets_redeem_test_codes),
-                            color = FlightGray,
-                            style = MaterialTheme.typography.bodySmall
-                        )
                         OutlinedTextField(
                             value = uiState.redeemCode,
                             onValueChange = { viewModel.updateRedeemCode(it) },
