@@ -8,7 +8,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -45,7 +44,7 @@ class TicketCenterViewModelTest {
     }
 
     @Test
-    fun startAdReward_completesAfter30Seconds() = runTest {
+    fun startAdReward_setsLoadingStateAndLaunchesRewardedAd() = runTest {
         val repository = FakeAppRepository()
         val events = mutableListOf<TicketCenterEvent>()
         val viewModel = TicketCenterViewModel(repository)
@@ -54,13 +53,52 @@ class TicketCenterViewModelTest {
         advanceUntilIdle()
 
         viewModel.startAdReward()
-        advanceTimeBy(30_000)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isWatchingAd)
+        assertEquals(0, repository.rewardedAds)
+        assertEquals(TicketCenterEvent.LaunchRewardedAd, events.last())
+    }
+
+    @Test
+    fun completeAdReward_grantsTicketAndShowsToast() = runTest {
+        val repository = FakeAppRepository()
+        val events = mutableListOf<TicketCenterEvent>()
+        val viewModel = TicketCenterViewModel(repository)
+
+        backgroundScope.launch { viewModel.events.collect(events::add) }
+        advanceUntilIdle()
+
+        viewModel.startAdReward()
+        advanceUntilIdle()
+        viewModel.completeAdReward()
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isWatchingAd)
         assertEquals(1, repository.rewardedAds)
         assertEquals(
             TicketCenterEvent.ShowToast("광고 보상으로 비행권 1개가 지급되었습니다."),
+            events.last()
+        )
+    }
+
+    @Test
+    fun handleAdLoadFailed_resetsLoadingStateAndShowsFallbackToast() = runTest {
+        val repository = FakeAppRepository()
+        val events = mutableListOf<TicketCenterEvent>()
+        val viewModel = TicketCenterViewModel(repository)
+
+        backgroundScope.launch { viewModel.events.collect(events::add) }
+        advanceUntilIdle()
+
+        viewModel.startAdReward()
+        advanceUntilIdle()
+        viewModel.handleAdLoadFailed(null)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isWatchingAd)
+        assertEquals(
+            TicketCenterEvent.ShowToast("광고를 불러오지 못했습니다. 잠시 다시 시도해주세요."),
             events.last()
         )
     }

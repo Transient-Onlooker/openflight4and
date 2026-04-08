@@ -2,6 +2,8 @@ package com.example.openflight4and.ui.inflight
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,10 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.openflight4and.R
 import com.example.openflight4and.model.FlightDraft
-import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.MapOverlayPalette
-import com.example.openflight4and.ui.components.PrimaryFlightButton
-import com.example.openflight4and.ui.theme.FlightGray
 
 data class InFlightPanelColors(
     val panelBackground: Color,
@@ -100,7 +100,7 @@ fun InFlightStatusPanel(
     colors: InFlightPanelColors,
     modifier: Modifier = Modifier
 ) {
-    GlassPanel(
+    LocalGlassPanel(
         modifier = modifier,
         backgroundColor = colors.panelBackground,
         borderColor = colors.panelBorder
@@ -181,7 +181,6 @@ fun InFlightStatusPanel(
 @Composable
 fun InFlightFloatingControls(
     isAdRewardRunning: Boolean,
-    adRewardSecondsRemaining: Int,
     mapPerspective: String,
     isCameraTracking: Boolean,
     overlayPalette: MapOverlayPalette,
@@ -203,7 +202,7 @@ fun InFlightFloatingControls(
         ) {
             if (isAdRewardRunning) {
                 Text(
-                    text = "$adRewardSecondsRemaining",
+                    text = "...",
                     style = MaterialTheme.typography.labelSmall
                 )
             } else {
@@ -274,7 +273,7 @@ fun InFlightDebugPanel(
     onApply: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassPanel(
+    LocalGlassPanel(
         modifier = modifier,
         backgroundColor = overlayPalette.panelBackground,
         borderColor = overlayPalette.panelBorder
@@ -336,7 +335,7 @@ fun InFlightProgressPanel(
     colors: InFlightPanelColors,
     modifier: Modifier = Modifier
 ) {
-    GlassPanel(
+    LocalGlassPanel(
         modifier = modifier,
         backgroundColor = colors.panelBackground,
         borderColor = colors.panelBorder
@@ -399,7 +398,7 @@ fun InFlightActionRow(
             Text(androidx.compose.ui.res.stringResource(R.string.inflight_pause))
         }
 
-        PrimaryFlightButton(
+        LocalPrimaryFlightButton(
             text = androidx.compose.ui.res.stringResource(R.string.inflight_end_journey),
             onClick = onGiveUp,
             modifier = Modifier.weight(1f),
@@ -417,7 +416,7 @@ fun InFlightPausedOverlay(
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0x331F1F1F))
     ) {
-        GlassPanel(
+        LocalGlassPanel(
             modifier = Modifier.align(Alignment.Center).padding(24.dp),
             backgroundColor = Color.White,
             borderColor = colors.panelBorder
@@ -463,7 +462,7 @@ fun InFlightRewardPromptOverlay(
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0x331F1F1F))
     ) {
-        GlassPanel(
+        LocalGlassPanel(
             modifier = Modifier.align(Alignment.Center).padding(24.dp),
             backgroundColor = Color.White,
             borderColor = colors.panelBorder
@@ -503,13 +502,12 @@ fun InFlightRewardPromptOverlay(
 @Composable
 fun InFlightAdRunningOverlay(
     colors: InFlightPanelColors,
-    secondsRemaining: Int,
     onCancel: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0x331F1F1F))
     ) {
-        GlassPanel(
+        LocalGlassPanel(
             modifier = Modifier.align(Alignment.Center).padding(24.dp),
             backgroundColor = Color.White,
             borderColor = colors.panelBorder
@@ -526,10 +524,7 @@ fun InFlightAdRunningOverlay(
                     fontSize = 22.sp
                 )
                 Text(
-                    androidx.compose.ui.res.stringResource(
-                        R.string.inflight_ad_seconds_remaining_format,
-                        secondsRemaining
-                    ),
+                    androidx.compose.ui.res.stringResource(R.string.tickets_ad_reward_running),
                     color = colors.secondaryText,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -565,7 +560,7 @@ fun InFlightGiveUpDialog(
         text = {
             Text(
                 androidx.compose.ui.res.stringResource(R.string.inflight_give_up_message),
-                color = FlightGray
+                color = Color(0xFF8C8A80)
             )
         },
         confirmButton = {
@@ -583,4 +578,57 @@ fun InFlightGiveUpDialog(
         },
         containerColor = Color(0xFF0D0000)
     )
+}
+
+@Composable
+private fun LocalGlassPanel(
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color.White.copy(alpha = 0.15f),
+    borderColor: Color = Color.White.copy(alpha = 0.2f),
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .border(
+                BorderStroke(1.dp, borderColor),
+                RoundedCornerShape(16.dp)
+            )
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun LocalPrimaryFlightButton(
+    text: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    isDestructive: Boolean = false
+) {
+    val containerColor = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val contentColor = if (isDestructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = Color(0xFF8C8A80).copy(alpha = 0.2f),
+            disabledContentColor = Color(0xFF8C8A80)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
 }

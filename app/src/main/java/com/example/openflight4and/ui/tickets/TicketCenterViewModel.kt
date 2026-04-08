@@ -10,7 +10,6 @@ import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
 import com.example.openflight4and.model.FlightTicketHistoryEntry
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -31,6 +30,7 @@ data class TicketCenterUiState(
 
 sealed interface TicketCenterEvent {
     data class ShowToast(val message: String) : TicketCenterEvent
+    data object LaunchRewardedAd : TicketCenterEvent
 }
 
 class TicketCenterViewModel(
@@ -87,30 +87,41 @@ class TicketCenterViewModel(
 
     fun startAdReward() {
         if (_uiState.value.isWatchingAd) return
-        _uiState.update { it.copy(isWatchingAd = true, adSecondsRemaining = 30) }
-
+        _uiState.update { it.copy(isWatchingAd = true, adSecondsRemaining = 0) }
         viewModelScope.launch {
-            while (_uiState.value.adSecondsRemaining > 0 && _uiState.value.isWatchingAd) {
-                delay(1_000)
-                _uiState.update { state ->
-                    state.copy(adSecondsRemaining = (state.adSecondsRemaining - 1).coerceAtLeast(0))
-                }
-            }
-
-            if (_uiState.value.isWatchingAd) {
-                repository.rewardTicketsFromAd()
-                _uiState.update { it.copy(isWatchingAd = false) }
-                _events.emit(
-                    TicketCenterEvent.ShowToast(
-                        messageFor(R.string.tickets_toast_ad_reward, 1)
-                    )
-                )
-            }
+            _events.emit(TicketCenterEvent.LaunchRewardedAd)
         }
     }
 
     fun cancelAdReward() {
         _uiState.update { it.copy(isWatchingAd = false) }
+    }
+
+    fun completeAdReward() {
+        viewModelScope.launch {
+            repository.rewardTicketsFromAd()
+            _uiState.update { it.copy(isWatchingAd = false) }
+            _events.emit(
+                TicketCenterEvent.ShowToast(
+                    messageFor(R.string.tickets_toast_ad_reward, 1)
+                )
+            )
+        }
+    }
+
+    fun handleAdClosedWithoutReward() {
+        _uiState.update { it.copy(isWatchingAd = false) }
+    }
+
+    fun handleAdLoadFailed(message: String?) {
+        _uiState.update { it.copy(isWatchingAd = false) }
+        viewModelScope.launch {
+            _events.emit(
+                TicketCenterEvent.ShowToast(
+                    message ?: messageFor(R.string.tickets_ad_reward_unavailable)
+                )
+            )
+        }
     }
 
     fun redeemCode() {

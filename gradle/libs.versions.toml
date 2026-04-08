@@ -18,6 +18,7 @@ datastore = "1.1.1"
 serialization = "1.6.3"
 room = "2.7.2"
 ksp = "2.2.20-2.0.2"
+playServicesAds = "25.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,6 +48,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 # Google Maps
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "googleMaps" }
 play-services-maps3d = { group = "com.google.android.gms", name = "play-services-maps3d", version.ref = "maps3d" }
+play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 
 # DataStore & Serialization

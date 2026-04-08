@@ -21,6 +21,14 @@ val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")?.takeUnless
 val maps3dApiKey: String = localProperties.getProperty("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: System.getenv("MAPS3D_API_KEY")?.takeUnless { it.isBlank() }
     ?: mapsApiKey
+val testAdmobAppId = "ca-app-pub-3940256099942544~3347511713"
+val testAdmobRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917"
+val admobAppId: String = localProperties.getProperty("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
+    ?: System.getenv("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
+    ?: testAdmobAppId
+val admobRewardedAdUnitId: String = localProperties.getProperty("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
+    ?: System.getenv("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
+    ?: testAdmobRewardedAdUnitId
 val redeemApiBaseUrl: String = localProperties.getProperty("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: "https://openflight-redeem-api.junuh145858.workers.dev"
@@ -69,8 +77,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"$testAdmobRewardedAdUnitId\"")
+            manifestPlaceholders["ADMOB_APP_ID"] = testAdmobAppId
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"$admobRewardedAdUnitId\"")
+            manifestPlaceholders["ADMOB_APP_ID"] = admobAppId
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -115,6 +129,7 @@ dependencies {
     implementation(libs.material)
 
     // Google Maps
+    implementation(libs.play.services.ads)
     implementation(libs.play.services.maps)
     implementation(libs.play.services.maps3d)
     implementation(libs.maps.compose)

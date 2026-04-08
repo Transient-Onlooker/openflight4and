@@ -1,6 +1,5 @@
 package com.example.openflight4and
 
-import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
@@ -8,7 +7,6 @@ import com.example.openflight4and.data.TicketSpendResult
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.model.FlightTicketHistoryEntry
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -16,21 +14,23 @@ class FakeAppRepository(
     private val airports: List<Airport> = emptyList()
 ) : AppRepositoryDataSource {
     override fun getAirports(): List<Airport> = airports
+
     override fun getString(resId: Int, vararg formatArgs: Any): String {
         return when (resId) {
             R.string.tickets_toast_daily_check_in_reward -> "출석체크 보상으로 비행권 ${formatArgs[0]}개가 지급되었습니다."
             R.string.tickets_toast_ad_reward -> "광고 보상으로 비행권 ${formatArgs[0]}개가 지급되었습니다."
+            R.string.tickets_ad_reward_unavailable -> "광고를 불러오지 못했습니다. 잠시 다시 시도해주세요."
             R.string.tickets_toast_redeem_success -> "비행권 ${formatArgs[0]}개가 지급되었습니다."
             R.string.repo_redeem_enter_code -> "코드를 입력해 주세요."
             else -> error("Unsupported string resource id: $resId")
         }
     }
 
-    override val recentSessions: MutableStateFlow<List<FlightSession>> = MutableStateFlow(emptyList())
-    override val currentLocation: MutableStateFlow<Airport?> = MutableStateFlow(null)
-    override val flightTickets: MutableStateFlow<Int> = MutableStateFlow(0)
-    override val hasCheckedInToday: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    override val ticketHistory: MutableStateFlow<List<FlightTicketHistoryEntry>> = MutableStateFlow(emptyList())
+    override val recentSessions = MutableStateFlow<List<FlightSession>>(emptyList())
+    override val currentLocation = MutableStateFlow<Airport?>(null)
+    override val flightTickets = MutableStateFlow(0)
+    override val hasCheckedInToday = MutableStateFlow(false)
+    override val ticketHistory = MutableStateFlow<List<FlightTicketHistoryEntry>>(emptyList())
 
     var nextDailyCheckInResult: DailyCheckInResult = DailyCheckInResult.Success(1)
     var nextStartFlightResult: TicketSpendResult = TicketSpendResult(success = true, spent = 0)

@@ -4,9 +4,9 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.data.AppRepositoryDataSource
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,12 +18,12 @@ data class InFlightUiState(
     val showGiveUpDialog: Boolean = false,
     val showAdRewardDialog: Boolean = false,
     val isAdRewardRunning: Boolean = false,
-    val adRewardSecondsRemaining: Int = 30,
     val isCameraTracking: Boolean = true
 )
 
 sealed interface InFlightEvent {
     data class ShowToast(val message: String) : InFlightEvent
+    data object LaunchRewardedAd : InFlightEvent
 }
 
 class InFlightViewModel(
@@ -57,29 +57,44 @@ class InFlightViewModel(
         _uiState.update {
             it.copy(
                 showAdRewardDialog = false,
-                isAdRewardRunning = true,
-                adRewardSecondsRemaining = 30
+                isAdRewardRunning = true
             )
         }
 
         viewModelScope.launch {
-            while (_uiState.value.isAdRewardRunning && _uiState.value.adRewardSecondsRemaining > 0) {
-                delay(1_000)
-                _uiState.update { state ->
-                    state.copy(adRewardSecondsRemaining = (state.adRewardSecondsRemaining - 1).coerceAtLeast(0))
-                }
-            }
-
-            if (_uiState.value.isAdRewardRunning) {
-                repository.rewardSingleTicketFromInFlightAd()
-                _uiState.update { it.copy(isAdRewardRunning = false) }
-                _events.emit(InFlightEvent.ShowToast("\uBE44\uD589\uAD8C 1\uAC1C\uAC00 \uC9C0\uAE09\uB418\uC5C8\uC2B5\uB2C8\uB2E4."))
-            }
+            _events.emit(InFlightEvent.LaunchRewardedAd)
         }
     }
 
     fun cancelAdReward() {
         _uiState.update { it.copy(isAdRewardRunning = false) }
+    }
+
+    fun completeAdReward() {
+        viewModelScope.launch {
+            repository.rewardSingleTicketFromInFlightAd()
+            _uiState.update { it.copy(isAdRewardRunning = false) }
+            _events.emit(
+                InFlightEvent.ShowToast(
+                    messageFor(R.string.tickets_toast_ad_reward, 1)
+                )
+            )
+        }
+    }
+
+    fun handleAdClosedWithoutReward() {
+        _uiState.update { it.copy(isAdRewardRunning = false) }
+    }
+
+    fun handleAdLoadFailed(message: String?) {
+        _uiState.update { it.copy(isAdRewardRunning = false) }
+        viewModelScope.launch {
+            _events.emit(
+                InFlightEvent.ShowToast(
+                    message ?: messageFor(R.string.tickets_ad_reward_unavailable)
+                )
+            )
+        }
     }
 
     fun enableCameraTracking() {
@@ -100,5 +115,9 @@ class InFlightViewModel(
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
+    }
+
+    private fun messageFor(resId: Int, vararg formatArgs: Any): String {
+        return repository.getString(resId, *formatArgs)
     }
 }

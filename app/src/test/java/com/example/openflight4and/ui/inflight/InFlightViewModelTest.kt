@@ -5,7 +5,6 @@ import com.example.openflight4and.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -21,19 +20,35 @@ class InFlightViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun adReward_completesAfter30Seconds() = runTest {
+    fun adReward_startsAndLaunchesRewardedAd() = runTest {
         val repository = FakeAppRepository()
         val viewModel = InFlightViewModel(repository)
         val eventDeferred = backgroundScope.async { viewModel.events.first() }
 
         viewModel.startAdReward()
-        advanceTimeBy(30_000)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isAdRewardRunning)
+        assertEquals(0, repository.rewardedInflightAds)
+        assertEquals(InFlightEvent.LaunchRewardedAd, eventDeferred.await())
+    }
+
+    @Test
+    fun adReward_complete_grantsTicketAndShowsToast() = runTest {
+        val repository = FakeAppRepository()
+        val viewModel = InFlightViewModel(repository)
+        backgroundScope.async { viewModel.events.first() }
+
+        viewModel.startAdReward()
+        advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
+        viewModel.completeAdReward()
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isAdRewardRunning)
         assertEquals(1, repository.rewardedInflightAds)
         assertEquals(
-            InFlightEvent.ShowToast("비행권 1개가 지급되었습니다."),
+            InFlightEvent.ShowToast("愿묎퀬 蹂댁긽?쇰줈 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."),
             eventDeferred.await()
         )
     }

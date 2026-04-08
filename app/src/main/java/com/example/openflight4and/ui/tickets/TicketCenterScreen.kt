@@ -1,6 +1,9 @@
 package com.example.openflight4and.ui.tickets
 
 import android.app.Application
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,11 +46,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
+import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.model.FlightTicketHistoryEntry
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
 import com.example.openflight4and.ui.theme.FlightBlack
 import com.example.openflight4and.ui.theme.FlightGray
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -59,6 +68,7 @@ fun TicketCenterScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = context.findActivity()
     val viewModel: TicketCenterViewModel = viewModel(
         factory = TicketCenterViewModel.Factory(context.applicationContext as Application)
     )
@@ -69,6 +79,43 @@ fun TicketCenterScreen(
             when (event) {
                 is TicketCenterEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                TicketCenterEvent.LaunchRewardedAd -> {
+                    if (activity == null) {
+                        viewModel.handleAdLoadFailed(context.getString(R.string.tickets_ad_reward_unavailable))
+                        return@collect
+                    }
+
+                    val adRequest = AdRequest.Builder().build()
+                    RewardedAd.load(
+                        context,
+                        BuildConfig.ADMOB_REWARDED_AD_UNIT_ID,
+                        adRequest,
+                        object : RewardedAdLoadCallback() {
+                            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                                viewModel.handleAdLoadFailed(loadAdError.message)
+                            }
+
+                            override fun onAdLoaded(rewardedAd: RewardedAd) {
+                                var rewardEarned = false
+                                rewardedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+                                    override fun onAdDismissedFullScreenContent() {
+                                        if (!rewardEarned) {
+                                            viewModel.handleAdClosedWithoutReward()
+                                        }
+                                    }
+
+                                    override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                                        viewModel.handleAdLoadFailed(adError.message)
+                                    }
+                                }
+                                rewardedAd.show(activity) {
+                                    rewardEarned = true
+                                    viewModel.completeAdReward()
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -271,7 +318,7 @@ fun TicketCenterScreen(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
-                    ) {
+                        ) {
                         Icon(
                             imageVector = Icons.Default.PlayCircle,
                             contentDescription = null,
@@ -279,11 +326,6 @@ fun TicketCenterScreen(
                         )
                         Text(stringResource(R.string.tickets_ad_dialog_description), color = FlightGray)
                     }
-                    Text(
-                        stringResource(R.string.label_seconds_remaining, uiState.adSecondsRemaining),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             },
             confirmButton = {
@@ -294,6 +336,12 @@ fun TicketCenterScreen(
             containerColor = Color(0xFF0D0000)
         )
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 @Composable

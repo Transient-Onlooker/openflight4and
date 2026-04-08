@@ -1,13 +1,21 @@
 ﻿package com.example.openflight4and.ui.inflight
 
 import android.app.Application
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.location.Location
 import android.os.SystemClock
+import android.util.Log
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Flight
@@ -25,24 +33,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.service.FlightService
-import com.example.openflight4and.ui.LocalAppRepository
-import com.example.openflight4and.ui.components.PrimaryFlightButton
-import com.example.openflight4and.ui.components.RealFlightMap
-import com.example.openflight4and.ui.components.rememberMapOverlayPalette
-import com.example.openflight4and.ui.theme.FlightBlack
-import com.example.openflight4and.ui.theme.FlightGray
-import com.example.openflight4and.ui.theme.FlightPrimary
 import com.example.openflight4and.utils.FlightUtils
 import com.example.openflight4and.utils.MapBitmapUtils
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps3d.GoogleMap3D
+import com.google.android.gms.maps3d.Map3DOptions
+import com.google.android.gms.maps3d.Map3DView
+import com.google.android.gms.maps3d.OnMap3DViewReadyCallback
+import com.google.android.gms.maps3d.model.Camera
+import com.google.android.gms.maps3d.model.camera
+import com.google.android.gms.maps3d.model.latLngAltitude
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -74,6 +92,15 @@ private const val Perspective2_5D = "2_5d"
 private const val Perspective3D = "3d"
 private const val GreatCircleBearingStep = 0.001
 private const val GreatCircleRouteSegments = 256
+private const val Maps3DTag = "Map3DVRView"
+private const val Maps3DTiltDegrees = 60.0
+private const val Maps3DRangeMeters = 4500.0
+private const val Maps3DAltitudeMeters = 1200.0
+private const val Maps3DManualHeadingPerPixel = 0.18
+private const val Maps3DManualTiltPerPixel = 0.12
+private const val Maps3DMinTiltDegrees = 5.0
+private const val Maps3DMaxTiltDegrees = 88.0
+private const val Maps3DDragThresholdPixels = 0.5f
 
 /**
  * ??????????⑤벡瑜?????(Great Circle Interpolation)
@@ -166,19 +193,20 @@ fun InFlightScreen(
     onFlightEnd: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = context.findActivity()
     val inflightViewModel: InFlightViewModel = viewModel(
         factory = InFlightViewModel.Factory(context.applicationContext as Application)
     )
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-    val repository = LocalAppRepository.current
+    val repository = remember(context) { AppRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val serviceRuntimeState by FlightService.runtimeState.collectAsState()
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
-    val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
+    val overlayPalette = rememberInFlightOverlayPalette(mapOverlayStyle)
     val inflightPanelBackground = Color.White.copy(alpha = InFlightPanelAlpha)
     val inflightPanelBorder = Color.Black.copy(alpha = InFlightPanelBorderAlpha)
     val inflightPrimaryText = Color.Black
@@ -292,6 +320,43 @@ fun InFlightScreen(
             when (event) {
                 is InFlightEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                InFlightEvent.LaunchRewardedAd -> {
+                    if (activity == null) {
+                        inflightViewModel.handleAdLoadFailed(context.getString(R.string.tickets_ad_reward_unavailable))
+                        return@collect
+                    }
+
+                    val adRequest = AdRequest.Builder().build()
+                    RewardedAd.load(
+                        context,
+                        BuildConfig.ADMOB_REWARDED_AD_UNIT_ID,
+                        adRequest,
+                        object : RewardedAdLoadCallback() {
+                            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                                inflightViewModel.handleAdLoadFailed(loadAdError.message)
+                            }
+
+                            override fun onAdLoaded(rewardedAd: RewardedAd) {
+                                var rewardEarned = false
+                                rewardedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+                                    override fun onAdDismissedFullScreenContent() {
+                                        if (!rewardEarned) {
+                                            inflightViewModel.handleAdClosedWithoutReward()
+                                        }
+                                    }
+
+                                    override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                                        inflightViewModel.handleAdLoadFailed(adError.message)
+                                    }
+                                }
+                                rewardedAd.show(activity) {
+                                    rewardEarned = true
+                                    inflightViewModel.completeAdReward()
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -586,7 +651,7 @@ fun InFlightScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (mapPerspective == Perspective3D) {
-            Map3DVRView(
+            EmbeddedMap3DVRView(
                 currentPosition = liveCurrentPos.value,
                 bearing = liveBearing.floatValue,
                 isCameraTracking = isCameraTracking,
@@ -606,7 +671,7 @@ fun InFlightScreen(
             )
         }
 
-        RealFlightMap(
+        EmbeddedRealFlightMap(
             cameraPositionState = cameraPositionState,
             mapStyle = mapStyle,
             renderMap = mapPerspective != Perspective3D,
@@ -658,7 +723,6 @@ fun InFlightScreen(
 
                             InFlightFloatingControls(
                                 isAdRewardRunning = inflightUiState.isAdRewardRunning,
-                                adRewardSecondsRemaining = inflightUiState.adRewardSecondsRemaining,
                                 mapPerspective = mapPerspective,
                                 isCameraTracking = isCameraTracking,
                                 overlayPalette = overlayPalette,
@@ -765,7 +829,6 @@ fun InFlightScreen(
                         ) {
                             InFlightFloatingControls(
                                 isAdRewardRunning = inflightUiState.isAdRewardRunning,
-                                adRewardSecondsRemaining = inflightUiState.adRewardSecondsRemaining,
                                 mapPerspective = mapPerspective,
                                 isCameraTracking = isCameraTracking,
                                 overlayPalette = overlayPalette,
@@ -862,7 +925,6 @@ fun InFlightScreen(
         if (inflightUiState.isAdRewardRunning) {
             InFlightAdRunningOverlay(
                 colors = panelColors,
-                secondsRemaining = inflightUiState.adRewardSecondsRemaining,
                 onCancel = { inflightViewModel.cancelAdReward() }
             )
         }
@@ -872,6 +934,298 @@ fun InFlightScreen(
         InFlightGiveUpDialog(
             onDismiss = { inflightViewModel.hideGiveUpDialog() },
             onConfirmGiveUp = { stopFlight() }
+        )
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+@Composable
+private fun rememberInFlightOverlayPalette(style: String): com.example.openflight4and.ui.components.MapOverlayPalette {
+    return when (style) {
+        "light" -> com.example.openflight4and.ui.components.MapOverlayPalette(
+            panelBackground = Color.White.copy(alpha = 0.9f),
+            panelBorder = Color.Black.copy(alpha = 0.12f),
+            primaryText = Color(0xFF0D0000),
+            secondaryText = Color(0xFF262523).copy(alpha = 0.8f),
+            accentText = Color(0xFF0D0000),
+            iconTint = Color(0xFF0D0000),
+            divider = Color.Black.copy(alpha = 0.08f),
+            trackColor = Color.Black.copy(alpha = 0.08f),
+            floatingButtonContainer = Color.White.copy(alpha = 0.96f),
+            floatingButtonContent = Color(0xFF0D0000)
+        )
+
+        else -> com.example.openflight4and.ui.components.MapOverlayPalette(
+            panelBackground = Color.White.copy(alpha = 0.24f),
+            panelBorder = Color.White.copy(alpha = 0.28f),
+            primaryText = Color.White,
+            secondaryText = Color(0xFF8C8A80),
+            accentText = Color(0xFFD9D7CC),
+            iconTint = Color(0xFF8C8A80),
+            divider = Color.White.copy(alpha = 0.16f),
+            trackColor = Color.White.copy(alpha = 0.16f),
+            floatingButtonContainer = Color(0xFF0D0000).copy(alpha = 0.88f),
+            floatingButtonContent = Color(0xFFD9D7CC)
+        )
+    }
+}
+
+@Composable
+private fun EmbeddedRealFlightMap(
+    modifier: Modifier = Modifier,
+    cameraPositionState: CameraPositionState,
+    mapStyle: String = "standard",
+    renderMap: Boolean = true,
+    isInteractive: Boolean = true,
+    allowRotationGestures: Boolean = false,
+    mapContent: @Composable (() -> Unit)? = null,
+    overlayContent: @Composable (BoxScope.() -> Unit)? = null,
+    useDarkOverlay: Boolean = true
+) {
+    val mapType = when (mapStyle) {
+        "satellite" -> MapType.SATELLITE
+        "hybrid" -> MapType.HYBRID
+        else -> MapType.NORMAL
+    }
+    val overlayAlpha = if (mapType == MapType.NORMAL) 0.6f else 0.3f
+
+    Box(modifier = modifier.fillMaxSize()) {
+        if (renderMap) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(
+                    mapType = mapType,
+                    isMyLocationEnabled = false,
+                    isTrafficEnabled = false,
+                    maxZoomPreference = 20f,
+                    minZoomPreference = 2f
+                ),
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false,
+                    compassEnabled = false,
+                    myLocationButtonEnabled = false,
+                    mapToolbarEnabled = false,
+                    scrollGesturesEnabled = isInteractive,
+                    zoomGesturesEnabled = isInteractive,
+                    tiltGesturesEnabled = false,
+                    rotationGesturesEnabled = isInteractive && allowRotationGestures
+                )
+            ) {
+                mapContent?.invoke()
+            }
+        }
+
+        if (renderMap && useDarkOverlay) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(color = Color(0xFF0D0000).copy(alpha = overlayAlpha))
+            }
+        }
+
+        overlayContent?.invoke(this)
+    }
+}
+
+private fun normalizeMaps3DHeading(bearing: Float): Double {
+    return ((bearing % 360f) + 360f).toDouble() % 360.0
+}
+
+private fun normalizedHeadingDouble(heading: Double): Double {
+    return ((heading % 360.0) + 360.0) % 360.0
+}
+
+private fun adjustedCameraForDrag(
+    camera: Camera,
+    deltaX: Float,
+    deltaY: Float
+): Camera {
+    val currentHeading = camera.heading ?: 0.0
+    val currentTilt = camera.tilt ?: Maps3DTiltDegrees
+    val updatedHeading = normalizedHeadingDouble(currentHeading - deltaX * Maps3DManualHeadingPerPixel)
+    val updatedTilt = (currentTilt + deltaY * Maps3DManualTiltPerPixel)
+        .coerceIn(Maps3DMinTiltDegrees, Maps3DMaxTiltDegrees)
+    return camera {
+        center = camera.center
+        heading = updatedHeading
+        tilt = updatedTilt
+        roll = camera.roll ?: 0.0
+        range = camera.range ?: Maps3DRangeMeters
+    }
+}
+
+@Composable
+private fun EmbeddedMap3DVRView(
+    currentPosition: LatLng,
+    bearing: Float,
+    isCameraTracking: Boolean,
+    modifier: Modifier = Modifier,
+    overlayContent: (@Composable BoxScope.() -> Unit)? = null,
+    onUserInteraction: () -> Unit = {},
+    onMapError: (Exception) -> Unit = {}
+) {
+    var map3D by remember { mutableStateOf<GoogleMap3D?>(null) }
+    var map3DView by remember { mutableStateOf<Map3DView?>(null) }
+    var isUserCameraOverride by remember { mutableStateOf(false) }
+    var lastTouchX by remember { mutableStateOf(0f) }
+    var lastTouchY by remember { mutableStateOf(0f) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val normalizedHeading = remember(bearing) { normalizeMaps3DHeading(bearing) }
+
+    DisposableEffect(lifecycleOwner, map3DView) {
+        val view = map3DView
+        if (view == null) {
+            return@DisposableEffect onDispose {}
+        }
+
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> view.onStart()
+                Lifecycle.Event.ON_RESUME -> view.onResume()
+                Lifecycle.Event.ON_PAUSE -> view.onPause()
+                Lifecycle.Event.ON_STOP -> view.onStop()
+                else -> Unit
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        val currentState = lifecycleOwner.lifecycle.currentState
+        if (currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            view.onStart()
+        }
+        if (currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            view.onResume()
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { viewContext ->
+                val options = Map3DOptions(
+                    centerLat = currentPosition.latitude,
+                    centerLng = currentPosition.longitude,
+                    centerAlt = Maps3DAltitudeMeters,
+                    heading = normalizedHeading,
+                    tilt = Maps3DTiltDegrees,
+                    roll = 0.0,
+                    range = Maps3DRangeMeters
+                )
+                Map3DView(viewContext, options).apply {
+                    map3DView = this
+                    setOnTouchListener { _, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> {
+                                isUserCameraOverride = true
+                                onUserInteraction()
+                                lastTouchX = event.x
+                                lastTouchY = event.y
+                                true
+                            }
+
+                            MotionEvent.ACTION_MOVE -> {
+                                if (event.pointerCount == 1) {
+                                    val deltaX = event.x - lastTouchX
+                                    val deltaY = event.y - lastTouchY
+                                    if (abs(deltaX) > Maps3DDragThresholdPixels || abs(deltaY) > Maps3DDragThresholdPixels) {
+                                        map3D?.getCamera()?.let { currentCamera ->
+                                            map3D?.setCamera(
+                                                adjustedCameraForDrag(
+                                                    camera = currentCamera,
+                                                    deltaX = deltaX,
+                                                    deltaY = deltaY
+                                                )
+                                            )
+                                        }
+                                        lastTouchX = event.x
+                                        lastTouchY = event.y
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+
+                            MotionEvent.ACTION_POINTER_DOWN -> {
+                                isUserCameraOverride = true
+                                onUserInteraction()
+                                false
+                            }
+
+                            else -> false
+                        }
+                    }
+                    onCreate(null)
+                    getMap3DViewAsync(
+                        object : OnMap3DViewReadyCallback {
+                            override fun onMap3DViewReady(googleMap3D: GoogleMap3D) {
+                                map3D = googleMap3D
+                            }
+
+                            override fun onError(error: Exception) {
+                                Log.e(Maps3DTag, "Map3D initialization failed", error)
+                                onMapError(error)
+                            }
+                        }
+                    )
+                }
+            },
+            update = { view ->
+                if (map3D == null) {
+                    view.getMap3DViewAsync(
+                        object : OnMap3DViewReadyCallback {
+                            override fun onMap3DViewReady(googleMap3D: GoogleMap3D) {
+                                map3D = googleMap3D
+                            }
+
+                            override fun onError(error: Exception) {
+                                Log.e(Maps3DTag, "Map3D update failed", error)
+                                onMapError(error)
+                            }
+                        }
+                    )
+                }
+            },
+            onRelease = { view ->
+                map3D = null
+                map3DView = null
+                view.onDestroy()
+            }
+        )
+
+        overlayContent?.invoke(this)
+    }
+
+    LaunchedEffect(isCameraTracking) {
+        if (isCameraTracking) {
+            isUserCameraOverride = false
+        }
+    }
+
+    LaunchedEffect(map3D, currentPosition, bearing, isCameraTracking, isUserCameraOverride) {
+        if (!isCameraTracking || isUserCameraOverride) {
+            return@LaunchedEffect
+        }
+
+        map3D?.setCamera(
+            camera {
+                center = latLngAltitude {
+                    latitude = currentPosition.latitude
+                    longitude = currentPosition.longitude
+                    altitude = Maps3DAltitudeMeters
+                }
+                heading = normalizedHeading
+                tilt = Maps3DTiltDegrees
+                roll = 0.0
+                range = Maps3DRangeMeters
+            }
         )
     }
 }
