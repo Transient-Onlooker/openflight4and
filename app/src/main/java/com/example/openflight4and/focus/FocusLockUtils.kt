@@ -5,13 +5,15 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 
 data class LaunchableApp(
     val packageName: String,
-    val label: String
+    val label: String,
+    val icon: Drawable
 )
 
 object FocusLockUtils {
@@ -74,7 +76,8 @@ object FocusLockUtils {
                 if (packageName == context.packageName) return@mapNotNull null
                 val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
                 if (label.isBlank()) return@mapNotNull null
-                LaunchableApp(packageName = packageName, label = label)
+                val icon = resolveInfo.loadIcon(packageManager) ?: return@mapNotNull null
+                LaunchableApp(packageName = packageName, label = label, icon = icon)
             }
             .distinctBy { it.packageName }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })

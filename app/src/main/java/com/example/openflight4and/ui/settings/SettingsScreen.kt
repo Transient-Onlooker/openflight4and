@@ -1,31 +1,44 @@
 package com.example.openflight4and.ui.settings
 
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -45,16 +58,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.R
+import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
@@ -106,6 +120,8 @@ fun SettingsScreen(
     var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
     var showAllowedAppsDialog by remember { mutableStateOf(false) }
     var allowedAppsSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var allowedAppsQuery by remember { mutableStateOf("") }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     val titleSettings = stringResource(R.string.settings_title)
     val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
     val titleLanguage = stringResource(R.string.settings_title_language)
@@ -194,15 +210,13 @@ fun SettingsScreen(
                     "ko" to labelLanguageKorean,
                     "en" to labelLanguageEnglish
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    languageModes.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = appLanguage == id,
-                            onClick = { scope.launch { repository.setAppLanguage(id) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = languageModes.size)
-                        ) { Text(label) }
-                    }
-                }
+                val selectedLanguageLabel = languageModes.firstOrNull { it.first == appLanguage }?.second
+                    ?: labelLanguageSystem
+                PermissionSettingItem(
+                    title = titleLanguage,
+                    description = selectedLanguageLabel,
+                    onClick = { showLanguageDialog = true }
+                )
 
                 Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
@@ -337,6 +351,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             allowedAppsSelection = focusLockAllowedPackages
+                            allowedAppsQuery = ""
                             showAllowedAppsDialog = true
                         }
                     )
@@ -358,6 +373,16 @@ fun SettingsScreen(
     }
 
     if (showAllowedAppsDialog) {
+        val filteredLaunchableApps = remember(launchableApps, allowedAppsQuery) {
+            val normalizedQuery = allowedAppsQuery.trim()
+            if (normalizedQuery.isEmpty()) {
+                launchableApps
+            } else {
+                launchableApps.filter { app ->
+                    app.label.contains(normalizedQuery, ignoreCase = true)
+                }
+            }
+        }
         AlertDialog(
             onDismissRequest = { showAllowedAppsDialog = false },
             title = { Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_title)) },
@@ -369,55 +394,64 @@ fun SettingsScreen(
                         color = FlightGray
                     )
                     Spacer(modifier = Modifier.padding(top = 12.dp))
+                    OutlinedTextField(
+                        value = allowedAppsQuery,
+                        onValueChange = { allowedAppsQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = {
+                            Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_placeholder))
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedPlaceholderColor = FlightGray,
+                            unfocusedPlaceholderColor = FlightGray,
+                            focusedLeadingIconColor = FlightGray,
+                            unfocusedLeadingIconColor = FlightGray,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                    Spacer(modifier = Modifier.padding(top = 12.dp))
                     if (launchableApps.isEmpty()) {
                         Text(
                             text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
                             style = MaterialTheme.typography.bodySmall,
                             color = FlightGray
                         )
+                    } else if (filteredLaunchableApps.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray
+                        )
                     } else {
-                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                            items(launchableApps, key = { it.packageName }) { app ->
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 88.dp),
+                            modifier = Modifier.heightIn(max = 360.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredLaunchableApps, key = { it.packageName }) { app ->
                                 val checked = allowedAppsSelection.contains(app.packageName)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            allowedAppsSelection =
-                                                if (checked) {
-                                                    allowedAppsSelection - app.packageName
-                                                } else {
-                                                    allowedAppsSelection + app.packageName
-                                                }
-                                        }
-                                        .padding(vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                        checked = checked,
-                                        onCheckedChange = {
-                                            allowedAppsSelection =
-                                                if (it) {
-                                                    allowedAppsSelection + app.packageName
-                                                } else {
-                                                    allowedAppsSelection - app.packageName
-                                                }
-                                        }
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = app.label,
-                                            color = Color.White,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = app.packageName,
-                                            color = FlightGray,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
+                                AllowedAppItem(
+                                    app = app,
+                                    checked = checked,
+                                    onToggle = { isChecked ->
+                                        allowedAppsSelection =
+                                            if (isChecked) {
+                                                allowedAppsSelection + app.packageName
+                                            } else {
+                                                allowedAppsSelection - app.packageName
+                                            }
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -441,6 +475,137 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (showLanguageDialog) {
+        val languageModes = listOf(
+            "system" to labelLanguageSystem,
+            "ko" to labelLanguageKorean,
+            "en" to labelLanguageEnglish
+        )
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            title = { Text(titleLanguage) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    languageModes.forEach { (id, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    scope.launch { repository.setAppLanguage(id) }
+                                    showLanguageDialog = false
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = appLanguage == id,
+                                onClick = {
+                                    scope.launch { repository.setAppLanguage(id) }
+                                    showLanguageDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = label,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (appLanguage == id) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AllowedAppItem(
+    app: LaunchableApp,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onToggle(!checked) },
+                onLongClick = {
+                    Toast.makeText(context, app.packageName, Toast.LENGTH_SHORT).show()
+                }
+            ),
+        shape = RoundedCornerShape(22.dp),
+        color = if (checked) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        } else {
+            Color.White.copy(alpha = 0.05f)
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            android.widget.ImageView(context).apply {
+                                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                                setPadding(10, 10, 10, 10)
+                            }
+                        },
+                        update = { imageView ->
+                            imageView.setImageDrawable(app.icon)
+                        }
+                    )
+                }
+
+                if (checked) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(999.dp),
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "✓",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.size(8.dp))
+
+            Text(
+                text = app.label,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (checked) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

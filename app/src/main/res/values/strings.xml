@@ -75,6 +75,8 @@
     <string name="settings_focus_lock_allowed_apps_dialog_hint">Select apps that the return panel can launch while focus lock is active.</string>
     <string name="settings_focus_lock_allowed_apps_dialog_save">Save allowed apps</string>
     <string name="settings_focus_lock_allowed_apps_dialog_none">No launchable apps found.</string>
+    <string name="settings_focus_lock_allowed_apps_dialog_search_placeholder">Search apps</string>
+    <string name="settings_focus_lock_allowed_apps_dialog_search_empty">No apps match your search.</string>
     <string name="settings_usage_access">Usage access</string>
     <string name="settings_overlay_permission">Display over other apps</string>
     <string name="settings_permission_allowed">Allowed</string>
