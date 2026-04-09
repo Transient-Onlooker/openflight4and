@@ -25,6 +25,11 @@ jobs:
           distribution: "temurin"
           cache: gradle
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -32,6 +37,11 @@ jobs:
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
           MAPS3D_API_KEY: ${{ secrets.MAPS3D_API_KEY }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_REWARDED_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_AD_UNIT_ID }}
+          REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
+          VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
+          OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
         run: ./gradlew assembleDebug
 
       - name: Upload Debug APK artifact
@@ -56,6 +66,11 @@ jobs:
           distribution: "temurin"
           cache: gradle
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -69,6 +84,11 @@ jobs:
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
           MAPS3D_API_KEY: ${{ secrets.MAPS3D_API_KEY }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_REWARDED_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_AD_UNIT_ID }}
+          REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
+          VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
+          OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
           RELEASE_KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -95,3 +115,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.ref_name }}" "openflight4and-${{ github.ref_name }}-release.apk" --clobber
+
+      - name: Install Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm install -g wrangler
+
+      - name: Update recent version in Cloudflare D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#V}"
+          VERSION="${VERSION#v}"
+          wrangler d1 execute openflight-version-db --remote --command "INSERT INTO app_versions (platform, allowed_version, recent_version) VALUES ('android', '$VERSION', '$VERSION') ON CONFLICT(platform) DO UPDATE SET recent_version = excluded.recent_version, updated_at = CURRENT_TIMESTAMP;"

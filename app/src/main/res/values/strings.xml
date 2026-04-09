@@ -10,6 +10,7 @@
     <string name="action_no">No</string>
     <string name="action_settings">Settings</string>
     <string name="action_continue">Continue</string>
+    <string name="action_later">Later</string>
     <string name="action_start_anyway">Start anyway</string>
     <string name="action_give_up">Give up</string>
     <string name="label_now">Now</string>
@@ -115,6 +116,11 @@
     <!-- Main -->
     <string name="main_airplane_mode_dialog_title">Airplane mode check</string>
     <string name="main_airplane_mode_dialog_message">Airplane mode is recommended during focus flights. Do you want to continue anyway?</string>
+    <string name="version_update_recommended_title">Update available</string>
+    <string name="version_update_recommended_message">You are using version %1$s. Version %2$s is available.\nUpdate is recommended for the latest fixes.</string>
+    <string name="version_update_required_title">Update required</string>
+    <string name="version_update_required_message">You are using version %1$s.\nThis app now requires at least version %2$s.\nLatest version: %3$s.\nUpdate before continuing.</string>
+    <string name="version_update_action">Open GitHub Release</string>
 
     <!-- History -->
     <string name="history_title">Flight history</string>

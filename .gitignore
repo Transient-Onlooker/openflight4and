@@ -2,6 +2,7 @@
 .gradle
 .gradle-user/
 .gradle-user-home/
+.gradle-user-home-version/
 .gradle-user-home-ads/
 .gradle-user-test/
 /local.properties

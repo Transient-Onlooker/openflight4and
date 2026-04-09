@@ -4,6 +4,7 @@ import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
 import com.example.openflight4and.data.TicketSpendResult
+import com.example.openflight4and.data.VersionStatus
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.model.FlightTicketHistoryEntry
@@ -35,6 +36,7 @@ class FakeAppRepository(
     var nextDailyCheckInResult: DailyCheckInResult = DailyCheckInResult.Success(1)
     var nextStartFlightResult: TicketSpendResult = TicketSpendResult(success = true, spent = 0)
     var nextRedeemCodeResult: RedeemCodeResult = RedeemCodeResult.Success(1)
+    var nextVersionStatus: VersionStatus? = null
     var rewardedAds = 0
     var rewardedInflightAds = 0
 
@@ -86,4 +88,6 @@ class FakeAppRepository(
             is RedeemCodeResult.Error -> result
         }
     }
+
+    override suspend fun fetchVersionStatus(): VersionStatus? = nextVersionStatus
 }

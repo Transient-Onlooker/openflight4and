@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.data.AppRepositoryDataSource
+import com.example.openflight4and.data.UpdateRequirement
+import com.example.openflight4and.data.VersionStatus
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
@@ -30,7 +32,9 @@ data class MainScreenUiState(
     val currentLocation: Airport? = null,
     val recentSessions: List<FlightSession> = emptyList(),
     val currentDraft: FlightDraft,
-    val showAirplaneModeDialog: Boolean = false
+    val showAirplaneModeDialog: Boolean = false,
+    val requiredUpdate: VersionStatus? = null,
+    val recommendedUpdate: VersionStatus? = null
 )
 
 sealed interface MainScreenEvent {
@@ -100,6 +104,16 @@ class MainScreenViewModel(
                 }
             }
         }
+
+        viewModelScope.launch {
+            val versionStatus = repository.fetchVersionStatus() ?: return@launch
+            _uiState.update { state ->
+                state.copy(
+                    requiredUpdate = versionStatus.takeIf { it.requirement == UpdateRequirement.REQUIRED },
+                    recommendedUpdate = versionStatus.takeIf { it.requirement == UpdateRequirement.RECOMMENDED }
+                )
+            }
+        }
     }
 
     fun prepareNewFlight() {
@@ -148,6 +162,10 @@ class MainScreenViewModel(
 
     fun dismissAirplaneModeDialog() {
         _uiState.update { it.copy(showAirplaneModeDialog = false) }
+    }
+
+    fun dismissRecommendedUpdate() {
+        _uiState.update { it.copy(recommendedUpdate = null) }
     }
 
     fun confirmAirplaneModeStart() {

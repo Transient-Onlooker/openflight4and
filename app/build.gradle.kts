@@ -32,6 +32,12 @@ val admobRewardedAdUnitId: String = localProperties.getProperty("ADMOB_REWARDED_
 val redeemApiBaseUrl: String = localProperties.getProperty("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: "https://openflight-redeem-api.junuh145858.workers.dev"
+val versionApiBaseUrl: String = localProperties.getProperty("VERSION_API_BASE_URL")?.takeUnless { it.isBlank() }
+    ?: System.getenv("VERSION_API_BASE_URL")?.takeUnless { it.isBlank() }
+    ?: redeemApiBaseUrl
+val githubReleasesUrl: String = localProperties.getProperty("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
+    ?: System.getenv("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
+    ?: "https://github.com/Transient-Onlooker/openflight4and/releases/latest"
 val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
     ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
 val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
@@ -54,11 +60,13 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2703
-        versionName = "2.7.3"
+        versionCode = 2704
+        versionName = "2.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")
+        buildConfigField("String", "VERSION_API_BASE_URL", "\"$versionApiBaseUrl\"")
+        buildConfigField("String", "GITHUB_RELEASES_URL", "\"$githubReleasesUrl\"")
 
         // Manifest에 API Key 주입
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey

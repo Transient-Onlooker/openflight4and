@@ -25,6 +25,7 @@ interface AppRepositoryDataSource {
     suspend fun rewardTicketsFromAd(): Int
     suspend fun rewardSingleTicketFromInFlightAd(): Int
     suspend fun redeemCode(code: String): RedeemCodeResult
+    suspend fun fetchVersionStatus(): VersionStatus?
 }
 
 class AppRepository(private val context: Context) : AppRepositoryDataSource {
@@ -36,6 +37,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     private val settingsRepository = SettingsRepository(context, ::reportDataError)
     private val ticketRepository = TicketRepository(context, ::reportDataError)
     private val flightSessionRepository = FlightSessionRepository(context)
+    private val versionRepository = VersionRepository(::reportDataError)
 
     companion object {
         private const val TAG = "AppRepository"
@@ -144,6 +146,9 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     override suspend fun redeemCode(code: String): RedeemCodeResult =
         ticketRepository.redeemCode(code)
+
+    override suspend fun fetchVersionStatus(): VersionStatus? =
+        versionRepository.fetchVersionStatus()
 
     private fun reportDataError(message: String, throwable: Throwable) {
         Log.e(TAG, message, throwable)
