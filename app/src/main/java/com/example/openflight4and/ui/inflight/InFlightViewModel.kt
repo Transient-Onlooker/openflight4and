@@ -72,11 +72,19 @@ class InFlightViewModel(
 
     fun completeAdReward() {
         viewModelScope.launch {
-            repository.rewardSingleTicketFromInFlightAd()
+            val result = repository.rewardSingleTicketFromInFlightAd()
             _uiState.update { it.copy(isAdRewardRunning = false) }
             _events.emit(
                 InFlightEvent.ShowToast(
-                    messageFor(R.string.tickets_toast_ad_reward, 1)
+                    if (result.grantedAmount > 0) {
+                        messageFor(R.string.tickets_toast_ad_reward, result.grantedAmount)
+                    } else {
+                        messageFor(
+                            R.string.tickets_toast_ad_reward_progress,
+                            result.currentTierAdsRequired,
+                            result.remainingAdsUntilNextTicket
+                        )
+                    }
                 )
             )
         }

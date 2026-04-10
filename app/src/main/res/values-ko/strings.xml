@@ -49,7 +49,6 @@
     <string name="settings_title_language">언어</string>
     <string name="settings_title_screen_orientation">화면 방향</string>
     <string name="settings_title_map_style">지도 스타일</string>
-    <string name="settings_title_airplane_mode_check">비행기 모드 확인</string>
     <string name="settings_title_notifications">알림</string>
     <string name="settings_title_notification_interval">알림 갱신 주기</string>
     <string name="settings_title_focus_lock">집중 잠금</string>
@@ -67,7 +66,6 @@
     <string name="settings_map_style_standard">일반</string>
     <string name="settings_map_style_satellite">위성</string>
     <string name="settings_map_style_hybrid">하이브리드</string>
-    <string name="settings_airplane_mode_check_description">세션 시작 전 비행기 모드 활성화 여부를 확인합니다.</string>
     <string name="settings_notifications_description">세션 완료 및 중요한 알림을 받습니다.</string>
     <string name="settings_notification_interval_description">기본값은 10초입니다. 비행 중 알림 갱신 주기를 설정합니다.</string>
     <string name="settings_focus_lock_description">비행 중 다른 앱으로 이동하면 복귀를 유도하는 오버레이를 띄웁니다.</string>
@@ -102,7 +100,7 @@
     <string name="tickets_daily_check_in_done">오늘 출석 완료</string>
     <string name="tickets_daily_check_in_action">출석 체크</string>
     <string name="tickets_ad_reward_title">광고 보고 비행권 받기</string>
-    <string name="tickets_ad_reward_description">보상형 광고를 보면 비행권 1개를 받습니다.</string>
+    <string name="tickets_ad_reward_description">1~2회차 광고는 1회당 1장, 3~6회차는 2회당 1장, 7회차부터는 3회당 1장입니다.</string>
     <string name="tickets_ad_reward_action">광고 보기</string>
     <string name="tickets_ad_reward_running">광고 준비 중...</string>
     <string name="tickets_redeem_title">리딤 코드</string>
@@ -116,11 +114,10 @@
     <string name="tickets_ad_reward_unavailable">지금은 보상형 광고를 불러올 수 없습니다.</string>
     <string name="tickets_toast_daily_check_in_reward">출석체크 보상으로 비행권 %1$d개가 지급되었습니다.</string>
     <string name="tickets_toast_ad_reward">광고 보상으로 비행권 %1$d개가 지급되었습니다.</string>
+    <string name="tickets_toast_ad_reward_progress">현재 구간은 광고 %1$d회당 비행권 1장입니다. 광고를 %2$d회 더 보면 비행권이 지급됩니다.</string>
     <string name="tickets_toast_redeem_success">비행권 %1$d개가 지급되었습니다.</string>
 
     <!-- Main -->
-    <string name="main_airplane_mode_dialog_title">비행기 모드 확인</string>
-    <string name="main_airplane_mode_dialog_message">집중 비행에서는 비행기 모드 사용을 권장합니다. 그래도 계속하시겠습니까?</string>
 
     <!-- History -->
     <string name="history_title">비행 기록</string>
@@ -244,8 +241,8 @@
     <string name="repo_ticket_use_title">비행권 사용</string>
     <string name="repo_ticket_use_detail">10분 이상의 비행으로 비행권 1개가 차감되었습니다.</string>
     <string name="repo_ad_reward_title">광고 보상</string>
-    <string name="repo_ad_reward_detail">광고 보상으로 비행권 1개가 지급되었습니다.</string>
-    <string name="repo_inflight_ad_reward_detail">비행 중 광고 보상으로 비행권 1개가 지급되었습니다.</string>
+    <string name="repo_ad_reward_detail_format">광고 %1$d회 누적으로 비행권 1개가 지급되었습니다.</string>
+    <string name="repo_inflight_ad_reward_detail_format">비행 중 광고 %1$d회 누적으로 비행권 1개가 지급되었습니다.</string>
     <string name="repo_redeem_enter_code">코드를 입력해주세요.</string>
     <string name="repo_redeem_invalid">유효하지 않은 코드입니다.</string>
     <string name="repo_redeem_already_used">이미 사용한 코드입니다.</string>

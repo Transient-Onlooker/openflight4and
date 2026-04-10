@@ -32,7 +32,6 @@ data class MainScreenUiState(
     val currentLocation: Airport? = null,
     val recentSessions: List<FlightSession> = emptyList(),
     val currentDraft: FlightDraft,
-    val showAirplaneModeDialog: Boolean = false,
     val requiredUpdate: VersionStatus? = null,
     val recommendedUpdate: VersionStatus? = null
 )
@@ -45,7 +44,6 @@ sealed interface MainScreenEvent {
 
 class MainScreenViewModel(
     private val repository: AppRepositoryDataSource,
-    private val isAirplaneModeOn: () -> Boolean,
     private val startFlightService: (FlightDraft, Int) -> Unit,
     private val estimateFlight: (Airport, Airport) -> Pair<Int, Int> = { origin, destination ->
         val distance = FlightUtils.calculateDistance(origin, destination)
@@ -160,24 +158,11 @@ class MainScreenViewModel(
         }
     }
 
-    fun dismissAirplaneModeDialog() {
-        _uiState.update { it.copy(showAirplaneModeDialog = false) }
-    }
-
     fun dismissRecommendedUpdate() {
         _uiState.update { it.copy(recommendedUpdate = null) }
     }
 
-    fun confirmAirplaneModeStart() {
-        _uiState.update { it.copy(showAirplaneModeDialog = false) }
-        prepareBoardingPass()
-        _events.tryEmit(MainScreenEvent.NavigateToBoardingPass)
-    }
-
-    fun requestBoardingPass(
-        ticketBalance: Int,
-        airplaneModeCheckEnabled: Boolean
-    ) {
+    fun requestBoardingPass(ticketBalance: Int) {
         val draft = _uiState.value.currentDraft
         if (draft.destination == null) {
             _events.tryEmit(MainScreenEvent.ShowToast("\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694."))
@@ -186,11 +171,6 @@ class MainScreenViewModel(
 
         if (ticketBalance <= 0) {
             _events.tryEmit(MainScreenEvent.ShowToast("\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."))
-            return
-        }
-
-        if (airplaneModeCheckEnabled && !isAirplaneModeOn()) {
-            _uiState.update { it.copy(showAirplaneModeDialog = true) }
             return
         }
 
@@ -298,7 +278,6 @@ class MainScreenViewModel(
                 val repository = AppRepository(application)
                 return MainScreenViewModel(
                     repository = repository,
-                    isAirplaneModeOn = { FlightUtils.isAirplaneModeOn(application) },
                     startFlightService = { draftToStart, notificationUpdateSeconds ->
                         val languageTag = application.resources.configuration.locales[0]?.toLanguageTag()
                             ?: Locale.getDefault().toLanguageTag()

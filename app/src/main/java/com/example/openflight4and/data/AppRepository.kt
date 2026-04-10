@@ -22,8 +22,8 @@ interface AppRepositoryDataSource {
 
     suspend fun claimDailyCheckIn(): DailyCheckInResult
     suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult
-    suspend fun rewardTicketsFromAd(): Int
-    suspend fun rewardSingleTicketFromInFlightAd(): Int
+    suspend fun rewardTicketsFromAd(): AdTicketRewardResult
+    suspend fun rewardSingleTicketFromInFlightAd(): AdTicketRewardResult
     suspend fun redeemCode(code: String): RedeemCodeResult
     suspend fun fetchVersionStatus(): VersionStatus?
 }
@@ -61,7 +61,6 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val mapStyle: Flow<String> = settingsRepository.mapStyle
     val mapOverlayStyle: Flow<String> = settingsRepository.mapOverlayStyle
     val mapPerspective: Flow<String> = settingsRepository.mapPerspective
-    val airplaneModeCheck: Flow<Boolean> = settingsRepository.airplaneModeCheck
     val notificationsEnabled: Flow<Boolean> = settingsRepository.notificationsEnabled
     val notificationUpdateSeconds: Flow<Int> = settingsRepository.notificationUpdateSeconds
     val focusLockEnabled: Flow<Boolean> = settingsRepository.focusLockEnabled
@@ -93,10 +92,6 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setMapPerspective(perspective: String) {
         settingsRepository.setMapPerspective(perspective)
-    }
-
-    suspend fun setAirplaneModeCheck(enabled: Boolean) {
-        settingsRepository.setAirplaneModeCheck(enabled)
     }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
@@ -139,9 +134,9 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     suspend fun consumeTicketForLongFlight(): TicketSpendResult =
         ticketRepository.consumeTicketForLongFlight()
 
-    override suspend fun rewardTicketsFromAd(): Int = ticketRepository.rewardTicketsFromAd()
+    override suspend fun rewardTicketsFromAd(): AdTicketRewardResult = ticketRepository.rewardTicketsFromAd()
 
-    override suspend fun rewardSingleTicketFromInFlightAd(): Int =
+    override suspend fun rewardSingleTicketFromInFlightAd(): AdTicketRewardResult =
         ticketRepository.rewardSingleTicketFromInFlightAd()
 
     override suspend fun redeemCode(code: String): RedeemCodeResult =
@@ -160,6 +155,12 @@ data class TicketSpendResult(
     val success: Boolean,
     val spent: Int,
     val message: String? = null
+)
+
+data class AdTicketRewardResult(
+    val grantedAmount: Int,
+    val remainingAdsUntilNextTicket: Int,
+    val currentTierAdsRequired: Int
 )
 
 sealed class RedeemCodeResult {

@@ -107,7 +107,6 @@ fun SettingsScreen(
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
     val appLanguage by repository.appLanguage.collectAsState(initial = "system")
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
-    val airplaneModeCheck by repository.airplaneModeCheck.collectAsState(initial = true)
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
@@ -127,7 +126,6 @@ fun SettingsScreen(
     val titleLanguage = stringResource(R.string.settings_title_language)
     val titleScreenOrientation = stringResource(R.string.settings_title_screen_orientation)
     val titleMapStyle = stringResource(R.string.settings_title_map_style)
-    val titleAirplaneModeCheck = stringResource(R.string.settings_title_airplane_mode_check)
     val titleNotifications = stringResource(R.string.settings_title_notifications)
     val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
@@ -262,13 +260,6 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
-                ToggleSettingItem(
-                    title = titleAirplaneModeCheck,
-                    description = stringResource(R.string.settings_airplane_mode_check_description),
-                    checked = airplaneModeCheck,
-                    onCheckedChange = { scope.launch { repository.setAirplaneModeCheck(it) } }
-                )
 
                 ToggleSettingItem(
                     title = titleNotifications,

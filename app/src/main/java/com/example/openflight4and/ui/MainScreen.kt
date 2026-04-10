@@ -59,7 +59,6 @@ fun MainScreen(
     )
 
     val unitSystem by repository.unitSystem.collectAsState(initial = "km")
-    val airplaneModeCheckEnabled by repository.airplaneModeCheck.collectAsState(initial = true)
     val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
     val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
@@ -200,10 +199,7 @@ fun MainScreen(
                             return@SeatSelectionScreen
                         }
 
-                        viewModel.requestBoardingPass(
-                            ticketBalance = ticketBalance,
-                            airplaneModeCheckEnabled = airplaneModeCheckEnabled
-                        )
+                        viewModel.requestBoardingPass(ticketBalance = ticketBalance)
                     }
                 )
             }
@@ -269,30 +265,6 @@ fun MainScreen(
             versionStatus = versionStatus,
             onUpdate = openReleasePage,
             onDismiss = { viewModel.dismissRecommendedUpdate() }
-        )
-    }
-
-    if (uiState.showAirplaneModeDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissAirplaneModeDialog() },
-            title = { Text(stringResource(R.string.main_airplane_mode_dialog_title), color = Color.White) },
-            text = {
-                Text(
-                    stringResource(R.string.main_airplane_mode_dialog_message),
-                    color = Color.Gray
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.confirmAirplaneModeStart()
-                    }
-                ) { Text(stringResource(R.string.action_start_anyway)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissAirplaneModeDialog() }) { Text(stringResource(R.string.action_cancel)) }
-            },
-            containerColor = Color(0xFF0D0000)
         )
     }
 

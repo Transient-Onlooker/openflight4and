@@ -44,7 +44,6 @@
     <string name="settings_title_language">Language</string>
     <string name="settings_title_screen_orientation">Screen orientation</string>
     <string name="settings_title_map_style">Map style</string>
-    <string name="settings_title_airplane_mode_check">Airplane mode check</string>
     <string name="settings_title_notifications">Notifications</string>
     <string name="settings_title_notification_interval">Notification update interval</string>
     <string name="settings_title_focus_lock">Focus lock</string>
@@ -62,7 +61,6 @@
     <string name="settings_map_style_standard">Standard</string>
     <string name="settings_map_style_satellite">Satellite</string>
     <string name="settings_map_style_hybrid">Hybrid</string>
-    <string name="settings_airplane_mode_check_description">Checks whether airplane mode is enabled before starting a session.</string>
     <string name="settings_notifications_description">Receive completion and important session notifications.</string>
     <string name="settings_notification_interval_description">Default is 10 seconds. Sets the update interval for in-flight notifications.</string>
     <string name="settings_focus_lock_description">If you leave for another app during a flight, an overlay prompts you to return.</string>
@@ -97,7 +95,7 @@
     <string name="tickets_daily_check_in_done">Checked in today</string>
     <string name="tickets_daily_check_in_action">Check in</string>
     <string name="tickets_ad_reward_title">Watch an ad to get tickets</string>
-    <string name="tickets_ad_reward_description">Watch a rewarded ad to receive 1 ticket.</string>
+    <string name="tickets_ad_reward_description">Ads 1-2 grant 1 ticket each. Ads 3-6 grant 1 ticket per 2 ads. From ad 7 onward, 1 ticket is granted per 3 ads.</string>
     <string name="tickets_ad_reward_action">Watch ad</string>
     <string name="tickets_ad_reward_running">Preparing ad...</string>
     <string name="tickets_redeem_title">Redeem code</string>
@@ -111,11 +109,10 @@
     <string name="tickets_ad_reward_unavailable">Rewarded ad is not available right now.</string>
     <string name="tickets_toast_daily_check_in_reward">%1$d ticket(s) granted as a check-in reward.</string>
     <string name="tickets_toast_ad_reward">%1$d ticket(s) granted as an ad reward.</string>
+    <string name="tickets_toast_ad_reward_progress">This tier grants 1 ticket per %1$d ads. Watch %2$d more ad(s) to get the next ticket.</string>
     <string name="tickets_toast_redeem_success">%1$d ticket(s) granted.</string>
 
     <!-- Main -->
-    <string name="main_airplane_mode_dialog_title">Airplane mode check</string>
-    <string name="main_airplane_mode_dialog_message">Airplane mode is recommended during focus flights. Do you want to continue anyway?</string>
     <string name="version_update_recommended_title">Update available</string>
     <string name="version_update_recommended_message">You are using version %1$s. Version %2$s is available.\nUpdate is recommended for the latest fixes.</string>
     <string name="version_update_required_title">Update required</string>
@@ -244,8 +241,8 @@
     <string name="repo_ticket_use_title">Ticket used</string>
     <string name="repo_ticket_use_detail">1 ticket was deducted for a flight longer than 10 minutes.</string>
     <string name="repo_ad_reward_title">Ad reward</string>
-    <string name="repo_ad_reward_detail">1 ticket was granted as an ad reward.</string>
-    <string name="repo_inflight_ad_reward_detail">1 ticket was granted as an in-flight ad reward.</string>
+    <string name="repo_ad_reward_detail_format">1 ticket was granted as an ad reward after %1$d ad(s).</string>
+    <string name="repo_inflight_ad_reward_detail_format">1 ticket was granted as an in-flight ad reward after %1$d ad(s).</string>
     <string name="repo_redeem_enter_code">Please enter a code.</string>
     <string name="repo_redeem_invalid">Invalid code.</string>
     <string name="repo_redeem_already_used">This code has already been used.</string>

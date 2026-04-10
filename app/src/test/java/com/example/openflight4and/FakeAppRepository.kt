@@ -1,5 +1,6 @@
 package com.example.openflight4and
 
+import com.example.openflight4and.data.AdTicketRewardResult
 import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
@@ -20,9 +21,11 @@ class FakeAppRepository(
         return when (resId) {
             R.string.tickets_toast_daily_check_in_reward -> "출석체크 보상으로 비행권 ${formatArgs[0]}개가 지급되었습니다."
             R.string.tickets_toast_ad_reward -> "광고 보상으로 비행권 ${formatArgs[0]}개가 지급되었습니다."
-            R.string.tickets_ad_reward_unavailable -> "광고를 불러오지 못했습니다. 잠시 다시 시도해주세요."
+            R.string.tickets_toast_ad_reward_progress ->
+                "현재 구간은 광고 ${formatArgs[0]}회당 비행권 1장입니다. 광고를 ${formatArgs[1]}회 더 보면 비행권이 지급됩니다."
+            R.string.tickets_ad_reward_unavailable -> "광고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
             R.string.tickets_toast_redeem_success -> "비행권 ${formatArgs[0]}개가 지급되었습니다."
-            R.string.repo_redeem_enter_code -> "코드를 입력해 주세요."
+            R.string.repo_redeem_enter_code -> "코드를 입력해주세요."
             else -> error("Unsupported string resource id: $resId")
         }
     }
@@ -39,6 +42,8 @@ class FakeAppRepository(
     var nextVersionStatus: VersionStatus? = null
     var rewardedAds = 0
     var rewardedInflightAds = 0
+    var nextAdRewardResult = AdTicketRewardResult(1, 1, 1)
+    var nextInflightAdRewardResult = AdTicketRewardResult(1, 1, 1)
 
     override suspend fun claimDailyCheckIn(): DailyCheckInResult {
         return when (val result = nextDailyCheckInResult) {
@@ -66,16 +71,16 @@ class FakeAppRepository(
         return nextStartFlightResult
     }
 
-    override suspend fun rewardTicketsFromAd(): Int {
+    override suspend fun rewardTicketsFromAd(): AdTicketRewardResult {
         rewardedAds += 1
-        flightTickets.update { it + 1 }
-        return 1
+        flightTickets.update { it + nextAdRewardResult.grantedAmount }
+        return nextAdRewardResult
     }
 
-    override suspend fun rewardSingleTicketFromInFlightAd(): Int {
+    override suspend fun rewardSingleTicketFromInFlightAd(): AdTicketRewardResult {
         rewardedInflightAds += 1
-        flightTickets.update { it + 1 }
-        return 1
+        flightTickets.update { it + nextInflightAdRewardResult.grantedAmount }
+        return nextInflightAdRewardResult
     }
 
     override suspend fun redeemCode(code: String): RedeemCodeResult {

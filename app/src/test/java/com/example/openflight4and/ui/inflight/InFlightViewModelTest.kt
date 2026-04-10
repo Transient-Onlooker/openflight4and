@@ -2,6 +2,7 @@ package com.example.openflight4and.ui.inflight
 
 import com.example.openflight4and.FakeAppRepository
 import com.example.openflight4and.MainDispatcherRule
+import com.example.openflight4and.data.AdTicketRewardResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -48,7 +49,31 @@ class InFlightViewModelTest {
         assertFalse(viewModel.uiState.value.isAdRewardRunning)
         assertEquals(1, repository.rewardedInflightAds)
         assertEquals(
-            InFlightEvent.ShowToast("愿묎퀬 蹂댁긽?쇰줈 鍮꾪뻾沅?1媛쒓? 吏湲됰릺?덉뒿?덈떎."),
+            InFlightEvent.ShowToast("광고 보상으로 비행권 1개가 지급되었습니다."),
+            eventDeferred.await()
+        )
+    }
+
+    @Test
+    fun adReward_complete_withoutTicket_showsProgressToast() = runTest {
+        val repository = FakeAppRepository().apply {
+            nextInflightAdRewardResult = AdTicketRewardResult(
+                grantedAmount = 0,
+                remainingAdsUntilNextTicket = 2,
+                currentTierAdsRequired = 3
+            )
+        }
+        val viewModel = InFlightViewModel(repository)
+        backgroundScope.async { viewModel.events.first() }
+
+        viewModel.startAdReward()
+        advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
+        viewModel.completeAdReward()
+        advanceUntilIdle()
+
+        assertEquals(
+            InFlightEvent.ShowToast("현재 구간은 광고 3회당 비행권 1장입니다. 광고를 2회 더 보면 비행권이 지급됩니다."),
             eventDeferred.await()
         )
     }

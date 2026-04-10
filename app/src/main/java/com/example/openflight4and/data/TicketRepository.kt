@@ -107,42 +107,12 @@ class TicketRepository(
         return result
     }
 
-    suspend fun rewardTicketsFromAd(): Int {
-        val rewardAmount = 1
-        context.dataStore.edit { preferences ->
-            val currentBalance = preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
-            val updatedBalance = currentBalance + rewardAmount
-            preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = updatedBalance
-            preferences[AppPreferenceKeys.KEY_TICKET_HISTORY] = appendHistoryEntry(
-                preferences[AppPreferenceKeys.KEY_TICKET_HISTORY],
-                FlightTicketHistoryEntry(
-                    amount = rewardAmount,
-                    balanceAfter = updatedBalance,
-                    title = context.getString(R.string.repo_ad_reward_title),
-                    detail = context.getString(R.string.repo_ad_reward_detail)
-                )
-            )
-        }
-        return rewardAmount
+    suspend fun rewardTicketsFromAd(): AdTicketRewardResult {
+        return rewardTicketFromAdInternal(R.string.repo_ad_reward_detail_format)
     }
 
-    suspend fun rewardSingleTicketFromInFlightAd(): Int {
-        val rewardAmount = 1
-        context.dataStore.edit { preferences ->
-            val currentBalance = preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
-            val updatedBalance = currentBalance + rewardAmount
-            preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = updatedBalance
-            preferences[AppPreferenceKeys.KEY_TICKET_HISTORY] = appendHistoryEntry(
-                preferences[AppPreferenceKeys.KEY_TICKET_HISTORY],
-                FlightTicketHistoryEntry(
-                    amount = rewardAmount,
-                    balanceAfter = updatedBalance,
-                    title = context.getString(R.string.repo_ad_reward_title),
-                    detail = context.getString(R.string.repo_inflight_ad_reward_detail)
-                )
-            )
-        }
-        return rewardAmount
+    suspend fun rewardSingleTicketFromInFlightAd(): AdTicketRewardResult {
+        return rewardTicketFromAdInternal(R.string.repo_inflight_ad_reward_detail_format)
     }
 
     suspend fun redeemCode(code: String): RedeemCodeResult {
@@ -204,6 +174,75 @@ class TicketRepository(
         } catch (e: Exception) {
             reportDataError("Failed to decode ticket history", e)
             emptyList()
+        }
+    }
+
+    private suspend fun rewardTicketFromAdInternal(detailResId: Int): AdTicketRewardResult {
+        val today = LocalDate.now().toString()
+        var result = AdTicketRewardResult(
+            grantedAmount = 0,
+            remainingAdsUntilNextTicket = 1,
+            currentTierAdsRequired = 1
+        )
+
+        context.dataStore.edit { preferences ->
+            val isSameDay = preferences[AppPreferenceKeys.KEY_AD_REWARD_DATE] == today
+            val watchedToday = if (isSameDay) {
+                preferences[AppPreferenceKeys.KEY_AD_WATCH_COUNT_TODAY] ?: 0
+            } else {
+                0
+            }
+            val progress = if (isSameDay) {
+                preferences[AppPreferenceKeys.KEY_AD_REWARD_PROGRESS] ?: 0
+            } else {
+                0
+            }
+            val updatedWatchCount = watchedToday + 1
+            val adsRequired = adsRequiredFor(updatedWatchCount)
+            val updatedProgress = progress + 1
+
+            preferences[AppPreferenceKeys.KEY_AD_REWARD_DATE] = today
+            preferences[AppPreferenceKeys.KEY_AD_WATCH_COUNT_TODAY] = updatedWatchCount
+
+            if (updatedProgress >= adsRequired) {
+                val rewardAmount = 1
+                val currentBalance = preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
+                val updatedBalance = currentBalance + rewardAmount
+                preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = updatedBalance
+                preferences[AppPreferenceKeys.KEY_AD_REWARD_PROGRESS] = 0
+                preferences[AppPreferenceKeys.KEY_TICKET_HISTORY] = appendHistoryEntry(
+                    preferences[AppPreferenceKeys.KEY_TICKET_HISTORY],
+                    FlightTicketHistoryEntry(
+                        amount = rewardAmount,
+                        balanceAfter = updatedBalance,
+                        title = context.getString(R.string.repo_ad_reward_title),
+                        detail = context.getString(detailResId, adsRequired)
+                    )
+                )
+                val nextRequired = adsRequiredFor(updatedWatchCount + 1)
+                result = AdTicketRewardResult(
+                    grantedAmount = rewardAmount,
+                    remainingAdsUntilNextTicket = nextRequired,
+                    currentTierAdsRequired = adsRequired
+                )
+            } else {
+                preferences[AppPreferenceKeys.KEY_AD_REWARD_PROGRESS] = updatedProgress
+                result = AdTicketRewardResult(
+                    grantedAmount = 0,
+                    remainingAdsUntilNextTicket = adsRequired - updatedProgress,
+                    currentTierAdsRequired = adsRequired
+                )
+            }
+        }
+
+        return result
+    }
+
+    private fun adsRequiredFor(watchCountToday: Int): Int {
+        return when {
+            watchCountToday >= 7 -> 3
+            watchCountToday >= 3 -> 2
+            else -> 1
         }
     }
 

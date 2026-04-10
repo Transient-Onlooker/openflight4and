@@ -24,7 +24,6 @@ class SettingsRepository(
     val mapPerspective: Flow<String> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_MAP_PERSPECTIVE] ?: "2_5d"
     }
-    val airplaneModeCheck: Flow<Boolean> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_AIRPLANE_MODE_CHECK] ?: true }
     val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_NOTIFICATIONS] ?: true }
     val notificationUpdateSeconds: Flow<Int> = context.dataStore.data.map {
         (it[AppPreferenceKeys.KEY_NOTIFICATION_UPDATE_SECONDS] ?: 10).coerceIn(1, 30)
@@ -83,10 +82,6 @@ class SettingsRepository(
 
     suspend fun setMapPerspective(perspective: String) {
         context.dataStore.edit { it[AppPreferenceKeys.KEY_MAP_PERSPECTIVE] = perspective }
-    }
-
-    suspend fun setAirplaneModeCheck(enabled: Boolean) {
-        context.dataStore.edit { it[AppPreferenceKeys.KEY_AIRPLANE_MODE_CHECK] = enabled }
     }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {

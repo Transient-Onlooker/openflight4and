@@ -2,7 +2,6 @@ package com.example.openflight4and.utils
 
 import android.content.Context
 import android.location.Location
-import android.provider.Settings
 import com.example.openflight4and.R
 import com.example.openflight4and.model.Airport
 import kotlin.math.roundToInt
@@ -70,7 +69,4 @@ object FlightUtils {
         else String.format("%02d:%02d", m, s)
     }
 
-    fun isAirplaneModeOn(context: Context): Boolean {
-        return Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
-    }
 }

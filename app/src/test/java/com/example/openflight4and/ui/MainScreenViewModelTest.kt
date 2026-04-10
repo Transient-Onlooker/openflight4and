@@ -28,7 +28,6 @@ class MainScreenViewModelTest {
         val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
         val viewModel = MainScreenViewModel(
             repository = repository,
-            isAirplaneModeOn = { true },
             startFlightService = { _, _ -> },
             estimateFlight = { _, _ -> 1200 to 115 }
         )
@@ -36,27 +35,10 @@ class MainScreenViewModelTest {
             viewModel.events.first()
         }
 
-        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = false)
+        viewModel.requestBoardingPass(ticketBalance = 1)
         advanceUntilIdle()
 
         assertTrue(eventDeferred.await() is MainScreenEvent.ShowToast)
-    }
-
-    @Test
-    fun requestBoardingPass_withAirplaneModeCheck_showsDialog() = runTest {
-        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
-        val viewModel = MainScreenViewModel(
-            repository = repository,
-            isAirplaneModeOn = { false },
-            startFlightService = { _, _ -> },
-            estimateFlight = { _, _ -> 1200 to 115 }
-        )
-
-        viewModel.updateDestination(TestAirports.hnd)
-        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = true)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.showAirplaneModeDialog)
     }
 
     @Test
@@ -66,7 +48,6 @@ class MainScreenViewModelTest {
         val startedDrafts = mutableListOf<Pair<FlightDraft, Int>>()
         val viewModel = MainScreenViewModel(
             repository = repository,
-            isAirplaneModeOn = { true },
             startFlightService = { draft, updateSeconds -> startedDrafts += draft to updateSeconds },
             estimateFlight = { _, _ -> 1200 to 115 }
         )
@@ -75,7 +56,7 @@ class MainScreenViewModelTest {
         }
 
         viewModel.updateDestination(TestAirports.hnd)
-        viewModel.requestBoardingPass(ticketBalance = 1, airplaneModeCheckEnabled = false)
+        viewModel.requestBoardingPass(ticketBalance = 1)
         advanceUntilIdle()
 
         assertTrue(startedDrafts.isEmpty())
@@ -89,7 +70,6 @@ class MainScreenViewModelTest {
         val startedDrafts = mutableListOf<Pair<FlightDraft, Int>>()
         val viewModel = MainScreenViewModel(
             repository = repository,
-            isAirplaneModeOn = { true },
             startFlightService = { draft, updateSeconds -> startedDrafts += draft to updateSeconds },
             estimateFlight = { _, _ -> 1200 to 115 }
         )
@@ -115,7 +95,6 @@ class MainScreenViewModelTest {
         val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd))
         val viewModel = MainScreenViewModel(
             repository = repository,
-            isAirplaneModeOn = { true },
             startFlightService = { _, _ -> },
             estimateFlight = { _, _ -> 1200 to 115 }
         )

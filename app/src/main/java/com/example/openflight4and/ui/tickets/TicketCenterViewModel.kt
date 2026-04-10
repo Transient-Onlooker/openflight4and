@@ -99,11 +99,19 @@ class TicketCenterViewModel(
 
     fun completeAdReward() {
         viewModelScope.launch {
-            repository.rewardTicketsFromAd()
+            val result = repository.rewardTicketsFromAd()
             _uiState.update { it.copy(isWatchingAd = false) }
             _events.emit(
                 TicketCenterEvent.ShowToast(
-                    messageFor(R.string.tickets_toast_ad_reward, 1)
+                    if (result.grantedAmount > 0) {
+                        messageFor(R.string.tickets_toast_ad_reward, result.grantedAmount)
+                    } else {
+                        messageFor(
+                            R.string.tickets_toast_ad_reward_progress,
+                            result.currentTierAdsRequired,
+                            result.remainingAdsUntilNextTicket
+                        )
+                    }
                 )
             )
         }

@@ -2,6 +2,7 @@ package com.example.openflight4and.ui.tickets
 
 import com.example.openflight4and.FakeAppRepository
 import com.example.openflight4and.MainDispatcherRule
+import com.example.openflight4and.data.AdTicketRewardResult
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,31 +47,26 @@ class TicketCenterViewModelTest {
     @Test
     fun startAdReward_setsLoadingStateAndLaunchesRewardedAd() = runTest {
         val repository = FakeAppRepository()
-        val events = mutableListOf<TicketCenterEvent>()
         val viewModel = TicketCenterViewModel(repository)
-
-        backgroundScope.launch { viewModel.events.collect(events::add) }
-        advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
 
         viewModel.startAdReward()
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.isWatchingAd)
         assertEquals(0, repository.rewardedAds)
-        assertEquals(TicketCenterEvent.LaunchRewardedAd, events.last())
+        assertEquals(TicketCenterEvent.LaunchRewardedAd, eventDeferred.await())
     }
 
     @Test
     fun completeAdReward_grantsTicketAndShowsToast() = runTest {
         val repository = FakeAppRepository()
-        val events = mutableListOf<TicketCenterEvent>()
         val viewModel = TicketCenterViewModel(repository)
-
-        backgroundScope.launch { viewModel.events.collect(events::add) }
-        advanceUntilIdle()
+        backgroundScope.async { viewModel.events.first() }
 
         viewModel.startAdReward()
         advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
         viewModel.completeAdReward()
         advanceUntilIdle()
 
@@ -78,28 +74,50 @@ class TicketCenterViewModelTest {
         assertEquals(1, repository.rewardedAds)
         assertEquals(
             TicketCenterEvent.ShowToast("광고 보상으로 비행권 1개가 지급되었습니다."),
-            events.last()
+            eventDeferred.await()
+        )
+    }
+
+    @Test
+    fun completeAdReward_withoutTicket_showsProgressToast() = runTest {
+        val repository = FakeAppRepository().apply {
+            nextAdRewardResult = AdTicketRewardResult(
+                grantedAmount = 0,
+                remainingAdsUntilNextTicket = 1,
+                currentTierAdsRequired = 2
+            )
+        }
+        val viewModel = TicketCenterViewModel(repository)
+        backgroundScope.async { viewModel.events.first() }
+
+        viewModel.startAdReward()
+        advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
+        viewModel.completeAdReward()
+        advanceUntilIdle()
+
+        assertEquals(
+            TicketCenterEvent.ShowToast("현재 구간은 광고 2회당 비행권 1장입니다. 광고를 1회 더 보면 비행권이 지급됩니다."),
+            eventDeferred.await()
         )
     }
 
     @Test
     fun handleAdLoadFailed_resetsLoadingStateAndShowsFallbackToast() = runTest {
         val repository = FakeAppRepository()
-        val events = mutableListOf<TicketCenterEvent>()
         val viewModel = TicketCenterViewModel(repository)
-
-        backgroundScope.launch { viewModel.events.collect(events::add) }
-        advanceUntilIdle()
+        backgroundScope.async { viewModel.events.first() }
 
         viewModel.startAdReward()
         advanceUntilIdle()
+        val eventDeferred = backgroundScope.async { viewModel.events.first() }
         viewModel.handleAdLoadFailed(null)
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isWatchingAd)
         assertEquals(
-            TicketCenterEvent.ShowToast("광고를 불러오지 못했습니다. 잠시 다시 시도해주세요."),
-            events.last()
+            TicketCenterEvent.ShowToast("광고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."),
+            eventDeferred.await()
         )
     }
 
@@ -112,7 +130,7 @@ class TicketCenterViewModelTest {
         viewModel.redeemCode()
         advanceUntilIdle()
 
-        assertEquals(TicketCenterEvent.ShowToast("코드를 입력해 주세요."), eventDeferred.await())
+        assertEquals(TicketCenterEvent.ShowToast("코드를 입력해주세요."), eventDeferred.await())
     }
 
     @Test
