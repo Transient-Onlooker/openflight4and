@@ -9,6 +9,8 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,6 +27,13 @@ private const val FocusLockTitleTextSize = 24f
 private const val FocusLockMessageTextSize = 17f
 private const val FocusLockPanelHorizontalMargin = 28
 private const val FocusLockPanelVerticalMargin = 52
+private const val FocusLockAllowedAppsColumns = 4
+private const val FocusLockAllowedAppCellPadding = 12
+private const val FocusLockAllowedAppIconSize = 96
+private const val FocusLockAllowedAppLabelTopPadding = 10
+private const val FocusLockAllowedAppsGridTopPadding = 8
+private const val FocusLockAllowedAppsGridBottomPadding = 12
+private const val FocusLockAllowedAppLabelTextSize = 12f
 
 class FocusLockOverlayController(
     private val context: Context
@@ -119,12 +128,15 @@ class FocusLockOverlayController(
         val allowedApps = allowedPackages
             .mapNotNull { packageName ->
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return@mapNotNull null
+                val icon = runCatching {
+                    context.packageManager.getApplicationIcon(packageName)
+                }.getOrNull() ?: return@mapNotNull null
                 val label = runCatching {
                     context.packageManager.getApplicationLabel(
                         context.packageManager.getApplicationInfo(packageName, 0)
                     ).toString()
                 }.getOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                FocusLockAllowedApp(packageName, label, launchIntent)
+                FocusLockAllowedApp(packageName, label, icon, launchIntent)
             }
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase() }
@@ -137,18 +149,63 @@ class FocusLockOverlayController(
             setPadding(0, 36, 0, 20)
         }
 
-        fun addAllowedAppButton(app: FocusLockAllowedApp) {
-            val appButton = Button(context).apply {
-                text = app.label
-                isAllCaps = false
+        val allowedAppsGrid = GridLayout(context).apply {
+            columnCount = FocusLockAllowedAppsColumns
+            rowCount = ((allowedApps.size + FocusLockAllowedAppsColumns - 1) / FocusLockAllowedAppsColumns).coerceAtLeast(1)
+            useDefaultMargins = true
+            alignmentMode = GridLayout.ALIGN_BOUNDS
+            setPadding(0, FocusLockAllowedAppsGridTopPadding, 0, FocusLockAllowedAppsGridBottomPadding)
+        }
+
+        fun createAllowedAppCell(app: FocusLockAllowedApp): View {
+            return LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(
+                    FocusLockAllowedAppCellPadding,
+                    FocusLockAllowedAppCellPadding,
+                    FocusLockAllowedAppCellPadding,
+                    FocusLockAllowedAppCellPadding
+                )
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 28f
+                    setColor(0x1FFFFFFF)
+                }
+                isClickable = true
+                isFocusable = true
                 setOnClickListener {
                     hide()
                     context.startActivity(app.launchIntent.apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     })
                 }
+
+                addView(
+                    ImageView(context).apply {
+                        setImageDrawable(app.icon)
+                    },
+                    LinearLayout.LayoutParams(
+                        FocusLockAllowedAppIconSize,
+                        FocusLockAllowedAppIconSize
+                    )
+                )
+
+                addView(
+                    TextView(context).apply {
+                        text = app.label
+                        maxLines = 2
+                        gravity = Gravity.CENTER
+                        textSize = FocusLockAllowedAppLabelTextSize
+                        setTextColor(0xFFE2E2E2.toInt())
+                        setPadding(0, FocusLockAllowedAppLabelTopPadding, 0, 0)
+                    },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
             }
-            panel.addView(appButton)
         }
 
         panel.addView(title)
@@ -156,7 +213,25 @@ class FocusLockOverlayController(
         panel.addView(button)
         if (allowedApps.isNotEmpty()) {
             panel.addView(allowedAppsTitle)
-            allowedApps.forEach(::addAllowedAppButton)
+            allowedApps.forEachIndexed { index, app ->
+                allowedAppsGrid.addView(
+                    createAllowedAppCell(app),
+                    GridLayout.LayoutParams(
+                        GridLayout.spec(index / FocusLockAllowedAppsColumns, 1f),
+                        GridLayout.spec(index % FocusLockAllowedAppsColumns, 1f)
+                    ).apply {
+                        width = 0
+                        setGravity(Gravity.FILL_HORIZONTAL)
+                    }
+                )
+            }
+            panel.addView(
+                allowedAppsGrid,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
         }
 
         panelScroll.addView(
@@ -222,5 +297,6 @@ class FocusLockOverlayController(
 private data class FocusLockAllowedApp(
     val packageName: String,
     val label: String,
+    val icon: android.graphics.drawable.Drawable,
     val launchIntent: Intent
 )

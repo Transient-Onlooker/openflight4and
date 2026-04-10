@@ -229,11 +229,6 @@ fun TicketCenterScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            stringResource(R.string.tickets_ad_reward_description),
-                            color = FlightGray,
-                            style = MaterialTheme.typography.bodySmall
-                        )
                         PrimaryFlightButton(
                             text = if (uiState.isWatchingAd) {
                                 stringResource(R.string.tickets_ad_reward_running)

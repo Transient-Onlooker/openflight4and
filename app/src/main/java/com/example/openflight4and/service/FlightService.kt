@@ -50,6 +50,7 @@ class FlightService : Service() {
     private var currentFocusCategory: String? = null
     private var currentDistanceKm: Int = 0
     private var flightStartedAtMillis: Long = 0L
+
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
         const val NOTIFICATION_ID = 1001
@@ -57,6 +58,7 @@ class FlightService : Service() {
         const val ACTION_PAUSE = "pause_flight"
         const val ACTION_RESUME = "resume_flight"
         private const val TAG = "FlightService"
+        private const val MIN_SESSION_HISTORY_MINUTES = 10
 
         private val defaultFocusLockAllowedPackages = setOf(
         BuildConfig.APPLICATION_ID,
@@ -425,6 +427,10 @@ class FlightService : Service() {
         }
 
         val elapsedMinutes = ((System.currentTimeMillis() - flightStartedAtMillis) / 1000 / 60).toInt()
+        if (elapsedMinutes < MIN_SESSION_HISTORY_MINUTES) {
+            Log.d(TAG, "Skipping session history save because duration is under $MIN_SESSION_HISTORY_MINUTES minutes")
+            return
+        }
         val progress = if (_totalSeconds > 0L) {
             (_secondsElapsed.toFloat() / _totalSeconds.toFloat()).coerceIn(0f, 1f)
         } else {

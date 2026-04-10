@@ -27,6 +27,9 @@ val releaseAdmobAppId: String? = localProperties.getProperty("ADMOB_APP_ID")?.ta
     ?: System.getenv("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
 val releaseAdmobRewardedAdUnitId: String? = localProperties.getProperty("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
     ?: System.getenv("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
+val resolvedReleaseAdmobAppId = releaseAdmobAppId ?: "__missing_admob_app_id__"
+val resolvedReleaseAdmobRewardedAdUnitId =
+    releaseAdmobRewardedAdUnitId ?: "__missing_rewarded_ad_unit_id__"
 val redeemApiBaseUrl: String = localProperties.getProperty("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: "https://openflight-redeem-api.junuh145858.workers.dev"
@@ -66,8 +69,8 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2708
-        versionName = "2.7.8"
+        versionCode = 2709
+        versionName = "2.7.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")
@@ -97,8 +100,8 @@ android {
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"${releaseAdmobRewardedAdUnitId!!}\"")
-            manifestPlaceholders["ADMOB_APP_ID"] = releaseAdmobAppId!!
+            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"$resolvedReleaseAdmobRewardedAdUnitId\"")
+            manifestPlaceholders["ADMOB_APP_ID"] = resolvedReleaseAdmobAppId
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }

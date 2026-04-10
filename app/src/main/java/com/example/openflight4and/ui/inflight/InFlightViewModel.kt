@@ -54,14 +54,16 @@ class InFlightViewModel(
 
     fun startAdReward() {
         if (_uiState.value.isAdRewardRunning) return
-        _uiState.update {
-            it.copy(
-                showAdRewardDialog = false,
-                isAdRewardRunning = true
-            )
-        }
-
         viewModelScope.launch {
+            repository.getAdRewardTierWarningMessage()?.let { warningMessage ->
+                _events.emit(InFlightEvent.ShowToast(warningMessage))
+            }
+            _uiState.update {
+                it.copy(
+                    showAdRewardDialog = false,
+                    isAdRewardRunning = true
+                )
+            }
             _events.emit(InFlightEvent.LaunchRewardedAd)
         }
     }

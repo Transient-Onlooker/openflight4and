@@ -101,6 +101,7 @@ private const val Maps3DManualTiltPerPixel = 0.12
 private const val Maps3DMinTiltDegrees = 5.0
 private const val Maps3DMaxTiltDegrees = 88.0
 private const val Maps3DDragThresholdPixels = 0.5f
+private const val MinSessionHistoryMinutes = 10
 
 /**
  * ??????????⑤벡瑜?????(Great Circle Interpolation)
@@ -1244,6 +1245,12 @@ private suspend fun saveAndExit(
     onExit: () -> Unit,
     context: android.content.Context
 ) {
+    val durationMinutes = ((System.currentTimeMillis() - startTime) / 1000 / 60).toInt()
+    if (durationMinutes < MinSessionHistoryMinutes) {
+        onExit()
+        return
+    }
+
     val languageTag = context.resources.configuration.locales[0]?.toLanguageTag()
         ?: java.util.Locale.getDefault().toLanguageTag()
     val session = FlightSession(
@@ -1255,7 +1262,7 @@ private suspend fun saveAndExit(
         seatNumber = draft.seatNumber,
         focusCategory = draft.focusCategory,
         distanceKm = (draft.distanceKm * progress).toInt(),
-        durationMinutes = ((System.currentTimeMillis() - startTime) / 1000 / 60).toInt(),
+        durationMinutes = durationMinutes,
         startTime = startTime,
         endTime = System.currentTimeMillis(),
         isCompleted = isCompleted

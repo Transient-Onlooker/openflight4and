@@ -115,6 +115,8 @@
     <string name="tickets_toast_daily_check_in_reward">출석체크 보상으로 비행권 %1$d개가 지급되었습니다.</string>
     <string name="tickets_toast_ad_reward">광고 보상으로 비행권 %1$d개가 지급되었습니다.</string>
     <string name="tickets_toast_ad_reward_progress">현재 구간은 광고 %1$d회당 비행권 1장입니다. 광고를 %2$d회 더 보면 비행권이 지급됩니다.</string>
+    <string name="tickets_toast_ad_reward_tier_two_notice">이제부터 광고 2회당 비행권 1장이 지급됩니다.</string>
+    <string name="tickets_toast_ad_reward_tier_three_notice">이제부터 광고 3회당 비행권 1장이 지급됩니다.</string>
     <string name="tickets_toast_redeem_success">비행권 %1$d개가 지급되었습니다.</string>
 
     <!-- Main -->

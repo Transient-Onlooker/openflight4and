@@ -115,6 +115,22 @@ class TicketRepository(
         return rewardTicketFromAdInternal(R.string.repo_inflight_ad_reward_detail_format)
     }
 
+    suspend fun getAdRewardTierWarningMessage(): String? {
+        val today = LocalDate.now().toString()
+        val preferences = context.dataStore.data.first()
+        val watchedToday = if (preferences[AppPreferenceKeys.KEY_AD_REWARD_DATE] == today) {
+            preferences[AppPreferenceKeys.KEY_AD_WATCH_COUNT_TODAY] ?: 0
+        } else {
+            0
+        }
+        val nextWatchCount = watchedToday + 1
+        return when (nextWatchCount) {
+            3 -> context.getString(R.string.tickets_toast_ad_reward_tier_two_notice)
+            7 -> context.getString(R.string.tickets_toast_ad_reward_tier_three_notice)
+            else -> null
+        }
+    }
+
     suspend fun redeemCode(code: String): RedeemCodeResult {
         val normalized = code.trim().lowercase()
         if (normalized.isBlank()) {

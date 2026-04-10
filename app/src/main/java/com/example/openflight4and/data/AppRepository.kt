@@ -22,6 +22,7 @@ interface AppRepositoryDataSource {
 
     suspend fun claimDailyCheckIn(): DailyCheckInResult
     suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult
+    suspend fun getAdRewardTierWarningMessage(): String?
     suspend fun rewardTicketsFromAd(): AdTicketRewardResult
     suspend fun rewardSingleTicketFromInFlightAd(): AdTicketRewardResult
     suspend fun redeemCode(code: String): RedeemCodeResult
@@ -130,6 +131,9 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     override suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult =
         ticketRepository.canStartFlight()
+
+    override suspend fun getAdRewardTierWarningMessage(): String? =
+        ticketRepository.getAdRewardTierWarningMessage()
 
     suspend fun consumeTicketForLongFlight(): TicketSpendResult =
         ticketRepository.consumeTicketForLongFlight()

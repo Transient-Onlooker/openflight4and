@@ -110,6 +110,8 @@
     <string name="tickets_toast_daily_check_in_reward">%1$d ticket(s) granted as a check-in reward.</string>
     <string name="tickets_toast_ad_reward">%1$d ticket(s) granted as an ad reward.</string>
     <string name="tickets_toast_ad_reward_progress">This tier grants 1 ticket per %1$d ads. Watch %2$d more ad(s) to get the next ticket.</string>
+    <string name="tickets_toast_ad_reward_tier_two_notice">From now on, 1 ticket is granted per 2 ads.</string>
+    <string name="tickets_toast_ad_reward_tier_three_notice">From now on, 1 ticket is granted per 3 ads.</string>
     <string name="tickets_toast_redeem_success">%1$d ticket(s) granted.</string>
 
     <!-- Main -->

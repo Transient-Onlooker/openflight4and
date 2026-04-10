@@ -87,8 +87,11 @@ class TicketCenterViewModel(
 
     fun startAdReward() {
         if (_uiState.value.isWatchingAd) return
-        _uiState.update { it.copy(isWatchingAd = true, adSecondsRemaining = 0) }
         viewModelScope.launch {
+            repository.getAdRewardTierWarningMessage()?.let { warningMessage ->
+                _events.emit(TicketCenterEvent.ShowToast(warningMessage))
+            }
+            _uiState.update { it.copy(isWatchingAd = true, adSecondsRemaining = 0) }
             _events.emit(TicketCenterEvent.LaunchRewardedAd)
         }
     }
