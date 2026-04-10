@@ -23,12 +23,10 @@ val maps3dApiKey: String = localProperties.getProperty("MAPS3D_API_KEY")?.takeUn
     ?: mapsApiKey
 val testAdmobAppId = "ca-app-pub-3940256099942544~3347511713"
 val testAdmobRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917"
-val admobAppId: String = localProperties.getProperty("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
+val releaseAdmobAppId: String? = localProperties.getProperty("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
     ?: System.getenv("ADMOB_APP_ID")?.takeUnless { it.isBlank() }
-    ?: testAdmobAppId
-val admobRewardedAdUnitId: String = localProperties.getProperty("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
+val releaseAdmobRewardedAdUnitId: String? = localProperties.getProperty("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
     ?: System.getenv("ADMOB_REWARDED_AD_UNIT_ID")?.takeUnless { it.isBlank() }
-    ?: testAdmobRewardedAdUnitId
 val redeemApiBaseUrl: String = localProperties.getProperty("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("REDEEM_API_BASE_URL")?.takeUnless { it.isBlank() }
     ?: "https://openflight-redeem-api.junuh145858.workers.dev"
@@ -51,6 +49,14 @@ val hasReleaseSigning =
         releaseKeystorePassword != null &&
         releaseKeyAlias != null &&
         releaseKeyPassword != null
+if (gradle.startParameter.taskNames.any { taskName -> taskName.contains("Release", ignoreCase = true) }) {
+    require(!releaseAdmobAppId.isNullOrBlank()) {
+        "Release build requires ADMOB_APP_ID in local.properties or environment variables."
+    }
+    require(!releaseAdmobRewardedAdUnitId.isNullOrBlank()) {
+        "Release build requires ADMOB_REWARDED_AD_UNIT_ID in local.properties or environment variables."
+    }
+}
 
 android {
     namespace = "com.example.openflight4and"
@@ -60,8 +66,8 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2705
-        versionName = "2.7.5"
+        versionCode = 2706
+        versionName = "2.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")
@@ -91,8 +97,8 @@ android {
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"$admobRewardedAdUnitId\"")
-            manifestPlaceholders["ADMOB_APP_ID"] = admobAppId
+            buildConfigField("String", "ADMOB_REWARDED_AD_UNIT_ID", "\"${releaseAdmobRewardedAdUnitId!!}\"")
+            manifestPlaceholders["ADMOB_APP_ID"] = releaseAdmobAppId!!
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
