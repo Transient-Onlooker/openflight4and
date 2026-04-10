@@ -309,29 +309,42 @@ class FlightService : Service() {
 
         timerJob?.cancel()
         timerJob = serviceScope.launch {
-            var secondsElapsed = 0L
             var lastNotificationTime = System.currentTimeMillis()
+            _secondsElapsed = _secondsElapsed.coerceIn(0L, totalSeconds)
 
-            while (secondsElapsed < totalSeconds) {
+            while (_secondsElapsed < totalSeconds) {
                 while (_isPaused) {
                     delay(200)
                 }
+
+                _pendingJumpSeconds?.let { jumpTarget ->
+                    _secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
+                    _pendingJumpSeconds = null
+                    publishRuntimeState()
+                }
+
                 val safeTimeScale = timeScale.coerceIn(0.001f, 1000f)
                 val delayMs = (1000f / safeTimeScale).toLong()
                 delay(delayMs.coerceAtLeast(100)) // 理쒖냼 100ms (?덈Т 鍮좊Ⅸ ?낅뜲?댄듃 諛⑹?)
-                _pendingJumpSeconds?.let { jumpTarget ->
-                    secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
-                    _pendingJumpSeconds = null
+
+                if (_isPaused) {
+                    continue
                 }
-                secondsElapsed++
+
+                _pendingJumpSeconds?.let { jumpTarget ->
+                    _secondsElapsed = jumpTarget.coerceIn(0L, totalSeconds)
+                    _pendingJumpSeconds = null
+                    publishRuntimeState()
+                }
+
+                _secondsElapsed = (_secondsElapsed + 1).coerceAtMost(totalSeconds)
 
                 // ?쒕퉬???곹깭 ?낅뜲?댄듃 (UI ?곕룞??
-                _secondsElapsed = secondsElapsed
                 publishRuntimeState()
 
                 // ?뚮┝李?媛깆떊 (?ㅼ젣 ?쒓컙 湲곗? 30 珥덈쭏?ㅻ쭔 ?낅뜲?댄듃 - ?깅뒫 理쒖쟻??
                 val currentTime = System.currentTimeMillis()
-                val remaining = totalSeconds - secondsElapsed
+                val remaining = totalSeconds - _secondsElapsed
 
                 // ?⑥? ?쒓컙??0 ?대㈃ 利됱떆 ?꾨즺 泥섎━
                 if (remaining <= 0) {

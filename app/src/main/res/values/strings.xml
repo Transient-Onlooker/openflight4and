@@ -196,7 +196,7 @@
     <string name="inflight_title">In flight</string>
     <string name="inflight_remaining_time">Remaining time</string>
     <string name="inflight_time_scale_format">Time scale: %1$s</string>
-    <string name="inflight_zoom_label">Zoom: %1$d</string>
+    <string name="inflight_zoom_label">Zoom: %1$dx</string>
     <string name="inflight_zoom_label_3d">Zoom: 3D</string>
     <string name="inflight_debug_title">Flight Debug</string>
     <string name="inflight_debug_elapsed_format">Elapsed: %1$s</string>

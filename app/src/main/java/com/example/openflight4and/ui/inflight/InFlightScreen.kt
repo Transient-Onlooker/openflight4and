@@ -418,6 +418,11 @@ fun InFlightScreen(
             animationStartElapsed = renderedElapsedSeconds
             animationTargetElapsed = renderedElapsedSeconds
             animationStartedAtMillis = SystemClock.elapsedRealtime()
+        } else {
+            renderedElapsedSeconds = secondsElapsed.toFloat()
+            animationStartElapsed = renderedElapsedSeconds
+            animationTargetElapsed = renderedElapsedSeconds
+            animationStartedAtMillis = SystemClock.elapsedRealtime()
         }
     }
 
