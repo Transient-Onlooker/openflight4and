@@ -177,11 +177,18 @@
     <string name="newflight_selected_destination_format">도착: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">지도에서 공항 선택</string>
     <string name="newflight_move_map_hint">지도를 움직이거나 아래 목록에서 선택하세요.</string>
-    <string name="newflight_search_placeholder">공항 검색 또는 시간 검색 (예: 1, 1.5)</string>
+    <string name="newflight_search_placeholder">공항 검색</string>
     <string name="newflight_clear_search">검색 초기화</string>
     <string name="newflight_unlimited">무제한</string>
     <string name="newflight_search_radius_format">검색 반경: %1$s%2$s</string>
     <string name="newflight_set_current_location">현재 위치로 설정</string>
+    <string name="initial_origin_setup_title">시작 공항 설정</string>
+    <string name="initial_origin_setup_message">처음 시작할 때 사용할 출발 공항을 정하세요. 현재 위치 기반으로 자동 설정하거나 원하는 공항을 직접 선택할 수 있습니다.</string>
+    <string name="initial_origin_setup_use_current_location">현재 위치 기반으로 설정</string>
+    <string name="initial_origin_setup_choose_airport">원하는 공항으로 설정</string>
+    <string name="initial_origin_setup_location_permission_denied">위치 권한이 없어 현재 위치 기반 설정을 진행할 수 없습니다.</string>
+    <string name="initial_origin_setup_location_unavailable">현재 위치를 가져오지 못했습니다. 원하는 공항을 직접 선택해 주세요.</string>
+    <string name="initial_origin_setup_location_success">%1$s 기준으로 시작 공항을 설정했습니다.</string>
     <string name="newflight_airport_selection_done">공항 선택 완료</string>
     <string name="newflight_confirm_destination">목적지 확정</string>
     <string name="newflight_same_airport_title">목적지 오류</string>
@@ -253,4 +260,6 @@
     <string name="repo_redeem_network_error">리딤 서버에 연결할 수 없습니다.</string>
     <string name="repo_redeem_title">리딤 코드</string>
     <string name="repo_redeem_detail_format">%1$s 코드로 비행권 %2$d개가 지급되었습니다.</string>
+    <string name="newflight_select_current_location_airport">시작 공항으로 사용할 공항을 선택하세요.</string>
+    <string name="newflight_search_and_select_airport">공항을 검색한 뒤 선택하세요.</string>
 </resources>

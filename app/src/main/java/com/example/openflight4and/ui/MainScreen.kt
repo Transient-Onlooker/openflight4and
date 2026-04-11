@@ -2,9 +2,15 @@ package com.example.openflight4and.ui
 
 import android.app.Application
 import android.content.Intent
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.openflight4and.BuildConfig
@@ -42,6 +52,7 @@ import com.example.openflight4and.data.VersionStatus
 import com.example.openflight4and.model.Airport
 import com.example.openflight4and.ui.inflight.InFlightScreen
 import com.example.openflight4and.ui.navigation.Screen
+import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -51,6 +62,7 @@ fun MainScreen(
     onInflightLaunchHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
     val repository = com.example.openflight4and.ui.LocalAppRepository.current
     val scope = rememberCoroutineScope()
@@ -62,13 +74,62 @@ fun MainScreen(
     val sandboxTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
     val ticketBalance by repository.flightTickets.collectAsState(initial = 0)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
+    val currentLocation by repository.currentLocation.collectAsState(initial = null)
+    val initialOriginSetupCompleted by repository.initialOriginSetupCompleted.collectAsState(initial = false)
     val uiState by viewModel.uiState.collectAsState()
+    var isResolvingInitialLocation by remember { mutableStateOf(false) }
+    val showInitialOriginSetupDialog =
+        navBackStackEntry?.destination?.route == Screen.Home.route &&
+            !initialOriginSetupCompleted &&
+            currentLocation == null
     val openReleasePage = {
         context.startActivity(
             Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.GITHUB_RELEASES_URL)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         )
+    }
+    val requestInitialLocationPermissions = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (!granted) {
+            isResolvingInitialLocation = false
+            Toast.makeText(
+                context,
+                context.getString(R.string.initial_origin_setup_location_permission_denied),
+                Toast.LENGTH_SHORT
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
+
+        val nearestAirport = resolveNearestAirportFromDeviceLocation(
+            context = context,
+            airports = uiState.allAirports
+        )
+        if (nearestAirport == null) {
+            isResolvingInitialLocation = false
+            Toast.makeText(
+                context,
+                context.getString(R.string.initial_origin_setup_location_unavailable),
+                Toast.LENGTH_SHORT
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
+
+        scope.launch {
+            repository.setCurrentLocation(nearestAirport)
+            isResolvingInitialLocation = false
+            Toast.makeText(
+                context,
+                context.getString(
+                    R.string.initial_origin_setup_location_success,
+                    nearestAirport.localizedCity()
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -274,6 +335,125 @@ fun MainScreen(
             onUpdate = openReleasePage
         )
     }
+
+    if (showInitialOriginSetupDialog) {
+        InitialOriginSetupDialog(
+            isResolvingLocation = isResolvingInitialLocation,
+            onUseCurrentLocation = {
+                val hasFineLocation = ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                val hasCoarseLocation = ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasFineLocation || hasCoarseLocation) {
+                    isResolvingInitialLocation = true
+                    val nearestAirport = resolveNearestAirportFromDeviceLocation(
+                        context = context,
+                        airports = uiState.allAirports
+                    )
+                    if (nearestAirport == null) {
+                        isResolvingInitialLocation = false
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.initial_origin_setup_location_unavailable),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        scope.launch {
+                            repository.setCurrentLocation(nearestAirport)
+                            isResolvingInitialLocation = false
+                            Toast.makeText(
+                                context,
+                                context.getString(
+                                    R.string.initial_origin_setup_location_success,
+                                    nearestAirport.localizedCity()
+                                ),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } else {
+                    isResolvingInitialLocation = true
+                    requestInitialLocationPermissions.launch(
+                        arrayOf(
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            },
+            onChooseAirportManually = {
+                navController.navigate(
+                    "${Screen.NewFlight.route}?sandboxMode=false&isSettingCurrentLocation=true"
+                )
+            }
+        )
+    }
+}
+
+private fun resolveNearestAirportFromDeviceLocation(
+    context: Context,
+    airports: List<Airport>
+): Airport? {
+    if (airports.isEmpty()) return null
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+    val providers = runCatching { locationManager.getProviders(true) }.getOrDefault(emptyList())
+    val bestLocation = providers
+        .mapNotNull { provider ->
+            runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull()
+        }
+        .maxByOrNull { location ->
+            (location.time.takeIf { it > 0L } ?: 0L) + (1_000_000L - location.accuracy.toLong().coerceAtLeast(0L))
+        }
+        ?: return null
+
+    return airports.minByOrNull { airport ->
+        FlightUtils.calculateDistance(
+            bestLocation.latitude,
+            bestLocation.longitude,
+            airport.latitude,
+            airport.longitude
+        )
+    }
+}
+
+@Composable
+private fun InitialOriginSetupDialog(
+    isResolvingLocation: Boolean,
+    onUseCurrentLocation: () -> Unit,
+    onChooseAirportManually: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(R.string.initial_origin_setup_title), color = Color.White) },
+        text = {
+            Text(
+                stringResource(R.string.initial_origin_setup_message),
+                color = Color.Gray
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onUseCurrentLocation,
+                enabled = !isResolvingLocation
+            ) {
+                Text(stringResource(R.string.initial_origin_setup_use_current_location))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onChooseAirportManually,
+                enabled = !isResolvingLocation
+            ) {
+                Text(stringResource(R.string.initial_origin_setup_choose_airport))
+            }
+        },
+        containerColor = Color(0xFF0D0000)
+    )
 }
 
 @Composable

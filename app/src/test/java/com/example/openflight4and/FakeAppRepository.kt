@@ -44,6 +44,7 @@ class FakeAppRepository(
     var rewardedInflightAds = 0
     var nextAdRewardResult = AdTicketRewardResult(1, 1, 1)
     var nextInflightAdRewardResult = AdTicketRewardResult(1, 1, 1)
+    var nextAdRewardTierWarningMessage: String? = null
 
     override suspend fun claimDailyCheckIn(): DailyCheckInResult {
         return when (val result = nextDailyCheckInResult) {
@@ -82,6 +83,8 @@ class FakeAppRepository(
         flightTickets.update { it + nextInflightAdRewardResult.grantedAmount }
         return nextInflightAdRewardResult
     }
+
+    override suspend fun getAdRewardTierWarningMessage(): String? = nextAdRewardTierWarningMessage
 
     override suspend fun redeemCode(code: String): RedeemCodeResult {
         return when (val result = nextRedeemCodeResult) {

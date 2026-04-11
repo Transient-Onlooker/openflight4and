@@ -21,6 +21,7 @@ object AppPreferenceKeys {
     val KEY_FOCUS_LOCK_ALLOWED_APPS = stringPreferencesKey("focus_lock_allowed_apps")
     val KEY_SCREEN_ORIENTATION_MODE = stringPreferencesKey("screen_orientation_mode")
     val KEY_CURRENT_LOCATION = stringPreferencesKey("current_location")
+    val KEY_INITIAL_ORIGIN_SETUP_COMPLETED = booleanPreferencesKey("initial_origin_setup_completed")
     val KEY_SANDBOX_TIME_SCALE = stringPreferencesKey("sandbox_time_scale")
     val KEY_FLIGHT_TICKETS = intPreferencesKey("flight_tickets")
     val KEY_LAST_DAILY_TICKET_DATE = stringPreferencesKey("last_daily_ticket_date")

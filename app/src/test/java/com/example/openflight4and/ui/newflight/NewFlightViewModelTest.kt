@@ -49,4 +49,32 @@ class NewFlightViewModelTest {
         assertFalse(viewModel.uiState.value.showQuickFlightDialog)
         assertFalse(viewModel.uiState.value.showSameAirportDialog)
     }
+
+    @Test
+    fun initialize_resetsTransientDialogsWhenOriginChanges() {
+        val viewModel = NewFlightViewModel(
+            FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd, TestAirports.lax))
+        )
+
+        viewModel.showQuickFlightDialog()
+        viewModel.showSameAirportDialog()
+        viewModel.initialize("HND", TestAirports.lax)
+
+        val state = viewModel.uiState.value
+        assertEquals("HND", state.initializedOriginIata)
+        assertEquals("LAX", state.selectedDestination?.iata)
+        assertFalse(state.showQuickFlightDialog)
+        assertFalse(state.showSameAirportDialog)
+    }
+
+    @Test
+    fun selectDestination_updatesSelectedAirport() {
+        val viewModel = NewFlightViewModel(
+            FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd, TestAirports.lax))
+        )
+
+        viewModel.selectDestination(TestAirports.lax)
+
+        assertEquals("LAX", viewModel.uiState.value.selectedDestination?.iata)
+    }
 }

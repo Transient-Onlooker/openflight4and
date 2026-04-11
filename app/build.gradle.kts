@@ -69,8 +69,8 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2709
-        versionName = "2.7.9"
+        versionCode = 20710
+        versionName = "2.7.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")

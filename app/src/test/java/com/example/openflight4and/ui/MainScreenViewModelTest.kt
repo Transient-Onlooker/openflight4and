@@ -4,7 +4,10 @@ import com.example.openflight4and.FakeAppRepository
 import com.example.openflight4and.MainDispatcherRule
 import com.example.openflight4and.TestAirports
 import com.example.openflight4and.data.TicketSpendResult
+import com.example.openflight4and.data.UpdateRequirement
+import com.example.openflight4and.data.VersionStatus
 import com.example.openflight4and.model.FlightDraft
+import com.example.openflight4and.model.FlightSession
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -102,5 +105,103 @@ class MainScreenViewModelTest {
         viewModel.updateDestination(TestAirports.hnd)
 
         assertFalse(viewModel.validateSeatSelection(ticketBalance = 0))
+    }
+
+    @Test
+    fun init_whenCurrentLocationExists_updatesDraftOriginToCurrentLocation() = runTest {
+        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd)).apply {
+            currentLocation.value = TestAirports.hnd
+        }
+
+        val viewModel = MainScreenViewModel(
+            repository = repository,
+            startFlightService = { _, _ -> },
+            estimateFlight = { _, _ -> 1200 to 115 }
+        )
+
+        advanceUntilIdle()
+
+        assertEquals("HND", viewModel.uiState.value.currentLocation?.iata)
+        assertEquals("HND", viewModel.uiState.value.currentDraft.origin.iata)
+    }
+
+    @Test
+    fun init_withoutCurrentLocation_usesRecentSessionDestinationAsDefaultOrigin() = runTest {
+        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd)).apply {
+            recentSessions.value = listOf(
+                FlightSession(
+                    flightNumber = "OF101",
+                    originIata = "ICN",
+                    originName = "Incheon Intl",
+                    destinationIata = "HND",
+                    destinationName = "Haneda Airport",
+                    seatNumber = null,
+                    focusCategory = null,
+                    distanceKm = 1200,
+                    durationMinutes = 115,
+                    startTime = 1L,
+                    endTime = 2L,
+                    isCompleted = true
+                )
+            )
+        }
+
+        val viewModel = MainScreenViewModel(
+            repository = repository,
+            startFlightService = { _, _ -> },
+            estimateFlight = { _, _ -> 1200 to 115 }
+        )
+
+        advanceUntilIdle()
+
+        assertEquals("HND", viewModel.uiState.value.currentDraft.origin.iata)
+    }
+
+    @Test
+    fun init_whenRequiredUpdateExists_exposesRequiredUpdateOnly() = runTest {
+        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd)).apply {
+            nextVersionStatus = VersionStatus(
+                currentVersion = "2.7.9",
+                allowedVersion = "2.8.0",
+                recentVersion = "2.8.1",
+                requirement = UpdateRequirement.REQUIRED
+            )
+        }
+
+        val viewModel = MainScreenViewModel(
+            repository = repository,
+            startFlightService = { _, _ -> },
+            estimateFlight = { _, _ -> 1200 to 115 }
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(UpdateRequirement.REQUIRED, viewModel.uiState.value.requiredUpdate?.requirement)
+        assertEquals(null, viewModel.uiState.value.recommendedUpdate)
+    }
+
+    @Test
+    fun dismissRecommendedUpdate_clearsRecommendedState() = runTest {
+        val repository = FakeAppRepository(listOf(TestAirports.icn, TestAirports.hnd)).apply {
+            nextVersionStatus = VersionStatus(
+                currentVersion = "2.7.9",
+                allowedVersion = "2.7.0",
+                recentVersion = "2.8.0",
+                requirement = UpdateRequirement.RECOMMENDED
+            )
+        }
+
+        val viewModel = MainScreenViewModel(
+            repository = repository,
+            startFlightService = { _, _ -> },
+            estimateFlight = { _, _ -> 1200 to 115 }
+        )
+
+        advanceUntilIdle()
+        assertEquals(UpdateRequirement.RECOMMENDED, viewModel.uiState.value.recommendedUpdate?.requirement)
+
+        viewModel.dismissRecommendedUpdate()
+
+        assertEquals(null, viewModel.uiState.value.recommendedUpdate)
     }
 }

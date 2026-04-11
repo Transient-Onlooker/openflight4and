@@ -47,6 +47,9 @@ class SettingsRepository(
     val screenOrientationMode: Flow<String> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_SCREEN_ORIENTATION_MODE] ?: "auto"
     }
+    val initialOriginSetupCompleted: Flow<Boolean> = context.dataStore.data.map {
+        it[AppPreferenceKeys.KEY_INITIAL_ORIGIN_SETUP_COMPLETED] ?: false
+    }
     val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[AppPreferenceKeys.KEY_CURRENT_LOCATION]
         Log.d(TAG, "Reading current location from DataStore: $json")
@@ -112,6 +115,13 @@ class SettingsRepository(
     suspend fun setCurrentLocation(airport: Airport) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_CURRENT_LOCATION] = Json.encodeToString(Airport.serializer(), airport)
+            preferences[AppPreferenceKeys.KEY_INITIAL_ORIGIN_SETUP_COMPLETED] = true
+        }
+    }
+
+    suspend fun setInitialOriginSetupCompleted(completed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_INITIAL_ORIGIN_SETUP_COMPLETED] = completed
         }
     }
 
