@@ -213,6 +213,20 @@ fun NewFlightScreen(
                 }
             }
     }
+    val manualSelectionZoomBucket by remember(cameraPositionState) {
+        derivedStateOf { cameraPositionState.position.zoom.roundToInt().coerceAtLeast(0) }
+    }
+    val manualSelectionMapAirports = remember(
+        manualSelectionAirports,
+        selectedDestination?.iata,
+        manualSelectionZoomBucket
+    ) {
+        visibleManualSelectionAirports(
+            airports = manualSelectionAirports,
+            selectedAirport = selectedDestination,
+            zoomBucket = manualSelectionZoomBucket
+        )
+    }
     val displayedAirports = if (isSettingCurrentLocation) manualSelectionAirports else sortedAirports
     val quickFlightSuggestions = remember(allAirports, originAirport.iata) {
         buildQuickFlightSuggestions(originAirport, allAirports)
@@ -516,11 +530,7 @@ fun NewFlightScreen(
 
                 // Markers
                 val mapAirports = if (isSettingCurrentLocation) {
-                    visibleManualSelectionAirports(
-                        airports = manualSelectionAirports,
-                        selectedAirport = selectedDestination,
-                        zoom = cameraPositionState.position.zoom
-                    )
+                    manualSelectionMapAirports
                 } else {
                     allAirports
                 }
@@ -845,9 +855,9 @@ private fun isSettingCurrentLocationClickable(showMetrics: Boolean, isOrigin: Bo
 private fun visibleManualSelectionAirports(
     airports: List<Airport>,
     selectedAirport: Airport?,
-    zoom: Float
+    zoomBucket: Int
 ): List<Airport> {
-    val zoomScale = 2.0.pow(zoom.toDouble().coerceAtLeast(0.0))
+    val zoomScale = 2.0.pow(zoomBucket.toDouble().coerceAtLeast(0.0))
     val degreesPerPixel = 360.0 / (NewFlightTileSizePx * zoomScale)
     val horizontalThreshold = (degreesPerPixel * NewFlightManualSelectionMarkerWidthPx).coerceAtLeast(0.008)
     val verticalThreshold = (degreesPerPixel * NewFlightManualSelectionMarkerHeightPx).coerceAtLeast(0.006)
