@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.example.openflight4and.model.Airport
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -30,6 +31,10 @@ class SettingsRepository(
     }
     val focusLockEnabled: Flow<Boolean> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED] ?: false
+    }
+    val focusLockPinEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        !preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH].isNullOrBlank() &&
+            !preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT].isNullOrBlank()
     }
     val focusLockAllowedApps: Flow<Set<String>> = context.dataStore.data.map { preferences ->
         val json = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS]
@@ -106,6 +111,40 @@ class SettingsRepository(
             preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS] =
                 Json.encodeToString(packages.sorted())
         }
+    }
+
+    suspend fun setFocusLockPin(pin: String) {
+        val pinHash = FocusLockPinSecurity.createHash(pin)
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH] = pinHash.hashBase64
+            preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT] = pinHash.saltBase64
+        }
+    }
+
+    suspend fun verifyFocusLockPin(pin: String): Boolean {
+        val preferences = context.dataStore.data.map { it }.firstOrNull() ?: return false
+        val hash = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH] ?: return false
+        val salt = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT] ?: return false
+        return FocusLockPinSecurity.verify(pin, salt, hash)
+    }
+
+    suspend fun changeFocusLockPin(currentPin: String, newPin: String): Boolean {
+        if (!verifyFocusLockPin(currentPin)) {
+            return false
+        }
+        setFocusLockPin(newPin)
+        return true
+    }
+
+    suspend fun clearFocusLockPin(currentPin: String): Boolean {
+        if (!verifyFocusLockPin(currentPin)) {
+            return false
+        }
+        context.dataStore.edit { preferences ->
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT)
+        }
+        return true
     }
 
     suspend fun setScreenOrientationMode(mode: String) {

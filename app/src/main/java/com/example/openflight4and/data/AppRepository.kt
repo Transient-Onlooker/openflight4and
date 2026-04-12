@@ -65,6 +65,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val notificationsEnabled: Flow<Boolean> = settingsRepository.notificationsEnabled
     val notificationUpdateSeconds: Flow<Int> = settingsRepository.notificationUpdateSeconds
     val focusLockEnabled: Flow<Boolean> = settingsRepository.focusLockEnabled
+    val focusLockPinEnabled: Flow<Boolean> = settingsRepository.focusLockPinEnabled
     val focusLockAllowedApps: Flow<Set<String>> = settingsRepository.focusLockAllowedApps
     val screenOrientationMode: Flow<String> = settingsRepository.screenOrientationMode
     val initialOriginSetupCompleted: Flow<Boolean> = settingsRepository.initialOriginSetupCompleted
@@ -110,6 +111,22 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setFocusLockAllowedApps(packages: Set<String>) {
         settingsRepository.setFocusLockAllowedApps(packages)
+    }
+
+    suspend fun setFocusLockPin(pin: String) {
+        settingsRepository.setFocusLockPin(pin)
+    }
+
+    suspend fun verifyFocusLockPin(pin: String): Boolean {
+        return settingsRepository.verifyFocusLockPin(pin)
+    }
+
+    suspend fun changeFocusLockPin(currentPin: String, newPin: String): Boolean {
+        return settingsRepository.changeFocusLockPin(currentPin, newPin)
+    }
+
+    suspend fun clearFocusLockPin(currentPin: String): Boolean {
+        return settingsRepository.clearFocusLockPin(currentPin)
     }
 
     suspend fun setScreenOrientationMode(mode: String) {

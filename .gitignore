@@ -2,9 +2,12 @@
 .gradle
 .gradle-user/
 .gradle-user-home/
+.gradle-user-cli/
 .gradle-user-home-version/
 .gradle-user-home-ads/
 .gradle-user-test/
+.gradle-user-test-run/
+.gradle-user-settings-run/
 /local.properties
 /.android-user/
 /.idea/

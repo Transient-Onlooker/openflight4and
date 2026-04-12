@@ -202,6 +202,11 @@ fun NewFlightScreen(
                     airport.country.lowercase().contains(query)
             }
             .sortedWith { left, right ->
+
+
+
+
+
                 val cityCompare = String.CASE_INSENSITIVE_ORDER.compare(
                     left.localizedCity(languageTag),
                     right.localizedCity(languageTag)

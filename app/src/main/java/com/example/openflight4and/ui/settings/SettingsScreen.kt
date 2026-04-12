@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.settings
 
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -58,6 +60,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -72,12 +76,12 @@ import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
-import com.example.openflight4and.ui.components.SectionHeader
 import com.example.openflight4and.ui.theme.FlightGray
 import kotlinx.coroutines.launch
 
 private val SettingsHorizontalPadding = 24.dp
 private val SettingsSectionSpacing = 24.dp
+private val SettingsCardInnerSpacing = 16.dp
 private val SettingsNoticeTopPadding = 8.dp
 private val SettingsNoticeStartPadding = 4.dp
 private val SettingsNoticeBottomSpacing = 16.dp
@@ -93,6 +97,15 @@ private val SettingsNotificationRows = listOf(
     listOf(1, 2, 5),
     listOf(10, 20, 30)
 )
+private const val FocusLockPinMinLength = 4
+private const val FocusLockPinMaxLength = 6
+private const val FocusLockPinSessionDurationMillis = 3 * 60 * 1000L
+
+private enum class FocusLockPinEntryStep {
+    CURRENT,
+    NEW,
+    CONFIRM
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +123,7 @@ fun SettingsScreen(
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
+    val focusLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
     val focusLockAllowedPackages by repository.focusLockAllowedApps.collectAsState(initial = emptySet())
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
     val isScreenOrientationLocked = restrictInFlightSettings
@@ -121,6 +135,13 @@ fun SettingsScreen(
     var allowedAppsSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
     var allowedAppsQuery by remember { mutableStateOf("") }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showFocusLockUnlockDialog by remember { mutableStateOf(false) }
+    var showFocusLockSetPinDialog by remember { mutableStateOf(false) }
+    var showFocusLockChangePinDialog by remember { mutableStateOf(false) }
+    var showFocusLockRemovePinDialog by remember { mutableStateOf(false) }
+    var showFocusLockForgotPinDialog by remember { mutableStateOf(false) }
+    var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val titleSettings = stringResource(R.string.settings_title)
     val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
     val titleLanguage = stringResource(R.string.settings_title_language)
@@ -130,6 +151,14 @@ fun SettingsScreen(
     val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
     val titleAllowedApps = stringResource(R.string.settings_focus_lock_allowed_apps)
+    val titleGeneralSection = stringResource(R.string.settings_section_general)
+    val titleNotificationSection = stringResource(R.string.settings_section_notifications)
+    val titleBackgroundSection = stringResource(R.string.settings_section_background)
+    val titleFocusLockSection = stringResource(R.string.settings_section_focus_lock)
+    val descriptionGeneralSection = stringResource(R.string.settings_section_general_description)
+    val descriptionNotificationSection = stringResource(R.string.settings_section_notifications_description)
+    val descriptionBackgroundSection = stringResource(R.string.settings_section_background_description)
+    val descriptionFocusLockSection = stringResource(R.string.settings_section_focus_lock_description)
     val labelAuto = stringResource(R.string.settings_orientation_auto)
     val labelLanguageSystem = stringResource(R.string.settings_language_system)
     val labelLanguageKorean = stringResource(R.string.settings_language_korean)
@@ -142,11 +171,27 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasUsageAccess = FocusLockUtils.hasUsageAccess(context)
                 canDrawOverlays = FocusLockUtils.canDrawOverlays(context)
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                focusLockAuthenticatedAtMillis = null
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    fun hasValidFocusLockSession(): Boolean {
+        val authenticatedAt = focusLockAuthenticatedAtMillis ?: return false
+        return SystemClock.elapsedRealtime() - authenticatedAt <= FocusLockPinSessionDurationMillis
+    }
+
+    fun runProtectedFocusLockAction(action: () -> Unit) {
+        if (!focusLockPinEnabled || hasValidFocusLockSession()) {
+            action()
+        } else {
+            pendingProtectedFocusLockAction = action
+            showFocusLockUnlockDialog = true
         }
     }
 
@@ -186,23 +231,6 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.padding(top = SettingsNoticeBottomSpacing))
                 }
 
-                SectionHeader(titleUnitSystem)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = unitSystem == "km",
-                        onClick = { scope.launch { repository.setUnitSystem("km") } },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                    ) { Text(stringResource(R.string.settings_unit_kilometers)) }
-                    SegmentedButton(
-                        selected = unitSystem == "mi",
-                        onClick = { scope.launch { repository.setUnitSystem("mi") } },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                    ) { Text(stringResource(R.string.settings_unit_miles)) }
-                }
-
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
-                SectionHeader(titleLanguage)
                 val languageModes = listOf(
                     "system" to labelLanguageSystem,
                     "ko" to labelLanguageKorean,
@@ -210,142 +238,244 @@ fun SettingsScreen(
                 )
                 val selectedLanguageLabel = languageModes.firstOrNull { it.first == appLanguage }?.second
                     ?: labelLanguageSystem
-                PermissionSettingItem(
-                    title = titleLanguage,
-                    description = selectedLanguageLabel,
-                    onClick = { showLanguageDialog = true }
-                )
-
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
-                SectionHeader(titleScreenOrientation)
                 val orientationModes = listOf(
                     "auto" to labelAuto,
                     "portrait" to labelPortrait,
                     "landscape" to labelLandscape
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    orientationModes.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = screenOrientationMode == id,
-                            enabled = !isScreenOrientationLocked,
-                            onClick = { scope.launch { repository.setScreenOrientationMode(id) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = orientationModes.size)
-                        ) { Text(label) }
-                    }
-                }
-                Text(
-                    text = stringResource(R.string.settings_screen_orientation_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = FlightGray,
-                    modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
-                )
-
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
-                SectionHeader(titleMapStyle)
                 val styles = listOf(
                     "standard" to stringResource(R.string.settings_map_style_standard),
                     "satellite" to stringResource(R.string.settings_map_style_satellite),
                     "hybrid" to stringResource(R.string.settings_map_style_hybrid)
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    styles.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = mapStyle == id,
-                            onClick = { scope.launch { repository.setMapStyle(id) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = styles.size)
-                        ) { Text(label) }
-                    }
-                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
-                ToggleSettingItem(
-                    title = titleNotifications,
-                    description = stringResource(R.string.settings_notifications_description),
-                    checked = notificationsEnabled,
-                    onCheckedChange = { scope.launch { repository.setNotificationsEnabled(it) } }
-                )
-
-                if (notificationsEnabled) {
-                    SectionHeader(titleNotificationInterval)
-                    Column(verticalArrangement = Arrangement.spacedBy(SettingsNotificationRowSpacing)) {
-                        SettingsNotificationRows.forEach { row ->
+                SettingsCategoryCard(
+                    title = titleGeneralSection,
+                    description = descriptionGeneralSection
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        Column {
+                            Text(
+                                text = titleUnitSystem,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(10.dp))
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                row.forEachIndexed { index, seconds ->
+                                SegmentedButton(
+                                    selected = unitSystem == "km",
+                                    onClick = { scope.launch { repository.setUnitSystem("km") } },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                ) { Text(stringResource(R.string.settings_unit_kilometers)) }
+                                SegmentedButton(
+                                    selected = unitSystem == "mi",
+                                    onClick = { scope.launch { repository.setUnitSystem("mi") } },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                ) { Text(stringResource(R.string.settings_unit_miles)) }
+                            }
+                        }
+
+                        PermissionSettingItem(
+                            title = titleLanguage,
+                            description = selectedLanguageLabel,
+                            onClick = { showLanguageDialog = true }
+                        )
+
+                        Column {
+                            Text(
+                                text = titleScreenOrientation,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(10.dp))
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                orientationModes.forEachIndexed { index, (id, label) ->
                                     SegmentedButton(
-                                        modifier = Modifier.weight(1f),
-                                        selected = notificationUpdateSeconds == seconds,
-                                        onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
-                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = row.size)
-                                    ) { Text("${seconds}s") }
+                                        selected = screenOrientationMode == id,
+                                        enabled = !isScreenOrientationLocked,
+                                        onClick = { scope.launch { repository.setScreenOrientationMode(id) } },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = orientationModes.size)
+                                    ) { Text(label) }
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.settings_screen_orientation_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FlightGray,
+                                modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = titleMapStyle,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(10.dp))
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                styles.forEachIndexed { index, (id, label) ->
+                                    SegmentedButton(
+                                        selected = mapStyle == id,
+                                        onClick = { scope.launch { repository.setMapStyle(id) } },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = styles.size)
+                                    ) { Text(label) }
                                 }
                             }
                         }
                     }
-                    Text(
-                        text = stringResource(R.string.settings_notification_interval_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FlightGray,
-                        modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
-                    )
                 }
-
-                BatteryOptimizationItem()
 
                 Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
 
-                SectionHeader(titleFocusLock)
-                ToggleSettingItem(
-                    title = titleFocusLock,
-                    description = stringResource(R.string.settings_focus_lock_description),
-                    checked = focusLockEnabled,
-                    onCheckedChange = { enabled ->
-                        scope.launch { repository.setFocusLockEnabled(enabled) }
-                    }
-                )
-                Text(
-                    text = stringResource(R.string.settings_focus_lock_requirements),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = FlightGray,
-                    modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
-                )
-                if (focusLockEnabled) {
-                    PermissionSettingItem(
-                        title = stringResource(R.string.settings_usage_access),
-                        description = if (hasUsageAccess) {
-                            stringResource(R.string.settings_permission_allowed)
-                        } else {
-                            stringResource(R.string.settings_permission_required_usage)
-                        },
-                        onClick = { FocusLockUtils.openUsageAccessSettings(context) }
-                    )
-                    PermissionSettingItem(
-                        title = stringResource(R.string.settings_overlay_permission),
-                        description = if (canDrawOverlays) {
-                            stringResource(R.string.settings_permission_allowed)
-                        } else {
-                            stringResource(R.string.settings_permission_required_overlay)
-                        },
-                        onClick = { FocusLockUtils.openOverlaySettings(context) }
-                    )
-                    PermissionSettingItem(
-                        title = titleAllowedApps,
-                        description = if (focusLockAllowedPackages.isEmpty()) {
-                            stringResource(R.string.settings_focus_lock_allowed_apps_empty)
-                        } else {
-                            stringResource(
-                                R.string.settings_focus_lock_allowed_apps_count,
-                                focusLockAllowedPackages.size
+                SettingsCategoryCard(
+                    title = titleNotificationSection,
+                    description = descriptionNotificationSection
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        ToggleSettingItem(
+                            title = titleNotifications,
+                            description = stringResource(R.string.settings_notifications_description),
+                            checked = notificationsEnabled,
+                            onCheckedChange = { scope.launch { repository.setNotificationsEnabled(it) } }
+                        )
+
+                        if (notificationsEnabled) {
+                            Column(verticalArrangement = Arrangement.spacedBy(SettingsNotificationRowSpacing)) {
+                                Text(
+                                    text = titleNotificationInterval,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                SettingsNotificationRows.forEach { row ->
+                                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                        row.forEachIndexed { index, seconds ->
+                                            SegmentedButton(
+                                                modifier = Modifier.weight(1f),
+                                                selected = notificationUpdateSeconds == seconds,
+                                                onClick = { scope.launch { repository.setNotificationUpdateSeconds(seconds) } },
+                                                shape = SegmentedButtonDefaults.itemShape(index = index, count = row.size)
+                                            ) { Text("${seconds}s") }
+                                        }
+                                    }
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.settings_notification_interval_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FlightGray,
+                                modifier = Modifier.padding(start = SettingsNoticeStartPadding)
                             )
-                        },
-                        onClick = {
-                            allowedAppsSelection = focusLockAllowedPackages
-                            allowedAppsQuery = ""
-                            showAllowedAppsDialog = true
                         }
-                    )
+                    }
+                }
+
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
+
+                SettingsCategoryCard(
+                    title = titleBackgroundSection,
+                    description = descriptionBackgroundSection
+                ) {
+                    BatteryOptimizationItem()
+                }
+
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
+
+                SettingsCategoryCard(
+                    title = titleFocusLockSection,
+                    description = descriptionFocusLockSection
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        ToggleSettingItem(
+                            title = titleFocusLock,
+                            description = stringResource(R.string.settings_focus_lock_description),
+                            checked = focusLockEnabled,
+                            onCheckedChange = { enabled ->
+                                runProtectedFocusLockAction {
+                                    scope.launch { repository.setFocusLockEnabled(enabled) }
+                                }
+                            }
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_focus_lock_requirements),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray,
+                            modifier = Modifier.padding(start = SettingsNoticeStartPadding)
+                        )
+                        if (focusLockEnabled) {
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_usage_access),
+                                description = if (hasUsageAccess) {
+                                    stringResource(R.string.settings_permission_allowed)
+                                } else {
+                                    stringResource(R.string.settings_permission_required_usage)
+                                },
+                                onClick = {
+                                    runProtectedFocusLockAction {
+                                        FocusLockUtils.openUsageAccessSettings(context)
+                                    }
+                                }
+                            )
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_overlay_permission),
+                                description = if (canDrawOverlays) {
+                                    stringResource(R.string.settings_permission_allowed)
+                                } else {
+                                    stringResource(R.string.settings_permission_required_overlay)
+                                },
+                                onClick = {
+                                    runProtectedFocusLockAction {
+                                        FocusLockUtils.openOverlaySettings(context)
+                                    }
+                                }
+                            )
+                            PermissionSettingItem(
+                                title = titleAllowedApps,
+                                description = if (focusLockAllowedPackages.isEmpty()) {
+                                    stringResource(R.string.settings_focus_lock_allowed_apps_empty)
+                                } else {
+                                    stringResource(
+                                        R.string.settings_focus_lock_allowed_apps_count,
+                                        focusLockAllowedPackages.size
+                                    )
+                                },
+                                onClick = {
+                                    runProtectedFocusLockAction {
+                                        allowedAppsSelection = focusLockAllowedPackages
+                                        allowedAppsQuery = ""
+                                        showAllowedAppsDialog = true
+                                    }
+                                }
+                            )
+                        }
+                        if (focusLockPinEnabled) {
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_focus_lock_pin_change),
+                                description = stringResource(R.string.settings_focus_lock_pin_description_enabled),
+                                onClick = { showFocusLockChangePinDialog = true }
+                            )
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_focus_lock_pin_remove),
+                                description = stringResource(R.string.settings_focus_lock_pin_remove_description),
+                                onClick = { showFocusLockRemovePinDialog = true }
+                            )
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_focus_lock_pin_forgot),
+                                description = stringResource(R.string.settings_focus_lock_pin_forgot_title),
+                                onClick = { showFocusLockForgotPinDialog = true }
+                            )
+                        } else {
+                            PermissionSettingItem(
+                                title = stringResource(R.string.settings_focus_lock_pin_set),
+                                description = stringResource(R.string.settings_focus_lock_pin_description_disabled),
+                                onClick = { showFocusLockSetPinDialog = true }
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.padding(top = SettingsFooterTopSpacing))
@@ -515,6 +645,512 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (showFocusLockUnlockDialog) {
+        FocusLockPinUnlockDialog(
+            onDismiss = {
+                showFocusLockUnlockDialog = false
+                pendingProtectedFocusLockAction = null
+            },
+            onVerified = { pin, onFailure ->
+                scope.launch {
+                    if (repository.verifyFocusLockPin(pin)) {
+                        focusLockAuthenticatedAtMillis = SystemClock.elapsedRealtime()
+                        showFocusLockUnlockDialog = false
+                        pendingProtectedFocusLockAction?.invoke()
+                        pendingProtectedFocusLockAction = null
+                    } else {
+                        onFailure()
+                    }
+                }
+            }
+        )
+    }
+
+    if (showFocusLockSetPinDialog) {
+        FocusLockSetPinDialog(
+            onDismiss = { showFocusLockSetPinDialog = false },
+            onSave = { pin ->
+                scope.launch {
+                    repository.setFocusLockPin(pin)
+                    focusLockAuthenticatedAtMillis = SystemClock.elapsedRealtime()
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_focus_lock_pin_saved),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    showFocusLockSetPinDialog = false
+                }
+            }
+        )
+    }
+
+    if (showFocusLockChangePinDialog) {
+        FocusLockChangePinDialog(
+            onDismiss = { showFocusLockChangePinDialog = false },
+            onChange = { currentPin, newPin, onSuccess, onFailure ->
+                scope.launch {
+                    if (repository.changeFocusLockPin(currentPin, newPin)) {
+                        focusLockAuthenticatedAtMillis = SystemClock.elapsedRealtime()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_focus_lock_pin_changed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        onSuccess()
+                        showFocusLockChangePinDialog = false
+                    } else {
+                        onFailure()
+                    }
+                }
+            }
+        )
+    }
+
+    if (showFocusLockRemovePinDialog) {
+        FocusLockRemovePinDialog(
+            onDismiss = { showFocusLockRemovePinDialog = false },
+            onRemove = { currentPin, onSuccess, onFailure ->
+                scope.launch {
+                    if (repository.clearFocusLockPin(currentPin)) {
+                        focusLockAuthenticatedAtMillis = null
+                        pendingProtectedFocusLockAction = null
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_focus_lock_pin_removed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        onSuccess()
+                        showFocusLockRemovePinDialog = false
+                    } else {
+                        onFailure()
+                    }
+                }
+            }
+        )
+    }
+
+    if (showFocusLockForgotPinDialog) {
+        AlertDialog(
+            onDismissRequest = { showFocusLockForgotPinDialog = false },
+            title = { Text(stringResource(R.string.settings_focus_lock_pin_forgot_title)) },
+            text = { Text(stringResource(R.string.settings_focus_lock_pin_forgot_message)) },
+            confirmButton = {
+                TextButton(onClick = { showFocusLockForgotPinDialog = false }) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FocusLockPinUnlockDialog(
+    onDismiss: () -> Unit,
+    onVerified: (String, onFailure: () -> Unit) -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val incorrectPinText = stringResource(R.string.settings_focus_lock_pin_error_incorrect)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_focus_lock_pin_unlock_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.settings_focus_lock_pin_unlock_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                PinTextField(
+                    value = pin,
+                    onValueChange = {
+                        pin = it
+                        errorMessage = null
+                    }
+                )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = pin.length in FocusLockPinMinLength..FocusLockPinMaxLength,
+                onClick = {
+                    onVerified(pin) {
+                        errorMessage = incorrectPinText
+                        pin = ""
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.settings_focus_lock_pin_unlock_continue))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun FocusLockSetPinDialog(
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var step by remember { mutableStateOf(FocusLockPinEntryStep.NEW) }
+    var firstPin by remember { mutableStateOf("") }
+    var currentInput by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val title = stringResource(R.string.settings_focus_lock_pin_new_title)
+    val mismatchText = stringResource(R.string.settings_focus_lock_pin_error_mismatch)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(
+                    text = if (step == FocusLockPinEntryStep.NEW) {
+                        stringResource(R.string.settings_focus_lock_pin_new_description)
+                    } else {
+                        stringResource(R.string.settings_focus_lock_pin_step_confirm)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                PinTextField(
+                    value = currentInput,
+                    onValueChange = {
+                        currentInput = it
+                        errorMessage = null
+                    },
+                    label = if (step == FocusLockPinEntryStep.NEW) {
+                        stringResource(R.string.settings_focus_lock_pin_step_new)
+                    } else {
+                        stringResource(R.string.settings_focus_lock_pin_step_confirm)
+                    }
+                )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = currentInput.length in FocusLockPinMinLength..FocusLockPinMaxLength,
+                onClick = {
+                    if (step == FocusLockPinEntryStep.NEW) {
+                        firstPin = currentInput
+                        currentInput = ""
+                        step = FocusLockPinEntryStep.CONFIRM
+                    } else if (currentInput == firstPin) {
+                        onSave(firstPin)
+                    } else {
+                        errorMessage = mismatchText
+                        firstPin = ""
+                        currentInput = ""
+                        step = FocusLockPinEntryStep.NEW
+                    }
+                }
+            ) {
+                Text(
+                    stringResource(
+                        if (step == FocusLockPinEntryStep.NEW) {
+                            R.string.settings_focus_lock_pin_continue
+                        } else {
+                            R.string.settings_focus_lock_pin_save
+                        }
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun FocusLockChangePinDialog(
+    onDismiss: () -> Unit,
+    onChange: (
+        currentPin: String,
+        newPin: String,
+        onSuccess: () -> Unit,
+        onFailure: () -> Unit
+    ) -> Unit
+) {
+    var step by remember { mutableStateOf(FocusLockPinEntryStep.CURRENT) }
+    var currentPin by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var currentInput by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val mismatchText = stringResource(R.string.settings_focus_lock_pin_error_mismatch)
+    val incorrectPinText = stringResource(R.string.settings_focus_lock_pin_error_incorrect)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_focus_lock_pin_change_title)) },
+        text = {
+            Column {
+                Text(
+                    text = when (step) {
+                        FocusLockPinEntryStep.CURRENT -> stringResource(R.string.settings_focus_lock_pin_step_current)
+                        FocusLockPinEntryStep.NEW -> stringResource(R.string.settings_focus_lock_pin_step_new)
+                        FocusLockPinEntryStep.CONFIRM -> stringResource(R.string.settings_focus_lock_pin_step_confirm)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FlightGray
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                PinTextField(
+                    value = currentInput,
+                    onValueChange = {
+                        currentInput = it
+                        errorMessage = null
+                    },
+                    label = stringResource(R.string.settings_focus_lock_pin_input_label)
+                )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = currentInput.length in FocusLockPinMinLength..FocusLockPinMaxLength,
+                onClick = {
+                    when (step) {
+                        FocusLockPinEntryStep.CURRENT -> {
+                            currentPin = currentInput
+                            currentInput = ""
+                            step = FocusLockPinEntryStep.NEW
+                        }
+                        FocusLockPinEntryStep.NEW -> {
+                            newPin = currentInput
+                            currentInput = ""
+                            step = FocusLockPinEntryStep.CONFIRM
+                        }
+                        FocusLockPinEntryStep.CONFIRM -> {
+                            if (currentInput != newPin) {
+                                errorMessage = mismatchText
+                                newPin = ""
+                                currentInput = ""
+                                step = FocusLockPinEntryStep.NEW
+                            } else {
+                                onChange(
+                                    currentPin,
+                                    newPin,
+                                    onDismiss,
+                                    {
+                                        errorMessage = incorrectPinText
+                                        currentPin = ""
+                                        newPin = ""
+                                        currentInput = ""
+                                        step = FocusLockPinEntryStep.CURRENT
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            ) {
+                Text(
+                    stringResource(
+                        if (step == FocusLockPinEntryStep.CONFIRM) {
+                            R.string.settings_focus_lock_pin_save
+                        } else {
+                            R.string.settings_focus_lock_pin_continue
+                        }
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun FocusLockRemovePinDialog(
+    onDismiss: () -> Unit,
+    onRemove: (currentPin: String, onSuccess: () -> Unit, onFailure: () -> Unit) -> Unit
+) {
+    var currentPin by remember { mutableStateOf("") }
+    var awaitingConfirm by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val incorrectPinText = stringResource(R.string.settings_focus_lock_pin_error_incorrect)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (awaitingConfirm) {
+                        R.string.settings_focus_lock_pin_remove_confirm_title
+                    } else {
+                        R.string.settings_focus_lock_pin_remove_title
+                    }
+                )
+            )
+        },
+        text = {
+            Column {
+                if (!awaitingConfirm) {
+                    Text(
+                        text = stringResource(R.string.settings_focus_lock_pin_remove_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    PinTextField(
+                        value = currentPin,
+                        onValueChange = {
+                            currentPin = it
+                            errorMessage = null
+                        }
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_focus_lock_pin_remove_confirm_message),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray
+                    )
+                }
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = awaitingConfirm || currentPin.length in FocusLockPinMinLength..FocusLockPinMaxLength,
+                onClick = {
+                    if (!awaitingConfirm) {
+                        awaitingConfirm = true
+                    } else {
+                        onRemove(
+                            currentPin,
+                            onDismiss,
+                            {
+                                awaitingConfirm = false
+                                currentPin = ""
+                                errorMessage = incorrectPinText
+                            }
+                        )
+                    }
+                }
+            ) {
+                Text(
+                    stringResource(
+                        if (awaitingConfirm) {
+                            R.string.settings_focus_lock_pin_confirm_remove
+                        } else {
+                            R.string.settings_focus_lock_pin_continue
+                        }
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun PinTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String? = null
+) {
+    val resolvedLabel = label ?: stringResource(R.string.settings_focus_lock_pin_input_label)
+    OutlinedTextField(
+        value = value,
+        onValueChange = {
+            onValueChange(it.filter(Char::isDigit).take(FocusLockPinMaxLength))
+        },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        label = { Text(resolvedLabel) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            focusedLabelColor = FlightGray,
+            unfocusedLabelColor = FlightGray,
+            cursorColor = MaterialTheme.colorScheme.primary
+        )
+    )
+}
+
+@Composable
+private fun SettingsCategoryCard(
+    title: String,
+    description: String,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White.copy(alpha = 0.06f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp)
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = FlightGray,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(modifier = Modifier.size(16.dp))
+            content()
+        }
     }
 }
 
