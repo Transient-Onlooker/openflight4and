@@ -3,6 +3,7 @@ package com.example.openflight4and.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
@@ -18,6 +19,7 @@ object AppPreferenceKeys {
     val KEY_NOTIFICATION_UPDATE_SECONDS = intPreferencesKey("notification_update_seconds")
     val KEY_LOCK_LEVEL = stringPreferencesKey("lock_level")
     val KEY_FOCUS_LOCK_ENABLED = booleanPreferencesKey("focus_lock_enabled")
+    val KEY_ADVANCED_LOCK_ENABLED = booleanPreferencesKey("advanced_lock_enabled")
     val KEY_FOCUS_LOCK_ALLOWED_APPS = stringPreferencesKey("focus_lock_allowed_apps")
     val KEY_FOCUS_LOCK_PIN_HASH = stringPreferencesKey("focus_lock_pin_hash")
     val KEY_FOCUS_LOCK_PIN_SALT = stringPreferencesKey("focus_lock_pin_salt")
@@ -30,6 +32,8 @@ object AppPreferenceKeys {
     val KEY_AD_REWARD_DATE = stringPreferencesKey("ad_reward_date")
     val KEY_AD_WATCH_COUNT_TODAY = intPreferencesKey("ad_watch_count_today")
     val KEY_AD_REWARD_PROGRESS = intPreferencesKey("ad_reward_progress")
+    val KEY_EMERGENCY_UNLOCK_LAST_USED_DATE = stringPreferencesKey("emergency_unlock_last_used_date")
+    val KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL = longPreferencesKey("emergency_unlock_active_until")
     val KEY_TICKET_HISTORY = stringPreferencesKey("ticket_history")
     val KEY_USED_REDEEM_CODES = stringPreferencesKey("used_redeem_codes")
     val KEY_INSTALLATION_ID = stringPreferencesKey("installation_id")

@@ -203,6 +203,11 @@ fun InFlightScreen(
     val repository = remember(context) { AppRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val serviceRuntimeState by FlightService.runtimeState.collectAsState()
+    val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
+    val advancedLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
+    val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
+    val canUseEmergencyUnlockToday by repository.canUseEmergencyUnlockToday.collectAsState(initial = true)
+    val emergencyUnlockActiveUntilMillis by repository.emergencyUnlockActiveUntilMillis.collectAsState(initial = 0L)
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
@@ -238,6 +243,7 @@ fun InFlightScreen(
     var fallbackSecondsElapsed by remember { mutableStateOf(0L) }
     var fallbackTicketCharged by remember { mutableStateOf(false) }
     var fallbackIsPaused by remember { mutableStateOf(false) }
+    var showGiveUpPinDialog by remember { mutableStateOf(false) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
@@ -275,6 +281,20 @@ fun InFlightScreen(
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
     val isFlying = secondsElapsed < totalSeconds
+    val emergencyUnlockActive = emergencyUnlockActiveUntilMillis > System.currentTimeMillis()
+    val emergencyUnlockRemainingMinutes = if (emergencyUnlockActive) {
+        ceil((emergencyUnlockActiveUntilMillis - System.currentTimeMillis()).coerceAtLeast(0L) / 60_000.0).toInt()
+    } else {
+        0
+    }
+    val emergencyUnlockStatusMessage = when {
+        emergencyUnlockActive -> stringResource(
+            R.string.inflight_emergency_unlock_active_message,
+            emergencyUnlockRemainingMinutes
+        )
+        canUseEmergencyUnlockToday -> stringResource(R.string.inflight_emergency_unlock_description)
+        else -> stringResource(R.string.inflight_emergency_unlock_used_message)
+    }
 
     // ????겾??좊읈??????源낇꼧???⑥??????ㅺ컼??
     // ??살쨮揶쎛疫?甕곌쑵???紐껊굶??
@@ -314,6 +334,33 @@ fun InFlightScreen(
         fallbackIsPaused = false
         inflightViewModel.hideGiveUpDialog()
         onFlightEnd()
+    }
+
+    fun requestFlightStop() {
+        if (advancedLockEnabled && advancedLockPinEnabled) {
+            inflightViewModel.hideGiveUpDialog()
+            showGiveUpPinDialog = true
+        } else {
+            stopFlight()
+        }
+    }
+
+    fun requestEmergencyUnlock() {
+        scope.launch {
+            val started = repository.startEmergencyUnlock(durationMinutes = 20)
+            Toast.makeText(
+                context,
+                if (started) {
+                    context.getString(R.string.inflight_emergency_unlock_started)
+                } else {
+                    context.getString(R.string.inflight_emergency_unlock_used_message)
+                },
+                Toast.LENGTH_SHORT
+            ).show()
+            if (started) {
+                inflightViewModel.hideGiveUpDialog()
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -939,7 +986,29 @@ fun InFlightScreen(
     if (inflightUiState.showGiveUpDialog) {
         InFlightGiveUpDialog(
             onDismiss = { inflightViewModel.hideGiveUpDialog() },
-            onConfirmGiveUp = { stopFlight() }
+            advancedLockEnabled = advancedLockEnabled && advancedLockPinEnabled,
+            showEmergencyUnlock = focusLockEnabled,
+            emergencyUnlockEnabled = focusLockEnabled && !emergencyUnlockActive && canUseEmergencyUnlockToday,
+            emergencyUnlockStatusMessage = if (focusLockEnabled) emergencyUnlockStatusMessage else null,
+            onConfirmGiveUp = { stopFlight() },
+            onUnlockRequested = { requestFlightStop() },
+            onEmergencyUnlockRequested = { requestEmergencyUnlock() }
+        )
+    }
+
+    if (showGiveUpPinDialog) {
+        InFlightPinUnlockDialog(
+            onDismiss = { showGiveUpPinDialog = false },
+            onVerified = { pin, onFailure ->
+                scope.launch {
+                    if (repository.verifyFocusLockPin(pin)) {
+                        showGiveUpPinDialog = false
+                        stopFlight()
+                    } else {
+                        onFailure()
+                    }
+                }
+            }
         )
     }
 }

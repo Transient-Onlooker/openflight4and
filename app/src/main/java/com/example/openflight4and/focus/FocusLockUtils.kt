@@ -18,6 +18,23 @@ data class LaunchableApp(
 
 object FocusLockUtils {
 
+    fun getDefaultAllowedPackages(context: Context): Set<String> {
+        val packageManager = context.packageManager
+        val packageNames = linkedSetOf<String>()
+
+        packageManager.resolveActivity(
+            Intent(Intent.ACTION_DIAL),
+            0
+        )?.activityInfo?.packageName?.let(packageNames::add)
+
+        packageManager.resolveActivity(
+            Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:123")),
+            0
+        )?.activityInfo?.packageName?.let(packageNames::add)
+
+        return packageNames.filter { it != context.packageName }.toSet()
+    }
+
     @Suppress("DEPRECATION")
     fun hasUsageAccess(context: Context): Boolean {
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager

@@ -3,7 +3,9 @@ package com.example.openflight4and.data
 import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
+import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -32,6 +34,9 @@ class SettingsRepository(
     val focusLockEnabled: Flow<Boolean> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED] ?: false
     }
+    val advancedLockEnabled: Flow<Boolean> = context.dataStore.data.map {
+        it[AppPreferenceKeys.KEY_ADVANCED_LOCK_ENABLED] ?: false
+    }
     val focusLockPinEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
         !preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH].isNullOrBlank() &&
             !preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT].isNullOrBlank()
@@ -39,7 +44,7 @@ class SettingsRepository(
     val focusLockAllowedApps: Flow<Set<String>> = context.dataStore.data.map { preferences ->
         val json = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS]
         if (json.isNullOrBlank()) {
-            emptySet()
+            FocusLockUtils.getDefaultAllowedPackages(context)
         } else {
             runCatching {
                 Json.decodeFromString<List<String>>(json).toSet()
@@ -75,6 +80,12 @@ class SettingsRepository(
     val debugFlightMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE] ?: false
     }
+    val emergencyUnlockActiveUntilMillis: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] ?: 0L
+    }
+    val canUseEmergencyUnlockToday: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE] != LocalDate.now().toString()
+    }
 
     suspend fun setUnitSystem(unit: String) {
         context.dataStore.edit { it[AppPreferenceKeys.KEY_UNIT_SYSTEM] = unit }
@@ -104,6 +115,10 @@ class SettingsRepository(
 
     suspend fun setFocusLockEnabled(enabled: Boolean) {
         context.dataStore.edit { it[AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED] = enabled }
+    }
+
+    suspend fun setAdvancedLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[AppPreferenceKeys.KEY_ADVANCED_LOCK_ENABLED] = enabled }
     }
 
     suspend fun setFocusLockAllowedApps(packages: Set<String>) {
@@ -173,6 +188,39 @@ class SettingsRepository(
     suspend fun setDebugFlightMode(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE] = enabled
+        }
+    }
+
+    suspend fun startEmergencyUnlock(
+        nowMillis: Long = System.currentTimeMillis(),
+        durationMinutes: Int = 20
+    ): Boolean {
+        val today = LocalDate.now().toString()
+        var started = false
+        context.dataStore.edit { preferences ->
+            val alreadyUsedToday =
+                preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE] == today
+            if (alreadyUsedToday) {
+                return@edit
+            }
+
+            preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE] = today
+            preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] =
+                nowMillis + durationMinutes.coerceAtLeast(1) * 60_000L
+            started = true
+        }
+        return started
+    }
+
+    suspend fun isEmergencyUnlockActive(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        val preferences = context.dataStore.data.firstOrNull() ?: return false
+        val activeUntil = preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] ?: 0L
+        return activeUntil > nowMillis
+    }
+
+    suspend fun clearEmergencyUnlockActive() {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] = 0L
         }
     }
 }

@@ -123,6 +123,7 @@ fun SettingsScreen(
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
+    val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
     val focusLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
     val focusLockAllowedPackages by repository.focusLockAllowedApps.collectAsState(initial = emptySet())
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
@@ -140,8 +141,10 @@ fun SettingsScreen(
     var showFocusLockChangePinDialog by remember { mutableStateOf(false) }
     var showFocusLockRemovePinDialog by remember { mutableStateOf(false) }
     var showFocusLockForgotPinDialog by remember { mutableStateOf(false) }
+    var showAdvancedLockEnableConfirmDialog by remember { mutableStateOf(false) }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
     val titleSettings = stringResource(R.string.settings_title)
     val titleUnitSystem = stringResource(R.string.settings_title_unit_system)
     val titleLanguage = stringResource(R.string.settings_title_language)
@@ -150,15 +153,18 @@ fun SettingsScreen(
     val titleNotifications = stringResource(R.string.settings_title_notifications)
     val titleNotificationInterval = stringResource(R.string.settings_title_notification_interval)
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
+    val titleAdvancedLock = stringResource(R.string.settings_title_advanced_lock)
     val titleAllowedApps = stringResource(R.string.settings_focus_lock_allowed_apps)
     val titleGeneralSection = stringResource(R.string.settings_section_general)
     val titleNotificationSection = stringResource(R.string.settings_section_notifications)
     val titleBackgroundSection = stringResource(R.string.settings_section_background)
     val titleFocusLockSection = stringResource(R.string.settings_section_focus_lock)
+    val titleAdvancedLockSection = stringResource(R.string.settings_section_advanced_lock)
     val descriptionGeneralSection = stringResource(R.string.settings_section_general_description)
     val descriptionNotificationSection = stringResource(R.string.settings_section_notifications_description)
     val descriptionBackgroundSection = stringResource(R.string.settings_section_background_description)
     val descriptionFocusLockSection = stringResource(R.string.settings_section_focus_lock_description)
+    val descriptionAdvancedLockSection = stringResource(R.string.settings_section_advanced_lock_description)
     val labelAuto = stringResource(R.string.settings_orientation_auto)
     val labelLanguageSystem = stringResource(R.string.settings_language_system)
     val labelLanguageKorean = stringResource(R.string.settings_language_korean)
@@ -186,8 +192,11 @@ fun SettingsScreen(
         return SystemClock.elapsedRealtime() - authenticatedAt <= FocusLockPinSessionDurationMillis
     }
 
-    fun runProtectedFocusLockAction(action: () -> Unit) {
-        if (!focusLockPinEnabled || hasValidFocusLockSession()) {
+    fun runProtectedFocusLockAction(
+        forceFreshPin: Boolean = false,
+        action: () -> Unit
+    ) {
+        if (!advancedLockEnabled || !focusLockPinEnabled || (!forceFreshPin && hasValidFocusLockSession())) {
             action()
         } else {
             pendingProtectedFocusLockAction = action
@@ -395,7 +404,7 @@ fun SettingsScreen(
                             description = stringResource(R.string.settings_focus_lock_description),
                             checked = focusLockEnabled,
                             onCheckedChange = { enabled ->
-                                runProtectedFocusLockAction {
+                                runProtectedFocusLockAction(forceFreshPin = !enabled) {
                                     scope.launch { repository.setFocusLockEnabled(enabled) }
                                 }
                             }
@@ -452,6 +461,37 @@ fun SettingsScreen(
                                 }
                             )
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
+
+                SettingsCategoryCard(
+                    title = titleAdvancedLockSection,
+                    description = descriptionAdvancedLockSection
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        ToggleSettingItem(
+                            title = titleAdvancedLock,
+                            description = if (advancedLockEnabled) {
+                                stringResource(R.string.settings_advanced_lock_description_enabled)
+                            } else {
+                                stringResource(R.string.settings_advanced_lock_description_disabled)
+                            },
+                            checked = advancedLockEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    showAdvancedLockEnableConfirmDialog = true
+                                } else {
+                                    runProtectedFocusLockAction(forceFreshPin = true) {
+                                        scope.launch {
+                                            repository.setAdvancedLockEnabled(false)
+                                            focusLockAuthenticatedAtMillis = null
+                                        }
+                                    }
+                                }
+                            }
+                        )
                         if (focusLockPinEnabled) {
                             PermissionSettingItem(
                                 title = stringResource(R.string.settings_focus_lock_pin_change),
@@ -472,7 +512,10 @@ fun SettingsScreen(
                             PermissionSettingItem(
                                 title = stringResource(R.string.settings_focus_lock_pin_set),
                                 description = stringResource(R.string.settings_focus_lock_pin_description_disabled),
-                                onClick = { showFocusLockSetPinDialog = true }
+                                onClick = {
+                                    pendingEnableAdvancedLockAfterPinSetup = false
+                                    showFocusLockSetPinDialog = true
+                                }
                             )
                         }
                     }
@@ -670,16 +713,23 @@ fun SettingsScreen(
 
     if (showFocusLockSetPinDialog) {
         FocusLockSetPinDialog(
-            onDismiss = { showFocusLockSetPinDialog = false },
+            onDismiss = {
+                showFocusLockSetPinDialog = false
+                pendingEnableAdvancedLockAfterPinSetup = false
+            },
             onSave = { pin ->
                 scope.launch {
                     repository.setFocusLockPin(pin)
+                    if (pendingEnableAdvancedLockAfterPinSetup) {
+                        repository.setAdvancedLockEnabled(true)
+                    }
                     focusLockAuthenticatedAtMillis = SystemClock.elapsedRealtime()
                     Toast.makeText(
                         context,
                         context.getString(R.string.settings_focus_lock_pin_saved),
                         Toast.LENGTH_SHORT
                     ).show()
+                    pendingEnableAdvancedLockAfterPinSetup = false
                     showFocusLockSetPinDialog = false
                 }
             }
@@ -714,6 +764,7 @@ fun SettingsScreen(
             onRemove = { currentPin, onSuccess, onFailure ->
                 scope.launch {
                     if (repository.clearFocusLockPin(currentPin)) {
+                        repository.setAdvancedLockEnabled(false)
                         focusLockAuthenticatedAtMillis = null
                         pendingProtectedFocusLockAction = null
                         Toast.makeText(
@@ -739,6 +790,37 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showFocusLockForgotPinDialog = false }) {
                     Text(stringResource(R.string.action_confirm))
+                }
+            }
+        )
+    }
+
+    if (showAdvancedLockEnableConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdvancedLockEnableConfirmDialog = false },
+            title = { Text(stringResource(R.string.settings_advanced_lock_enable_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_advanced_lock_enable_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAdvancedLockEnableConfirmDialog = false
+                        if (!focusLockPinEnabled) {
+                            pendingEnableAdvancedLockAfterPinSetup = true
+                            showFocusLockSetPinDialog = true
+                        } else {
+                            scope.launch {
+                                repository.setAdvancedLockEnabled(true)
+                                focusLockAuthenticatedAtMillis = null
+                            }
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdvancedLockEnableConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

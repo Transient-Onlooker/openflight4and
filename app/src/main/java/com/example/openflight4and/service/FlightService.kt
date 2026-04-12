@@ -42,6 +42,7 @@ class FlightService : Service() {
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
     private var focusLockAllowedPackages = defaultFocusLockAllowedPackages
+    private var emergencyUnlockUntilMillis = 0L
     private var currentDurationMinutes: Int = 0
     private var currentFlightNumber: String = ""
     private var currentOriginName: String = ""
@@ -140,6 +141,7 @@ class FlightService : Service() {
             Log.d(TAG, "Service stop requested")
             serviceScope.launch {
                 persistFlightSession(isCompleted = false)
+                repository.clearEmergencyUnlockActive()
                 stopFocusLockMonitor()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -245,6 +247,16 @@ class FlightService : Service() {
                     focusLockAllowedPackages = defaultFocusLockAllowedPackages + packages
                 }
             }
+            launch {
+                repository.emergencyUnlockActiveUntilMillis.collect { activeUntil ->
+                    emergencyUnlockUntilMillis = activeUntil
+                    if (activeUntil > System.currentTimeMillis()) {
+                        withContext(Dispatchers.Main) {
+                            focusLockOverlayController.hide()
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -268,7 +280,9 @@ class FlightService : Service() {
                 }
 
                 val foregroundPackage = FocusLockUtils.getForegroundPackage(applicationContext)
+                val isEmergencyUnlockActive = emergencyUnlockUntilMillis > System.currentTimeMillis()
                 val shouldBlock = when {
+                    isEmergencyUnlockActive -> false
                     foregroundPackage == null -> focusLockOverlayController.isShowing()
                     foregroundPackage in focusLockAllowedPackages -> false
                     else -> true
@@ -356,6 +370,7 @@ class FlightService : Service() {
 
                     persistFlightSession(isCompleted = true)
                     saveDestinationAsCurrentLocation(destinationIata)
+                    repository.clearEmergencyUnlockActive()
                     _isRunning = false
                     _isPaused = false
                     _secondsElapsed = totalSeconds
@@ -393,6 +408,7 @@ class FlightService : Service() {
 
             persistFlightSession(isCompleted = true)
             saveDestinationAsCurrentLocation(destinationIata)
+            repository.clearEmergencyUnlockActive()
             _isRunning = false
             _isPaused = false
             _secondsElapsed = totalSeconds
@@ -549,6 +565,7 @@ class FlightService : Service() {
         _ticketCharged = false
         _pendingJumpSeconds = null
         _isInFlightScreenVisible = false
+        emergencyUnlockUntilMillis = 0L
         publishRuntimeState()
         instance = null
         stopFocusLockMonitor()

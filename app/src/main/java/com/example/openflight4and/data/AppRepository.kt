@@ -65,10 +65,13 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val notificationsEnabled: Flow<Boolean> = settingsRepository.notificationsEnabled
     val notificationUpdateSeconds: Flow<Int> = settingsRepository.notificationUpdateSeconds
     val focusLockEnabled: Flow<Boolean> = settingsRepository.focusLockEnabled
+    val advancedLockEnabled: Flow<Boolean> = settingsRepository.advancedLockEnabled
     val focusLockPinEnabled: Flow<Boolean> = settingsRepository.focusLockPinEnabled
     val focusLockAllowedApps: Flow<Set<String>> = settingsRepository.focusLockAllowedApps
     val screenOrientationMode: Flow<String> = settingsRepository.screenOrientationMode
     val initialOriginSetupCompleted: Flow<Boolean> = settingsRepository.initialOriginSetupCompleted
+    val emergencyUnlockActiveUntilMillis: Flow<Long> = settingsRepository.emergencyUnlockActiveUntilMillis
+    val canUseEmergencyUnlockToday: Flow<Boolean> = settingsRepository.canUseEmergencyUnlockToday
     override val currentLocation: Flow<Airport?> = settingsRepository.currentLocation
     val sandboxTimeScale: Flow<Float> = settingsRepository.sandboxTimeScale
     val debugFlightMode: Flow<Boolean> = settingsRepository.debugFlightMode
@@ -109,6 +112,10 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
         settingsRepository.setFocusLockEnabled(enabled)
     }
 
+    suspend fun setAdvancedLockEnabled(enabled: Boolean) {
+        settingsRepository.setAdvancedLockEnabled(enabled)
+    }
+
     suspend fun setFocusLockAllowedApps(packages: Set<String>) {
         settingsRepository.setFocusLockAllowedApps(packages)
     }
@@ -147,6 +154,21 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setDebugFlightMode(enabled: Boolean) {
         settingsRepository.setDebugFlightMode(enabled)
+    }
+
+    suspend fun startEmergencyUnlock(
+        nowMillis: Long = System.currentTimeMillis(),
+        durationMinutes: Int = 20
+    ): Boolean {
+        return settingsRepository.startEmergencyUnlock(nowMillis, durationMinutes)
+    }
+
+    suspend fun isEmergencyUnlockActive(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        return settingsRepository.isEmergencyUnlockActive(nowMillis)
+    }
+
+    suspend fun clearEmergencyUnlockActive() {
+        settingsRepository.clearEmergencyUnlockActive()
     }
 
     override suspend fun claimDailyCheckIn(): DailyCheckInResult = ticketRepository.claimDailyCheckIn()

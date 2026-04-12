@@ -33,6 +33,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -547,7 +551,13 @@ fun InFlightAdRunningOverlay(
 @Composable
 fun InFlightGiveUpDialog(
     onDismiss: () -> Unit,
-    onConfirmGiveUp: () -> Unit
+    advancedLockEnabled: Boolean = false,
+    showEmergencyUnlock: Boolean = false,
+    emergencyUnlockEnabled: Boolean = false,
+    emergencyUnlockStatusMessage: String? = null,
+    onConfirmGiveUp: () -> Unit,
+    onUnlockRequested: () -> Unit = onConfirmGiveUp,
+    onEmergencyUnlockRequested: () -> Unit = {}
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -558,22 +568,130 @@ fun InFlightGiveUpDialog(
             )
         },
         text = {
-            Text(
-                androidx.compose.ui.res.stringResource(R.string.inflight_give_up_message),
-                color = Color(0xFF8C8A80)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    androidx.compose.ui.res.stringResource(
+                        if (advancedLockEnabled) {
+                            R.string.inflight_give_up_locked_message
+                        } else {
+                            R.string.inflight_give_up_message
+                        }
+                    ),
+                    color = Color(0xFF8C8A80)
+                )
+                if (showEmergencyUnlock) {
+                    Text(
+                        emergencyUnlockStatusMessage
+                            ?: androidx.compose.ui.res.stringResource(R.string.inflight_emergency_unlock_description),
+                        color = Color(0xFF8C8A80),
+                        fontSize = 13.sp
+                    )
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = onConfirmGiveUp) {
+            TextButton(onClick = if (advancedLockEnabled) onUnlockRequested else onConfirmGiveUp) {
                 Text(
-                    androidx.compose.ui.res.stringResource(R.string.action_give_up),
+                    androidx.compose.ui.res.stringResource(
+                        if (advancedLockEnabled) {
+                            R.string.inflight_give_up_unlock_action
+                        } else {
+                            R.string.action_give_up
+                        }
+                    ),
                     color = MaterialTheme.colorScheme.error
                 )
             }
         },
         dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (showEmergencyUnlock) {
+                    TextButton(
+                        onClick = onEmergencyUnlockRequested,
+                        enabled = emergencyUnlockEnabled
+                    ) {
+                        Text(
+                            androidx.compose.ui.res.stringResource(R.string.inflight_emergency_unlock_action),
+                            color = if (emergencyUnlockEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                Color(0xFF8C8A80)
+                            }
+                        )
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(androidx.compose.ui.res.stringResource(R.string.action_continue))
+                }
+            }
+        },
+        containerColor = Color(0xFF0D0000)
+    )
+}
+
+@Composable
+fun InFlightPinUnlockDialog(
+    onDismiss: () -> Unit,
+    onVerified: (String, onFailure: () -> Unit) -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val incorrectPinText = androidx.compose.ui.res.stringResource(R.string.inflight_give_up_pin_incorrect)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                androidx.compose.ui.res.stringResource(R.string.settings_focus_lock_pin_unlock_title),
+                color = Color.White
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    androidx.compose.ui.res.stringResource(R.string.settings_focus_lock_pin_unlock_description),
+                    color = Color(0xFF8C8A80)
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = pin,
+                    onValueChange = {
+                        pin = it.filter(Char::isDigit).take(6)
+                        errorMessage = null
+                    },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                    ),
+                    label = {
+                        Text(androidx.compose.ui.res.stringResource(R.string.settings_focus_lock_pin_input_label))
+                    }
+                )
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = pin.length in 4..6,
+                onClick = {
+                    onVerified(pin) {
+                        errorMessage = incorrectPinText
+                        pin = ""
+                    }
+                }
+            ) {
+                Text(androidx.compose.ui.res.stringResource(R.string.settings_focus_lock_pin_unlock_continue))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(androidx.compose.ui.res.stringResource(R.string.action_continue))
+                Text(androidx.compose.ui.res.stringResource(R.string.action_cancel))
             }
         },
         containerColor = Color(0xFF0D0000)
