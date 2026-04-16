@@ -202,6 +202,7 @@ fun InFlightScreen(
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val repository = remember(context) { AppRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val serviceRuntimeState by FlightService.runtimeState.collectAsState()
     val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
     val advancedLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)

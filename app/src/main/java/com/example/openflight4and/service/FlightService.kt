@@ -402,7 +402,7 @@ class FlightService : Service() {
                     currentTime - lastNotificationTime >= currentNotificationUpdateSeconds * 1000L
                 ) {
                     refreshOngoingNotification(force = true)
-                    Log.d(TAG, "Notification updated: $remainingText remaining")
+                    Log.d(TAG, "Notification updated while app is backgrounded")
                     lastNotificationTime = currentTime
                 }
             }
