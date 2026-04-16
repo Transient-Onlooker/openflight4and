@@ -410,9 +410,30 @@ fun InFlightScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        FlightService.setInFlightScreenVisible(true)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START,
+                Lifecycle.Event.ON_RESUME -> {
+                    FlightService.setInFlightScreenVisible(true)
+                    renderedElapsedSeconds = secondsElapsed.toFloat()
+                    animationStartElapsed = renderedElapsedSeconds
+                    animationTargetElapsed = renderedElapsedSeconds
+                    animationStartedAtMillis = SystemClock.elapsedRealtime()
+                }
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> FlightService.setInFlightScreenVisible(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            FlightService.setInFlightScreenVisible(true)
+        } else {
+            FlightService.setInFlightScreenVisible(false)
+        }
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             FlightService.setInFlightScreenVisible(false)
         }
     }

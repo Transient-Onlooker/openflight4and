@@ -50,6 +50,7 @@ import com.example.openflight4and.InFlightLaunchRequest
 import com.example.openflight4and.R
 import com.example.openflight4and.data.VersionStatus
 import com.example.openflight4and.model.Airport
+import com.example.openflight4and.service.FlightService
 import com.example.openflight4and.ui.inflight.InFlightScreen
 import com.example.openflight4and.ui.navigation.Screen
 import com.example.openflight4and.utils.FlightUtils
@@ -76,8 +77,10 @@ fun MainScreen(
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
     val currentLocation by repository.currentLocation.collectAsState(initial = null)
     val initialOriginSetupCompleted by repository.initialOriginSetupCompleted.collectAsState(initial = false)
+    val serviceRuntimeState by FlightService.runtimeState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var isResolvingInitialLocation by remember { mutableStateOf(false) }
+    var hasHandledServiceResumeNavigation by remember { mutableStateOf(false) }
     val showInitialOriginSetupDialog =
         navBackStackEntry?.destination?.route == Screen.Home.route &&
             !initialOriginSetupCompleted &&
@@ -162,6 +165,41 @@ fun MainScreen(
             onInflightLaunchHandled()
         } else if (inflightLaunchRequest != null) {
             onInflightLaunchHandled()
+        }
+    }
+
+    LaunchedEffect(
+        serviceRuntimeState.isRunning,
+        serviceRuntimeState.originIata,
+        serviceRuntimeState.destinationIata,
+        serviceRuntimeState.totalSeconds,
+        navBackStackEntry?.destination?.route
+    ) {
+        val currentRoute = navBackStackEntry?.destination?.route
+        if (
+            !serviceRuntimeState.isRunning ||
+            currentRoute == Screen.InFlight.route ||
+            hasHandledServiceResumeNavigation
+        ) {
+            if (!serviceRuntimeState.isRunning) {
+                hasHandledServiceResumeNavigation = false
+            }
+            return@LaunchedEffect
+        }
+
+        val handled = viewModel.handleInflightLaunchRequest(
+            InFlightLaunchRequest(
+                originIata = serviceRuntimeState.originIata.takeUnless { it == "N/A" },
+                destinationIata = serviceRuntimeState.destinationIata.takeUnless { it == "N/A" },
+                durationMinutes = (serviceRuntimeState.totalSeconds / 60L).toInt()
+            )
+        )
+        if (handled) {
+            hasHandledServiceResumeNavigation = true
+            navController.navigate(Screen.InFlight.route) {
+                launchSingleTop = true
+                popUpTo(Screen.Home.route) { inclusive = false }
+            }
         }
     }
 

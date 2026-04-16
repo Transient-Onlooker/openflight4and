@@ -51,6 +51,7 @@ class FlightService : Service() {
     private var currentFocusCategory: String? = null
     private var currentDistanceKm: Int = 0
     private var flightStartedAtMillis: Long = 0L
+    private var currentNotificationUpdateSeconds: Int = 10
 
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
@@ -153,6 +154,7 @@ class FlightService : Service() {
             Log.d(TAG, "Service pause requested")
             _isPaused = true
             publishRuntimeState()
+            refreshOngoingNotification(force = true)
             return START_STICKY
         }
 
@@ -160,6 +162,7 @@ class FlightService : Service() {
             Log.d(TAG, "Service resume requested")
             _isPaused = false
             publishRuntimeState()
+            refreshOngoingNotification(force = true)
             return START_STICKY
         }
 
@@ -176,6 +179,7 @@ class FlightService : Service() {
         val timeScale = intent?.getFloatExtra("time_scale", 1f) ?: 1f
         val notificationUpdateSeconds =
             (intent?.getIntExtra("notification_update_seconds", 10) ?: 10).coerceIn(1, 30)
+        currentNotificationUpdateSeconds = notificationUpdateSeconds
 
         Log.d(
             TAG,
@@ -223,8 +227,7 @@ class FlightService : Service() {
             destinationIata,
             originName,
             destinationName,
-            timeScale,
-            notificationUpdateSeconds
+            timeScale
         )
         return START_STICKY
     }
@@ -245,6 +248,12 @@ class FlightService : Service() {
             launch {
                 repository.focusLockAllowedApps.collect { packages ->
                     focusLockAllowedPackages = defaultFocusLockAllowedPackages + packages
+                }
+            }
+            launch {
+                repository.notificationUpdateSeconds.collect { seconds ->
+                    currentNotificationUpdateSeconds = seconds.coerceIn(1, 30)
+                    refreshOngoingNotification(force = !_isInFlightScreenVisible)
                 }
             }
             launch {
@@ -318,8 +327,7 @@ class FlightService : Service() {
         destinationIata: String,
         originName: String,
         destinationName: String,
-        timeScale: Float = 1f,
-        notificationUpdateSeconds: Int = 10
+        timeScale: Float = 1f
     ) {
         Log.d(TAG, "Timer started: $totalSeconds seconds, TimeScale: $timeScale")
 
@@ -391,11 +399,9 @@ class FlightService : Service() {
 
                 if (
                     !_isInFlightScreenVisible &&
-                    currentTime - lastNotificationTime >= notificationUpdateSeconds * 1000L
+                    currentTime - lastNotificationTime >= currentNotificationUpdateSeconds * 1000L
                 ) {
-                    val remainingText = FlightUtils.formatTimer(remaining)
-                    val contentText = "$originIata -> $destinationIata | $remainingText"
-                    updateNotification(createNotification(contentText, originIata, destinationIata))
+                    refreshOngoingNotification(force = true)
                     Log.d(TAG, "Notification updated: $remainingText remaining")
                     lastNotificationTime = currentTime
                 }
@@ -428,13 +434,37 @@ class FlightService : Service() {
     }
 
     private fun handleInFlightScreenVisibilityChanged(isVisible: Boolean) {
+        if (_isRunning && !isVisible) {
+            refreshOngoingNotification(force = true)
+        }
+
         if (isVisible || !_isRunning || _totalSeconds <= 0L) {
             return
         }
+    }
 
-        val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
-        val contentText = "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}"
-        updateNotification(createNotification(contentText, currentOriginIata, currentDestinationIata))
+    private fun refreshOngoingNotification(force: Boolean = false) {
+        if (!_isRunning || _totalSeconds <= 0L) {
+            return
+        }
+        if (!force && _isInFlightScreenVisible) {
+            return
+        }
+
+        val contentText = if (_isPaused) {
+            "$currentOriginIata -> $currentDestinationIata | ${getString(R.string.inflight_paused_title)}"
+        } else {
+            val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
+            "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}"
+        }
+
+        updateNotification(
+            createNotification(
+                content = contentText,
+                originIata = currentOriginIata,
+                destinationIata = currentDestinationIata
+            )
+        )
     }
 
     private suspend fun persistFlightSession(isCompleted: Boolean) {
