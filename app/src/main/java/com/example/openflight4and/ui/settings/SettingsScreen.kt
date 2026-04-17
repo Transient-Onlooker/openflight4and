@@ -77,7 +77,9 @@ import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.theme.FlightGray
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val SettingsHorizontalPadding = 24.dp
 private val SettingsSectionSpacing = 24.dp
@@ -129,7 +131,8 @@ fun SettingsScreen(
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
     val isScreenOrientationLocked = restrictInFlightSettings
     val lifecycleOwner = LocalLifecycleOwner.current
-    val launchableApps = remember(context) { FocusLockUtils.getLaunchableApps(context) }
+    var launchableApps by remember { mutableStateOf<List<LaunchableApp>>(emptyList()) }
+    var isLoadingLaunchableApps by remember { mutableStateOf(false) }
     var hasUsageAccess by remember { mutableStateOf(FocusLockUtils.hasUsageAccess(context)) }
     var canDrawOverlays by remember { mutableStateOf(FocusLockUtils.canDrawOverlays(context)) }
     var showAllowedAppsDialog by remember { mutableStateOf(false) }
@@ -184,6 +187,16 @@ fun SettingsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(showAllowedAppsDialog) {
+        if (showAllowedAppsDialog && launchableApps.isEmpty() && !isLoadingLaunchableApps) {
+            isLoadingLaunchableApps = true
+            launchableApps = withContext(Dispatchers.Default) {
+                FocusLockUtils.getLaunchableApps(context)
+            }
+            isLoadingLaunchableApps = false
         }
     }
 
@@ -583,7 +596,20 @@ fun SettingsScreen(
                         )
                     )
                     Spacer(modifier = Modifier.padding(top = 12.dp))
-                    if (launchableApps.isEmpty()) {
+                    if (isLoadingLaunchableApps) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Loading apps...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FlightGray
+                            )
+                        }
+                    } else if (launchableApps.isEmpty()) {
                         Text(
                             text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
                             style = MaterialTheme.typography.bodySmall,

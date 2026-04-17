@@ -244,6 +244,10 @@ fun InFlightScreen(
     var fallbackSecondsElapsed by remember { mutableStateOf(0L) }
     var fallbackTicketCharged by remember { mutableStateOf(false) }
     var fallbackIsPaused by remember { mutableStateOf(false) }
+    var polledServiceSecondsElapsed by remember { mutableStateOf(0L) }
+    var polledServiceTotalSeconds by remember { mutableStateOf(0L) }
+    var polledServiceIsPaused by remember { mutableStateOf(false) }
+    var polledServiceIsRunning by remember { mutableStateOf(false) }
     var showGiveUpPinDialog by remember { mutableStateOf(false) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
@@ -253,12 +257,21 @@ fun InFlightScreen(
     var animationStartElapsed by remember { mutableFloatStateOf(0f) }
     var animationTargetElapsed by remember { mutableFloatStateOf(0f) }
     var animationStartedAtMillis by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
-    val hasServiceRuntimeState = serviceRuntimeState.isRunning
-    val totalSeconds = serviceRuntimeState.totalSeconds.takeIf { hasServiceRuntimeState && it > 0L }
+    val hasServiceRuntimeState = serviceRuntimeState.isRunning || polledServiceIsRunning
+    val totalSeconds = maxOf(serviceRuntimeState.totalSeconds, polledServiceTotalSeconds)
+        .takeIf { hasServiceRuntimeState && it > 0L }
         ?: (draft.estimatedMinutes * 60).toLong()
-    val secondsElapsed = if (hasServiceRuntimeState) serviceRuntimeState.secondsElapsed else fallbackSecondsElapsed
+    val secondsElapsed = if (hasServiceRuntimeState) {
+        maxOf(serviceRuntimeState.secondsElapsed, polledServiceSecondsElapsed)
+    } else {
+        fallbackSecondsElapsed
+    }
     val ticketCharged = if (hasServiceRuntimeState) serviceRuntimeState.ticketCharged else fallbackTicketCharged
-    val isPaused = if (hasServiceRuntimeState) serviceRuntimeState.isPaused else fallbackIsPaused
+    val isPaused = if (hasServiceRuntimeState) {
+        serviceRuntimeState.isPaused || polledServiceIsPaused
+    } else {
+        fallbackIsPaused
+    }
 
     // ???????????????????椰????
     val localTickDelayMillis = remember(draft.timeScale) {
@@ -449,6 +462,23 @@ fun InFlightScreen(
     }
 
     // ????????⑤벡瑜??꿔꺂??????????썹땟??? ?????耀붾굝??????????嶺????????椰?????癲?濾곌풝源?????????쎛 ???????롮쾸?椰?嚥▲굧???븍툖??????????⑤벡瑜??꿔꺂??????????썹땟???? ?????????대첉??轅붽틓?????獒뺣폍???????????耀붾굝?????傭?끆????椰?
+    LaunchedEffect(Unit) {
+        while (true) {
+            val isRunning = FlightService.isServiceRunning()
+            polledServiceIsRunning = isRunning
+            if (isRunning) {
+                polledServiceSecondsElapsed = FlightService.getSecondsElapsed()
+                polledServiceTotalSeconds = FlightService.getTotalSeconds()
+                polledServiceIsPaused = FlightService.isPaused()
+            } else {
+                polledServiceSecondsElapsed = 0L
+                polledServiceTotalSeconds = 0L
+                polledServiceIsPaused = false
+            }
+            delay(250)
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (FlightService.isServiceRunning()) {
             if (!isDebugSliderDirty) {

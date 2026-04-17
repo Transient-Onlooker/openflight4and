@@ -333,7 +333,7 @@ class FlightService : Service() {
         Log.d(TAG, "Timer started: $totalSeconds seconds, TimeScale: $timeScale")
 
         timerJob?.cancel()
-        timerJob = serviceScope.launch {
+        timerJob = serviceScope.launch(Dispatchers.Default) {
             var lastNotificationTime = System.currentTimeMillis()
             _secondsElapsed = _secondsElapsed.coerceIn(0L, totalSeconds)
 
