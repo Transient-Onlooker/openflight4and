@@ -417,7 +417,16 @@ fun InFlightScreen(
                 Lifecycle.Event.ON_START,
                 Lifecycle.Event.ON_RESUME -> {
                     FlightService.setInFlightScreenVisible(true)
-                    renderedElapsedSeconds = secondsElapsed.toFloat()
+                    val resumedElapsedSeconds = FlightService.getSecondsElapsed().takeIf { FlightService.isServiceRunning() }
+                        ?: secondsElapsed
+                    if (!hasServiceRuntimeState) {
+                        fallbackSecondsElapsed = resumedElapsedSeconds
+                        fallbackIsPaused = FlightService.isPaused()
+                    }
+                    if (!isDebugSliderDirty) {
+                        debugSliderSeconds = resumedElapsedSeconds.toFloat()
+                    }
+                    renderedElapsedSeconds = resumedElapsedSeconds.toFloat()
                     animationStartElapsed = renderedElapsedSeconds
                     animationTargetElapsed = renderedElapsedSeconds
                     animationStartedAtMillis = SystemClock.elapsedRealtime()

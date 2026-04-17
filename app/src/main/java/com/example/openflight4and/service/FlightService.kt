@@ -291,6 +291,7 @@ class FlightService : Service() {
                 val foregroundPackage = FocusLockUtils.getForegroundPackage(applicationContext)
                 val isEmergencyUnlockActive = emergencyUnlockUntilMillis > System.currentTimeMillis()
                 val shouldBlock = when {
+                    _isInFlightScreenVisible -> false
                     isEmergencyUnlockActive -> false
                     foregroundPackage == null -> focusLockOverlayController.isShowing()
                     foregroundPackage in focusLockAllowedPackages -> false
