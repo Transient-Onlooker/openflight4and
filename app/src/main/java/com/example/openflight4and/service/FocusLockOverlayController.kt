@@ -45,7 +45,8 @@ class FocusLockOverlayController(
         originIata: String,
         destinationIata: String,
         durationMinutes: Int,
-        allowedPackages: Collection<String> = emptyList()
+        allowedPackages: Collection<String> = emptyList(),
+        allowAllowedAppsLaunch: Boolean = true
     ) {
         if (overlayView != null) return
 
@@ -211,7 +212,7 @@ class FocusLockOverlayController(
         panel.addView(title)
         panel.addView(message)
         panel.addView(button)
-        if (allowedApps.isNotEmpty()) {
+        if (allowAllowedAppsLaunch && allowedApps.isNotEmpty()) {
             panel.addView(allowedAppsTitle)
             allowedApps.forEachIndexed { index, app ->
                 allowedAppsGrid.addView(

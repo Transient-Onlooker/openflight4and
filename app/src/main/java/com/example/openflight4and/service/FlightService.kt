@@ -41,6 +41,7 @@ class FlightService : Service() {
     private var focusLockSettingsJob: Job? = null
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
+    private var advancedLockEnabled = false
     private var focusLockAllowedPackages = defaultFocusLockAllowedPackages
     private var emergencyUnlockUntilMillis = 0L
     private var currentDurationMinutes: Int = 0
@@ -246,6 +247,11 @@ class FlightService : Service() {
                 }
             }
             launch {
+                repository.advancedLockEnabled.collect { enabled ->
+                    advancedLockEnabled = enabled
+                }
+            }
+            launch {
                 repository.focusLockAllowedApps.collect { packages ->
                     focusLockAllowedPackages = defaultFocusLockAllowedPackages + packages
                 }
@@ -304,7 +310,8 @@ class FlightService : Service() {
                             originIata = currentOriginIata,
                             destinationIata = currentDestinationIata,
                             durationMinutes = currentDurationMinutes,
-                            allowedPackages = focusLockAllowedPackages
+                            allowedPackages = focusLockAllowedPackages,
+                            allowAllowedAppsLaunch = !advancedLockEnabled
                         )
                     } else {
                         focusLockOverlayController.hide()

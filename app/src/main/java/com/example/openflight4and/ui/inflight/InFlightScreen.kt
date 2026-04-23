@@ -249,6 +249,9 @@ fun InFlightScreen(
     var polledServiceIsPaused by remember { mutableStateOf(false) }
     var polledServiceIsRunning by remember { mutableStateOf(false) }
     var showGiveUpPinDialog by remember { mutableStateOf(false) }
+    var endingFlightSnapshotSecondsElapsed by remember { mutableStateOf<Long?>(null) }
+    var endingFlightSnapshotTotalSeconds by remember { mutableStateOf<Long?>(null) }
+    var endingFlightSnapshotIsPaused by remember { mutableStateOf<Boolean?>(null) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
@@ -258,19 +261,24 @@ fun InFlightScreen(
     var animationTargetElapsed by remember { mutableFloatStateOf(0f) }
     var animationStartedAtMillis by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
     val hasServiceRuntimeState = serviceRuntimeState.isRunning || polledServiceIsRunning
-    val totalSeconds = maxOf(serviceRuntimeState.totalSeconds, polledServiceTotalSeconds)
-        .takeIf { hasServiceRuntimeState && it > 0L }
-        ?: (draft.estimatedMinutes * 60).toLong()
-    val secondsElapsed = if (hasServiceRuntimeState) {
-        maxOf(serviceRuntimeState.secondsElapsed, polledServiceSecondsElapsed)
-    } else {
-        fallbackSecondsElapsed
+    val totalSeconds = when {
+        endingFlightSnapshotTotalSeconds != null -> endingFlightSnapshotTotalSeconds!!
+        polledServiceIsRunning && polledServiceTotalSeconds > 0L -> polledServiceTotalSeconds
+        serviceRuntimeState.isRunning && serviceRuntimeState.totalSeconds > 0L -> serviceRuntimeState.totalSeconds
+        else -> (draft.estimatedMinutes * 60).toLong()
+    }
+    val secondsElapsed = when {
+        endingFlightSnapshotSecondsElapsed != null -> endingFlightSnapshotSecondsElapsed!!
+        polledServiceIsRunning -> polledServiceSecondsElapsed
+        serviceRuntimeState.isRunning -> serviceRuntimeState.secondsElapsed
+        else -> fallbackSecondsElapsed
     }
     val ticketCharged = if (hasServiceRuntimeState) serviceRuntimeState.ticketCharged else fallbackTicketCharged
-    val isPaused = if (hasServiceRuntimeState) {
-        serviceRuntimeState.isPaused || polledServiceIsPaused
-    } else {
-        fallbackIsPaused
+    val isPaused = when {
+        endingFlightSnapshotIsPaused != null -> endingFlightSnapshotIsPaused!!
+        polledServiceIsRunning -> polledServiceIsPaused
+        serviceRuntimeState.isRunning -> serviceRuntimeState.isPaused
+        else -> fallbackIsPaused
     }
 
     // ???????????????????椰????
@@ -340,6 +348,9 @@ fun InFlightScreen(
     }
 
     fun stopFlight() {
+        endingFlightSnapshotSecondsElapsed = secondsElapsed
+        endingFlightSnapshotTotalSeconds = totalSeconds
+        endingFlightSnapshotIsPaused = false
         context.startService(
             Intent(context, FlightService::class.java).apply {
                 action = FlightService.ACTION_STOP
@@ -471,9 +482,11 @@ fun InFlightScreen(
                 polledServiceTotalSeconds = FlightService.getTotalSeconds()
                 polledServiceIsPaused = FlightService.isPaused()
             } else {
-                polledServiceSecondsElapsed = 0L
-                polledServiceTotalSeconds = 0L
-                polledServiceIsPaused = false
+                if (endingFlightSnapshotSecondsElapsed == null) {
+                    polledServiceSecondsElapsed = 0L
+                    polledServiceTotalSeconds = 0L
+                    polledServiceIsPaused = false
+                }
             }
             delay(250)
         }
