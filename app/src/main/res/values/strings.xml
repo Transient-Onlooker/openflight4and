@@ -224,7 +224,7 @@
     <string name="newflight_selected_destination_format">Arrival: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">Select an airport on the map</string>
     <string name="newflight_move_map_hint">Move the map or choose from the list below.</string>
-    <string name="newflight_search_placeholder">Search airports</string>
+    <string name="newflight_search_placeholder">Airport / time search</string>
     <string name="newflight_clear_search">Clear search</string>
     <string name="newflight_unlimited">Unlimited</string>
     <string name="newflight_search_radius_format">Search radius: %1$s%2$s</string>
