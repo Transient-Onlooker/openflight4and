@@ -14,6 +14,7 @@ data class NewFlightUiState(
     val allAirports: List<Airport> = emptyList(),
     val selectedDestination: Airport? = null,
     val searchRadiusKm: Int = 1000,
+    val previousManualSearchRadiusKm: Int = 1000,
     val showSameAirportDialog: Boolean = false,
     val showQuickFlightDialog: Boolean = false,
     val searchQuery: String = "",
@@ -52,11 +53,39 @@ class NewFlightViewModel(
     }
 
     fun updateSearchRadius(searchRadiusKm: Int) {
-        _uiState.update { it.copy(searchRadiusKm = searchRadiusKm) }
+        _uiState.update { state ->
+            if (state.searchQuery.isBlank()) {
+                state.copy(
+                    searchRadiusKm = searchRadiusKm,
+                    previousManualSearchRadiusKm = searchRadiusKm
+                )
+            } else {
+                state.copy(previousManualSearchRadiusKm = searchRadiusKm)
+            }
+        }
     }
 
-    fun updateSearchQuery(searchQuery: String) {
-        _uiState.update { it.copy(searchQuery = searchQuery) }
+    fun updateSearchQuery(searchQuery: String, unlimitedRadiusKm: Int) {
+        _uiState.update { state ->
+            val wasSearching = state.searchQuery.isNotBlank()
+            val isSearching = searchQuery.isNotBlank()
+            when {
+                !wasSearching && isSearching -> state.copy(
+                    searchQuery = searchQuery,
+                    previousManualSearchRadiusKm = state.searchRadiusKm,
+                    searchRadiusKm = unlimitedRadiusKm
+                )
+                wasSearching && !isSearching -> state.copy(
+                    searchQuery = searchQuery,
+                    searchRadiusKm = state.previousManualSearchRadiusKm
+                )
+                isSearching -> state.copy(
+                    searchQuery = searchQuery,
+                    searchRadiusKm = unlimitedRadiusKm
+                )
+                else -> state.copy(searchQuery = searchQuery)
+            }
+        }
     }
 
     fun showSameAirportDialog() {

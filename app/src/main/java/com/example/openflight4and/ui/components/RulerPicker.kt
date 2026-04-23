@@ -48,6 +48,12 @@ fun RulerPicker(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
+    LaunchedEffect(startIndex) {
+        if (listState.firstVisibleItemIndex != startIndex) {
+            listState.animateScrollToItem(startIndex)
+        }
+    }
+
     LaunchedEffect(listState, minRequest, maxRequest, step, onValueChange) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .map { index ->

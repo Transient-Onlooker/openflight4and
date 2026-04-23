@@ -13,6 +13,10 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewFlightViewModelTest {
 
+    private companion object {
+        const val UNLIMITED_RADIUS_KM = 20000
+    }
+
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
@@ -33,19 +37,22 @@ class NewFlightViewModelTest {
     fun dialogAndSearchActions_updateUiState() {
         val viewModel = NewFlightViewModel(FakeAppRepository())
 
-        viewModel.updateSearchQuery("tokyo")
         viewModel.updateSearchRadius(2500)
+        viewModel.updateSearchQuery("tokyo", UNLIMITED_RADIUS_KM)
         viewModel.showQuickFlightDialog()
         viewModel.showSameAirportDialog()
 
         assertEquals("tokyo", viewModel.uiState.value.searchQuery)
-        assertEquals(2500, viewModel.uiState.value.searchRadiusKm)
+        assertEquals(UNLIMITED_RADIUS_KM, viewModel.uiState.value.searchRadiusKm)
+        assertEquals(2500, viewModel.uiState.value.previousManualSearchRadiusKm)
         assertTrue(viewModel.uiState.value.showQuickFlightDialog)
         assertTrue(viewModel.uiState.value.showSameAirportDialog)
 
+        viewModel.updateSearchQuery("", UNLIMITED_RADIUS_KM)
         viewModel.hideQuickFlightDialog()
         viewModel.hideSameAirportDialog()
 
+        assertEquals(2500, viewModel.uiState.value.searchRadiusKm)
         assertFalse(viewModel.uiState.value.showQuickFlightDialog)
         assertFalse(viewModel.uiState.value.showSameAirportDialog)
     }

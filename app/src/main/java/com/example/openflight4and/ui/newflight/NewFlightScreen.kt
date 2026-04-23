@@ -161,6 +161,8 @@ fun NewFlightScreen(
 
                         if (!matchesSearch) return@filter false
                     }
+
+                    return@filter true
                 }
                 
                 // 2. 거리 필터
@@ -232,6 +234,17 @@ fun NewFlightScreen(
             zoomBucket = manualSelectionZoomBucket
         )
     }
+    val selectionModeMapAirports = remember(
+        sortedAirports,
+        selectedDestination?.iata,
+        manualSelectionZoomBucket
+    ) {
+        visibleManualSelectionAirports(
+            airports = sortedAirports,
+            selectedAirport = selectedDestination,
+            zoomBucket = manualSelectionZoomBucket
+        )
+    }
     val displayedAirports = if (isSettingCurrentLocation) manualSelectionAirports else sortedAirports
     val quickFlightSuggestions = remember(allAirports, originAirport.iata) {
         buildQuickFlightSuggestions(originAirport, allAirports)
@@ -294,6 +307,8 @@ fun NewFlightScreen(
         cameraPositionState.animate(CameraUpdateFactory.zoomTo(zoom))
     }
 
+    val showBottomSheet = !isLandscape
+
     // Bottom Sheet Scaffold
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)
@@ -301,16 +316,17 @@ fun NewFlightScreen(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = if (isLandscape) 0.dp else 220.dp,
+        sheetPeekHeight = if (showBottomSheet) 220.dp else 0.dp,
         sheetContainerColor = FlightDarkGray,
         sheetContentColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = {
-            Column(
+            if (showBottomSheet) {
+                Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.85f)
-            ) {
+                ) {
                 // Handle & Info
                 Column(
                     modifier = Modifier
@@ -358,8 +374,9 @@ fun NewFlightScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = FlightGray
                         )
-                    }
                 }
+            }
+        }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -368,7 +385,7 @@ fun NewFlightScreen(
                     // 검색창
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { viewModel.updateSearchQuery(it) },
+                        onValueChange = { viewModel.updateSearchQuery(it, NewFlightUnlimitedRadiusKm) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp),
@@ -378,7 +395,7 @@ fun NewFlightScreen(
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                IconButton(onClick = { viewModel.updateSearchQuery("", NewFlightUnlimitedRadiusKm) }) {
                                     Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.newflight_clear_search), tint = FlightGray)
                                 }
                             }
@@ -537,7 +554,7 @@ fun NewFlightScreen(
                 val mapAirports = if (isSettingCurrentLocation) {
                     manualSelectionMapAirports
                 } else {
-                    allAirports
+                    selectionModeMapAirports
                 }
                 mapAirports.forEach { airport ->
                     // 출발지는 항상 표시
@@ -707,7 +724,7 @@ fun NewFlightScreen(
                     originIata = originIata,
                     unitSystem = unitSystem,
                     searchQuery = searchQuery,
-                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                    onSearchQueryChange = { viewModel.updateSearchQuery(it, NewFlightUnlimitedRadiusKm) },
                     searchRadiusKm = searchRadiusKm,
                     onSearchRadiusChange = { viewModel.updateSearchRadius(it) },
                     displayedAirports = displayedAirports,
@@ -869,14 +886,19 @@ private fun visibleManualSelectionAirports(
     val kept = mutableListOf<Airport>()
 
     airports
-        .sortedByDescending { it.longitude }
+        .sortedBy { it.longitude }
         .forEach { airport ->
-            val overlaps = kept.any { keptAirport ->
+            val overlappingIndex = kept.indexOfFirst { keptAirport ->
                 kotlin.math.abs(airport.longitude - keptAirport.longitude) <= horizontalThreshold &&
                     kotlin.math.abs(airport.latitude - keptAirport.latitude) <= verticalThreshold
             }
-            if (!overlaps || airport.iata == selectedAirport?.iata) {
-                kept += airport
+            when {
+                overlappingIndex == -1 -> {
+                    kept += airport
+                }
+                airport.iata == selectedAirport?.iata -> {
+                    kept[overlappingIndex] = airport
+                }
             }
         }
 

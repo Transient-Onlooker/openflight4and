@@ -1,7 +1,7 @@
 package com.example.openflight4and.data
 
-import android.util.Base64
 import java.security.SecureRandom
+import java.util.Base64
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
@@ -21,8 +21,8 @@ object FocusLockPinSecurity {
     }
 
     fun verify(pin: String, saltBase64: String, expectedHashBase64: String): Boolean {
-        val salt = runCatching { Base64.decode(saltBase64, Base64.NO_WRAP) }.getOrElse { return false }
-        val expectedHash = runCatching { Base64.decode(expectedHashBase64, Base64.NO_WRAP) }.getOrElse { return false }
+        val salt = runCatching { Base64.getDecoder().decode(saltBase64) }.getOrElse { return false }
+        val expectedHash = runCatching { Base64.getDecoder().decode(expectedHashBase64) }.getOrElse { return false }
         return hash(pin, salt).contentEquals(expectedHash)
     }
 
@@ -35,7 +35,7 @@ object FocusLockPinSecurity {
         }
     }
 
-    private fun ByteArray.encodeBase64(): String = Base64.encodeToString(this, Base64.NO_WRAP)
+    private fun ByteArray.encodeBase64(): String = Base64.getEncoder().withoutPadding().encodeToString(this)
 }
 
 data class PinHash(

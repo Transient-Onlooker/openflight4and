@@ -701,4 +701,9 @@
   { "iata": "NPE", "nameKo": "네이피어 공항", "nameEn": "Hawke's Bay Airport", "cityKo": "네이피어", "cityEn": "Napier", "country": "NZ", "latitude": -39.4660, "longitude": 176.8700 },
   { "iata": "IVC", "nameKo": "인버카길 공항", "nameEn": "Invercargill Airport", "cityKo": "인버카길", "cityEn": "Invercargill", "country": "NZ", "latitude": -46.4120, "longitude": 168.3130 },
   { "iata": "GIS", "nameKo": "기즈본 공항", "nameEn": "Gisborne Airport", "cityKo": "기즈본", "cityEn": "Gisborne", "country": "NZ", "latitude": -38.6630, "longitude": 178.0180 }
+,
+  { "iata": "TNM", "nameKo": "테니엔테 R. 마시 공항", "nameEn": "Teniente R. Marsh Airport", "cityKo": "킹조지섬", "cityEn": "King George Island", "country": "AQ", "latitude": -62.1906, "longitude": -58.9867 },
+  { "iata": "RGA", "nameKo": "리오그란데 공항", "nameEn": "Rio Grande Airport", "cityKo": "리오그란데", "cityEn": "Rio Grande", "country": "AR", "latitude": -53.7777, "longitude": -67.7494 },
+  { "iata": "LYR", "nameKo": "롱이어비엔 공항", "nameEn": "Longyearbyen Airport", "cityKo": "롱이어비엔", "cityEn": "Longyearbyen", "country": "SJ", "latitude": 78.2461, "longitude": 15.4656 },
+  { "iata": "YLT", "nameKo": "알러트 공항", "nameEn": "Alert Airport", "cityKo": "알러트", "cityEn": "Alert", "country": "CA", "latitude": 82.5178, "longitude": -62.2806 }
 ]
