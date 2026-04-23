@@ -42,6 +42,8 @@ jobs:
           REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
           VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
           OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
+          OPENFLIGHT_RELEASE_CHANNEL: beta
+          OPENFLIGHT_VERSION_NAME: V2.8.7.Beta.0001
         run: ./gradlew assembleDebug
 
       - name: Upload Debug APK artifact
@@ -58,6 +60,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          NORMALIZED_TAG="${TAG_NAME#V}"
+          NORMALIZED_TAG="${NORMALIZED_TAG#v}"
+
+          if [[ "$NORMALIZED_TAG" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta-([0-9]{4})$ ]]; then
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+            echo "version_name=V${BASH_REMATCH[1]}.Beta.${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "gradle_task=assembleRelease" >> "$GITHUB_OUTPUT"
+            echo "release_prerelease=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$NORMALIZED_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+            echo "version_name=V${NORMALIZED_TAG}" >> "$GITHUB_OUTPUT"
+            echo "gradle_task=assembleRelease" >> "$GITHUB_OUTPUT"
+            echo "release_prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported tag format: ${TAG_NAME}"
+            exit 1
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -89,11 +114,13 @@ jobs:
           REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
           VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
           OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
+          OPENFLIGHT_RELEASE_CHANNEL: ${{ steps.release_meta.outputs.channel }}
+          OPENFLIGHT_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
           RELEASE_KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew ${{ steps.release_meta.outputs.gradle_task }}
 
       - name: Prepare release APK
         run: |
@@ -105,11 +132,22 @@ jobs:
           fi
           cp "$APK_PATH" "openflight4and-${{ github.ref_name }}-release.apk"
 
-      - name: Create release if missing
+      - name: Create or update GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          gh release view "${{ github.ref_name }}" || gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
+          if gh release view "${{ github.ref_name }}" > /dev/null 2>&1; then
+            if [ "${{ steps.release_meta.outputs.release_prerelease }}" = "true" ]; then
+              gh release edit "${{ github.ref_name }}" --title "${{ github.ref_name }}" --prerelease
+            else
+              gh release edit "${{ github.ref_name }}" --title "${{ github.ref_name }}"
+            fi
+          elif [ "${{ steps.release_meta.outputs.release_prerelease }}" = "true" ]; then
+            gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes --prerelease
+          else
+            gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
+          fi
 
       - name: Upload APK to release assets
         env:
@@ -117,16 +155,17 @@ jobs:
         run: gh release upload "${{ github.ref_name }}" "openflight4and-${{ github.ref_name }}-release.apk" --clobber
 
       - name: Install Wrangler
+        if: steps.release_meta.outputs.channel == 'stable'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm install -g wrangler
 
       - name: Update recent version in Cloudflare D1
+        if: steps.release_meta.outputs.channel == 'stable'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          VERSION="${GITHUB_REF_NAME#V}"
-          VERSION="${VERSION#v}"
+          VERSION="${{ steps.release_meta.outputs.version_name }}"
           wrangler d1 execute openflight-version-db --remote --command "INSERT INTO app_versions (platform, allowed_version, recent_version) VALUES ('android', '$VERSION', '$VERSION') ON CONFLICT(platform) DO UPDATE SET recent_version = excluded.recent_version, updated_at = CURRENT_TIMESTAMP;"

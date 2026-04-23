@@ -39,6 +39,12 @@ val versionApiBaseUrl: String = localProperties.getProperty("VERSION_API_BASE_UR
 val githubReleasesUrl: String = localProperties.getProperty("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
     ?: "https://github.com/Transient-Onlooker/openflight4and/releases/latest"
+val releaseChannel: String = localProperties.getProperty("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
+    ?: System.getenv("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
+    ?: "beta"
+val releaseVersionName: String = localProperties.getProperty("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
+    ?: System.getenv("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
+    ?: "V2.8.7.Beta.0001"
 val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
     ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
 val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
@@ -61,6 +67,27 @@ if (gradle.startParameter.taskNames.any { taskName -> taskName.contains("Release
     }
 }
 
+fun String.toVersionCode(): Int {
+    val normalized = trim()
+    val stableMatch = Regex("""^V?(\d+)\.(\d{1,2})\.(\d{1,2})$""").matchEntire(normalized)
+    if (stableMatch != null) {
+        val (major, minor, patch) = stableMatch.destructured
+        return "$major${minor.padStart(2, '0')}${patch.padStart(2, '0')}0000".toInt()
+    }
+
+    val betaMatch = Regex("""^V?(\d+)\.(\d{1,2})\.(\d{1,2})\.Beta\.(\d{4})$""").matchEntire(normalized)
+    if (betaMatch != null) {
+        val (major, minor, patch, betaSequence) = betaMatch.destructured
+        return "$major${minor.padStart(2, '0')}${patch.padStart(2, '0')}$betaSequence".toInt()
+    }
+
+    error("Unsupported OPENFLIGHT_VERSION_NAME format: $this")
+}
+
+require(releaseChannel in setOf("stable", "beta")) {
+    "OPENFLIGHT_RELEASE_CHANNEL must be either 'stable' or 'beta'."
+}
+
 android {
     namespace = "com.example.openflight4and"
     compileSdk = 36
@@ -69,13 +96,14 @@ android {
         applicationId = "com.openflight4and.app.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 20807
-        versionName = "2.8.7"
+        versionCode = releaseVersionName.toVersionCode()
+        versionName = releaseVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "REDEEM_API_BASE_URL", "\"$redeemApiBaseUrl\"")
         buildConfigField("String", "VERSION_API_BASE_URL", "\"$versionApiBaseUrl\"")
         buildConfigField("String", "GITHUB_RELEASES_URL", "\"$githubReleasesUrl\"")
+        buildConfigField("String", "RELEASE_CHANNEL", "\"$releaseChannel\"")
 
         // Manifest에 API Key 주입
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey

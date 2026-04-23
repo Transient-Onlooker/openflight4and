@@ -60,11 +60,12 @@ class VersionRepository(
             }
 
             val currentVersion = BuildConfig.VERSION_NAME
-            val requirement = when {
-                compareVersions(currentVersion, response.allowedVersion) < 0 -> UpdateRequirement.REQUIRED
-                compareVersions(currentVersion, response.recentVersion) < 0 -> UpdateRequirement.RECOMMENDED
-                else -> UpdateRequirement.NONE
-            }
+            val requirement = determineRequirement(
+                releaseChannel = BuildConfig.RELEASE_CHANNEL,
+                currentVersionCode = BuildConfig.VERSION_CODE,
+                allowedVersion = response.allowedVersion,
+                recentVersion = response.recentVersion
+            )
 
             VersionStatus(
                 currentVersion = currentVersion,
@@ -80,28 +81,43 @@ class VersionRepository(
         }
     }
 
-    internal fun compareVersions(current: String, target: String): Int {
-        val currentParts = current.extractVersionParts()
-        val targetParts = target.extractVersionParts()
-        val maxSize = maxOf(currentParts.size, targetParts.size)
+    internal fun determineRequirement(
+        releaseChannel: String,
+        currentVersionCode: Int,
+        allowedVersion: String,
+        recentVersion: String
+    ): UpdateRequirement {
+        val allowedVersionCode = parseVersionCode(allowedVersion)
+        val recentVersionCode = parseVersionCode(recentVersion)
 
-        for (index in 0 until maxSize) {
-            val currentPart = currentParts.getOrElse(index) { 0 }
-            val targetPart = targetParts.getOrElse(index) { 0 }
-            if (currentPart != targetPart) {
-                return currentPart.compareTo(targetPart)
-            }
+        return when {
+            currentVersionCode < allowedVersionCode -> UpdateRequirement.REQUIRED
+            releaseChannel.equals("beta", ignoreCase = true) -> UpdateRequirement.NONE
+            currentVersionCode < recentVersionCode -> UpdateRequirement.RECOMMENDED
+            else -> UpdateRequirement.NONE
         }
-        return 0
     }
 
-    private fun String.extractVersionParts(): List<Int> =
-        trim()
-            .removePrefix("v")
-            .removePrefix("V")
-            .split('.')
-            .mapNotNull { part -> part.takeWhile { it.isDigit() }.takeIf { it.isNotEmpty() }?.toIntOrNull() }
-            .ifEmpty { listOf(0) }
+    internal fun compareVersions(current: String, target: String): Int =
+        parseVersionCode(current).compareTo(parseVersionCode(target))
+
+    internal fun parseVersionCode(version: String): Int {
+        val normalized = version.trim()
+
+        val stableMatch = STABLE_VERSION_REGEX.matchEntire(normalized)
+        if (stableMatch != null) {
+            val (major, minor, patch) = stableMatch.destructured
+            return "$major${minor.padStart(2, '0')}${patch.padStart(2, '0')}0000".toInt()
+        }
+
+        val betaMatch = BETA_VERSION_REGEX.matchEntire(normalized)
+        if (betaMatch != null) {
+            val (major, minor, patch, betaSequence) = betaMatch.destructured
+            return "$major${minor.padStart(2, '0')}${patch.padStart(2, '0')}$betaSequence".toInt()
+        }
+
+        throw IllegalArgumentException("Unsupported version format: $version")
+    }
 
     @Serializable
     private data class VersionApiResponse(
@@ -109,4 +125,9 @@ class VersionRepository(
         @SerialName("allowedVersion") val allowedVersion: String? = null,
         @SerialName("recentVersion") val recentVersion: String? = null
     )
+
+    private companion object {
+        val STABLE_VERSION_REGEX = Regex("""^V?(\d+)\.(\d{1,2})\.(\d{1,2})$""")
+        val BETA_VERSION_REGEX = Regex("""^V?(\d+)\.(\d{1,2})\.(\d{1,2})\.Beta\.(\d{4})$""")
+    }
 }
