@@ -252,6 +252,8 @@ fun InFlightScreen(
     var endingFlightSnapshotSecondsElapsed by remember { mutableStateOf<Long?>(null) }
     var endingFlightSnapshotTotalSeconds by remember { mutableStateOf<Long?>(null) }
     var endingFlightSnapshotIsPaused by remember { mutableStateOf<Boolean?>(null) }
+    var awaitingServiceShutdownExit by remember { mutableStateOf(false) }
+    var flightExitHandled by remember { mutableStateOf(false) }
     val inflightUiState by inflightViewModel.uiState.collectAsState()
     var debugSliderSeconds by remember { mutableFloatStateOf(0f) }
     var isDebugSliderDirty by remember { mutableStateOf(false) }
@@ -351,14 +353,33 @@ fun InFlightScreen(
         endingFlightSnapshotSecondsElapsed = secondsElapsed
         endingFlightSnapshotTotalSeconds = totalSeconds
         endingFlightSnapshotIsPaused = false
-        context.startService(
-            Intent(context, FlightService::class.java).apply {
-                action = FlightService.ACTION_STOP
-            }
-        )
         fallbackIsPaused = false
         inflightViewModel.hideGiveUpDialog()
-        onFlightEnd()
+        if (hasServiceRuntimeState) {
+            awaitingServiceShutdownExit = true
+            context.startService(
+                Intent(context, FlightService::class.java).apply {
+                    action = FlightService.ACTION_STOP
+                }
+            )
+        } else {
+            scope.launch {
+                saveAndExit(
+                    repository = repository,
+                    draft = draft,
+                    progress = progress,
+                    isCompleted = false,
+                    startTime = System.currentTimeMillis() - secondsElapsed * 1000L,
+                    onExit = {
+                        if (!flightExitHandled) {
+                            flightExitHandled = true
+                            onFlightEnd()
+                        }
+                    },
+                    context = context
+                )
+            }
+        }
     }
 
     fun requestFlightStop() {
@@ -761,7 +782,7 @@ fun InFlightScreen(
     LaunchedEffect(secondsElapsed, totalSeconds) {
         if (secondsElapsed >= totalSeconds && totalSeconds > 0) {
             if (hasServiceRuntimeState) {
-                onFlightEnd()
+                awaitingServiceShutdownExit = true
             } else {
                 saveAndExit(
                     repository = repository,
@@ -769,10 +790,23 @@ fun InFlightScreen(
                     progress = 1f,
                     isCompleted = true,
                     startTime = System.currentTimeMillis() - (draft.estimatedMinutes * 60 * 1000),
-                    onExit = onFlightEnd,
+                    onExit = {
+                        if (!flightExitHandled) {
+                            flightExitHandled = true
+                            onFlightEnd()
+                        }
+                    },
                     context = context
                 )
             }
+        }
+    }
+
+    LaunchedEffect(awaitingServiceShutdownExit, hasServiceRuntimeState) {
+        if (awaitingServiceShutdownExit && !hasServiceRuntimeState && !flightExitHandled) {
+            flightExitHandled = true
+            awaitingServiceShutdownExit = false
+            onFlightEnd()
         }
     }
 

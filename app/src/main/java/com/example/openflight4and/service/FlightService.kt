@@ -141,6 +141,10 @@ class FlightService : Service() {
 
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
+            timerJob?.cancel()
+            _isRunning = false
+            _isPaused = false
+            publishRuntimeState()
             serviceScope.launch {
                 persistFlightSession(isCompleted = false)
                 repository.clearEmergencyUnlockActive()

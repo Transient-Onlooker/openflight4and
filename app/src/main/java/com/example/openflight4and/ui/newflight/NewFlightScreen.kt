@@ -90,6 +90,7 @@ fun NewFlightScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val languageTag = configuration.locales[0]?.toLanguageTag() ?: Locale.getDefault().toLanguageTag()
+    val bottomSheetMaxHeight = maxOf(360.dp, configuration.screenHeightDp.dp * 0.6f)
     val viewModel: NewFlightViewModel = viewModel(
         factory = NewFlightViewModel.Factory(context.applicationContext as android.app.Application)
     )
@@ -314,7 +315,8 @@ fun NewFlightScreen(
         bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)
     )
 
-    BottomSheetScaffold(
+    if (showBottomSheet) {
+        BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = if (showBottomSheet) 220.dp else 0.dp,
         sheetContainerColor = FlightDarkGray,
@@ -325,7 +327,7 @@ fun NewFlightScreen(
                 Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.85f)
+                    .heightIn(min = 220.dp, max = bottomSheetMaxHeight)
                 ) {
                 // Handle & Info
                 Column(
@@ -336,7 +338,7 @@ fun NewFlightScreen(
                 ) {
                     Icon(Icons.Default.DragHandle, contentDescription = null, tint = Color.Gray)
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Destination Info
                     Text(
@@ -374,11 +376,16 @@ fun NewFlightScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = FlightGray
                         )
+                    }
                 }
-            }
-        }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Controls
                 Column(modifier = Modifier.padding(bottom = 16.dp)) {
@@ -436,7 +443,9 @@ fun NewFlightScreen(
 
                 // List
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = bottomSheetMaxHeight * 0.4f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -506,8 +515,8 @@ fun NewFlightScreen(
                 }
             }
         }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding).background(FlightBlack)) {
+        ) {
+        Box(modifier = Modifier.fillMaxSize().background(FlightBlack)) {
             // Map
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
@@ -753,6 +762,254 @@ fun NewFlightScreen(
             }
 
             // Same Airport Dialog
+            if (showSameAirportDialog) {
+                SameAirportDialog(onDismiss = { viewModel.hideSameAirportDialog() })
+            }
+
+            if (showQuickFlightDialog) {
+                QuickFlightDialogCards(
+                    context = context,
+                    suggestions = quickFlightSuggestions,
+                    unitSystem = unitSystem,
+                    languageTag = languageTag,
+                    onDismiss = { viewModel.hideQuickFlightDialog() },
+                    onSelect = { airport ->
+                        viewModel.hideQuickFlightDialog()
+                        quickSelectDestination(airport)
+                    }
+                )
+            }
+        }
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize().background(FlightBlack)) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false,
+                    myLocationButtonEnabled = false,
+                    mapToolbarEnabled = false,
+                    compassEnabled = false
+                ),
+                properties = MapProperties(
+                    mapStyleOptions = try {
+                        MapStyleOptions.loadRawResourceStyle(context, com.example.openflight4and.R.raw.map_style_dark)
+                    } catch (e: Exception) { null }
+                )
+            ) {
+                if (!isSettingCurrentLocation && searchRadiusKm < NewFlightUnlimitedRadiusKm) {
+                    Circle(
+                        center = LatLng(originAirport.latitude, originAirport.longitude),
+                        radius = searchRadiusKm * 1000.0,
+                        strokeColor = FlightPrimary.copy(alpha = 0.5f),
+                        strokeWidth = 2f,
+                        fillColor = FlightPrimary.copy(alpha = 0.05f)
+                    )
+                }
+
+                selectedDestination?.takeUnless { isSettingCurrentLocation }?.let { dest ->
+                    Polyline(
+                        points = listOf(
+                            LatLng(originAirport.latitude, originAirport.longitude),
+                            LatLng(dest.latitude, dest.longitude)
+                        ),
+                        color = FlightPrimary,
+                        width = 5f,
+                        geodesic = true,
+                        pattern = listOf(Dash(30f), Gap(20f))
+                    )
+                }
+
+                val mapAirports = if (isSettingCurrentLocation) {
+                    manualSelectionMapAirports
+                } else {
+                    selectionModeMapAirports
+                }
+                mapAirports.forEach { airport ->
+                    val isOrigin = airport.iata == originIata
+                    if (!isSettingCurrentLocation && isOrigin) {
+                        val isSelected = airport == selectedDestination
+                        val markerIcon = remember(airport.iata, isSelected, isOrigin) {
+                            val label = context.getString(R.string.newflight_origin_short)
+                            MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
+                        }
+                        Marker(
+                            state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
+                            icon = markerIcon,
+                            zIndex = 2f,
+                            onClick = { true }
+                        )
+                        return@forEach
+                    }
+
+                    if (isSettingCurrentLocation) {
+                        val isSelected = airport == selectedDestination
+                        val markerIcon = remember(airport.iata, isSelected) {
+                            val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
+                            MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected)
+                        }
+                        Marker(
+                            state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
+                            icon = markerIcon,
+                            zIndex = if (isSelected) 2f else 1f,
+                            onClick = {
+                                selectDestination(airport)
+                                true
+                            }
+                        )
+                        return@forEach
+                    }
+
+                    if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
+                        val isSelected = airport == selectedDestination
+                        val markerIcon = remember(airport.iata, isSelected, isOrigin) {
+                            val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
+                            MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
+                        }
+                        Marker(
+                            state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
+                            icon = markerIcon,
+                            zIndex = if (isSelected) 2f else 1f,
+                            onClick = {
+                                selectDestination(airport)
+                                true
+                            }
+                        )
+                        return@forEach
+                    }
+
+                    if (searchRadiusKm <= NewFlightSmallRadiusThresholdKm) {
+                        val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
+                        if (distFromOrigin <= searchRadiusKm.toDouble()) {
+                            val isSelected = airport == selectedDestination
+                            val markerIcon = remember(airport.iata, isSelected, isOrigin) {
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
+                                MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
+                            }
+                            Marker(
+                                state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
+                                icon = markerIcon,
+                                zIndex = if (isSelected) 2f else 1f,
+                                onClick = {
+                                    selectDestination(airport)
+                                    true
+                                }
+                            )
+                        }
+                    } else {
+                        val distFromOrigin = FlightUtils.calculateDistance(originAirport, airport)
+                        val margin = NewFlightRingFilterMarginKm
+                        val lowerBound = (searchRadiusKm - margin).coerceAtLeast(0.0)
+                        val upperBound = searchRadiusKm.toDouble()
+
+                        if (distFromOrigin >= lowerBound && distFromOrigin <= upperBound) {
+                            val isSelected = airport == selectedDestination
+                            val markerIcon = remember(airport.iata, isSelected, isOrigin) {
+                                val label = if (isSelected) context.getString(R.string.newflight_arrival_short) else airport.localizedCity(languageTag).split("/")[0]
+                                MapBitmapUtils.createCustomMarkerBitmap(context, airport.iata, label, isSelected || isOrigin)
+                            }
+                            Marker(
+                                state = MarkerState(position = LatLng(airport.latitude, airport.longitude)),
+                                icon = markerIcon,
+                                zIndex = if (isSelected) 2f else 1f,
+                                onClick = {
+                                    selectDestination(airport)
+                                    true
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (!isSettingCurrentLocation) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlightTakeoff,
+                        contentDescription = null,
+                        tint = FlightPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = Color.White)
+                }
+            }
+
+            if (!isSettingCurrentLocation) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(16.dp)
+                ) {
+                    TextButton(
+                        onClick = { viewModel.showQuickFlightDialog() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    ) {
+                        Text(stringResource(R.string.newflight_quick_flight_title), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            NewFlightLandscapePanel(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 72.dp, end = 16.dp, bottom = 16.dp)
+                    .width(340.dp)
+                    .fillMaxHeight(),
+                context = context,
+                selectedDestination = selectedDestination,
+                originAirport = originAirport,
+                originIata = originIata,
+                unitSystem = unitSystem,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { viewModel.updateSearchQuery(it, NewFlightUnlimitedRadiusKm) },
+                searchRadiusKm = searchRadiusKm,
+                onSearchRadiusChange = { viewModel.updateSearchRadius(it) },
+                displayedAirports = displayedAirports,
+                languageTag = languageTag,
+                onAirportClick = { airport ->
+                    if (isSettingCurrentLocation || airport.iata != originIata) {
+                        selectDestination(airport)
+                    }
+                },
+                isSandboxMode = isSandboxMode,
+                isSettingCurrentLocation = isSettingCurrentLocation,
+                onConfirm = {
+                    if (!isSettingCurrentLocation && selectedDestination?.iata == originIata) {
+                        viewModel.showSameAirportDialog()
+                    } else {
+                        if (isSandboxMode) {
+                            onSandboxAirportSelected(originAirport, selectedDestination)
+                        } else if (isSettingCurrentLocation) {
+                            selectedDestination?.let(onCurrentLocationSet)
+                        } else {
+                            onNavigateToBoardingPass()
+                        }
+                    }
+                }
+            )
+
             if (showSameAirportDialog) {
                 SameAirportDialog(onDismiss = { viewModel.hideSameAirportDialog() })
             }
@@ -1068,6 +1325,25 @@ private fun NewFlightLandscapePanel(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            if (!isSettingCurrentLocation) {
+                val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
+                val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else "  |  ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+                Text(
+                    text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
+                    color = FlightPrimary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+
+                RulerPicker(
+                    initialValue = searchRadiusKm,
+                    minRequest = 100,
+                    maxRequest = NewFlightUnlimitedRadiusKm,
+                    step = NewFlightRadiusStepKm,
+                    onValueChange = onSearchRadiusChange
+                )
+            }
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
@@ -1102,25 +1378,6 @@ private fun NewFlightLandscapePanel(
                     cursorColor = FlightPrimary
                 )
             )
-
-            if (!isSettingCurrentLocation) {
-                val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
-                val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else "  |  ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
-                Text(
-                    text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
-                    color = FlightPrimary,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                )
-
-                RulerPicker(
-                    initialValue = searchRadiusKm,
-                    minRequest = 100,
-                    maxRequest = NewFlightUnlimitedRadiusKm,
-                    step = NewFlightRadiusStepKm,
-                    onValueChange = onSearchRadiusChange
-                )
-            }
 
             HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),

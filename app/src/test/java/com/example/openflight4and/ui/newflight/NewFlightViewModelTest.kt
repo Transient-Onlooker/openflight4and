@@ -84,4 +84,46 @@ class NewFlightViewModelTest {
 
         assertEquals("LAX", viewModel.uiState.value.selectedDestination?.iata)
     }
+
+    @Test
+    fun updateSearchRadius_whileSearching_onlyUpdatesManualRadiusSnapshot() {
+        val viewModel = NewFlightViewModel(FakeAppRepository())
+
+        viewModel.updateSearchRadius(1200)
+        viewModel.updateSearchQuery("seoul", UNLIMITED_RADIUS_KM)
+        viewModel.updateSearchRadius(3400)
+
+        val state = viewModel.uiState.value
+        assertEquals("seoul", state.searchQuery)
+        assertEquals(UNLIMITED_RADIUS_KM, state.searchRadiusKm)
+        assertEquals(3400, state.previousManualSearchRadiusKm)
+    }
+
+    @Test
+    fun updateSearchQuery_clearAfterManualRadiusChange_restoresLatestManualRadius() {
+        val viewModel = NewFlightViewModel(FakeAppRepository())
+
+        viewModel.updateSearchRadius(900)
+        viewModel.updateSearchQuery("tokyo", UNLIMITED_RADIUS_KM)
+        viewModel.updateSearchRadius(1800)
+        viewModel.updateSearchQuery("", UNLIMITED_RADIUS_KM)
+
+        val state = viewModel.uiState.value
+        assertEquals("", state.searchQuery)
+        assertEquals(1800, state.searchRadiusKm)
+        assertEquals(1800, state.previousManualSearchRadiusKm)
+    }
+
+    @Test
+    fun updateSearchQuery_blankWithoutActiveSearch_keepsManualRadius() {
+        val viewModel = NewFlightViewModel(FakeAppRepository())
+
+        viewModel.updateSearchRadius(2600)
+        viewModel.updateSearchQuery("", UNLIMITED_RADIUS_KM)
+
+        val state = viewModel.uiState.value
+        assertEquals("", state.searchQuery)
+        assertEquals(2600, state.searchRadiusKm)
+        assertEquals(2600, state.previousManualSearchRadiusKm)
+    }
 }
