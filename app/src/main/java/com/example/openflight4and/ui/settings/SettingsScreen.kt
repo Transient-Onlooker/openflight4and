@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -61,6 +63,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -86,6 +90,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.text.Collator
+import java.util.Locale
 
 private val SettingsHorizontalPadding = 24.dp
 private val SettingsSectionSpacing = 24.dp
@@ -122,6 +128,7 @@ fun SettingsScreen(
     restrictInFlightSettings: Boolean = false
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
 
@@ -629,6 +636,20 @@ fun SettingsScreen(
     }
 
     if (showAllowedAppsDialog) {
+        val appLabelCollator = remember {
+            Collator.getInstance(Locale.KOREAN).apply {
+                strength = Collator.PRIMARY
+            }
+        }
+        val allowedAppsGridColumns = remember(configuration.screenWidthDp) {
+            when {
+                configuration.screenWidthDp >= 1200 -> 6
+                configuration.screenWidthDp >= 960 -> 5
+                configuration.screenWidthDp >= 720 -> 4
+                configuration.screenWidthDp >= 520 -> 3
+                else -> 2
+            }
+        }
         val visibleLaunchableApps = remember(launchableApps, allowedAppsSelection, selfPackageName, appDisplayName) {
             launchableApps.filter { app ->
                 !FocusLockUtils.shouldHideAllowedAppInUi(
@@ -642,111 +663,127 @@ fun SettingsScreen(
         }
         val filteredLaunchableApps = remember(visibleLaunchableApps, allowedAppsQuery) {
             val normalizedQuery = allowedAppsQuery.trim()
-            if (normalizedQuery.isEmpty()) {
+            val apps = if (normalizedQuery.isEmpty()) {
                 visibleLaunchableApps
             } else {
                 visibleLaunchableApps.filter { app ->
                     app.label.contains(normalizedQuery, ignoreCase = true)
                 }
             }
+            apps.sortedWith { left, right ->
+                val leftSelected = allowedAppsSelection.contains(left.packageName)
+                val rightSelected = allowedAppsSelection.contains(right.packageName)
+                when {
+                    leftSelected && !rightSelected -> -1
+                    !leftSelected && rightSelected -> 1
+                    else -> appLabelCollator.compare(left.label, right.label)
+                }
+            }
         }
         AlertDialog(
             onDismissRequest = { showAllowedAppsDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
             title = { Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_title)) },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FlightGray
-                    )
-                    Spacer(modifier = Modifier.padding(top = 12.dp))
-                    OutlinedTextField(
-                        value = allowedAppsQuery,
-                        onValueChange = { allowedAppsQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = {
-                            Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_placeholder))
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedPlaceholderColor = FlightGray,
-                            unfocusedPlaceholderColor = FlightGray,
-                            focusedLeadingIconColor = FlightGray,
-                            unfocusedLeadingIconColor = FlightGray,
-                            cursorColor = MaterialTheme.colorScheme.primary
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 760.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray
                         )
-                    )
-                    Spacer(modifier = Modifier.padding(top = 12.dp))
-                    if (isLoadingLaunchableApps) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Spacer(modifier = Modifier.padding(top = 12.dp))
+                        OutlinedTextField(
+                            value = allowedAppsQuery,
+                            onValueChange = { allowedAppsQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = {
+                                Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_placeholder))
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null)
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedPlaceholderColor = FlightGray,
+                                unfocusedPlaceholderColor = FlightGray,
+                                focusedLeadingIconColor = FlightGray,
+                                unfocusedLeadingIconColor = FlightGray,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                        Spacer(modifier = Modifier.padding(top = 12.dp))
+                        if (isLoadingLaunchableApps) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Loading apps...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = FlightGray
+                                )
+                            }
+                        } else if (visibleLaunchableApps.isEmpty()) {
                             Text(
-                                text = "Loading apps...",
+                                text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = FlightGray
                             )
-                        }
-                    } else if (visibleLaunchableApps.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = FlightGray
-                        )
-                    } else if (filteredLaunchableApps.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = FlightGray
-                        )
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 88.dp),
-                            modifier = Modifier.heightIn(max = 360.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(filteredLaunchableApps, key = { it.packageName }) { app ->
-                                val checked = allowedAppsSelection.contains(app.packageName)
-                                AllowedAppItem(
-                                    app = app,
-                                    checked = checked,
-                                    onToggle = { isChecked ->
-                                        if (!isChecked && app.packageName in protectedAllowedPackages) {
-                                            protectedAllowedAppPendingRemoval = app
-                                            protectedAllowedAppRemovalConfirmCount = 0
-                                        } else {
-                                            allowedAppsSelection =
-                                                if (isChecked) {
-                                                    val nextSelection = allowedAppsSelection + app.packageName
-                                                    if (app.packageName == FocusLockUtils.GeminiPackageName) {
-                                                        nextSelection + FocusLockUtils.GoogleAppPackageName
+                        } else if (filteredLaunchableApps.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_search_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FlightGray
+                            )
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(allowedAppsGridColumns),
+                                modifier = Modifier.heightIn(max = 360.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(filteredLaunchableApps, key = { it.packageName }) { app ->
+                                    val checked = allowedAppsSelection.contains(app.packageName)
+                                    AllowedAppItem(
+                                        app = app,
+                                        checked = checked,
+                                        onToggle = { isChecked ->
+                                            if (!isChecked && app.packageName in protectedAllowedPackages) {
+                                                protectedAllowedAppPendingRemoval = app
+                                                protectedAllowedAppRemovalConfirmCount = 0
+                                            } else {
+                                                allowedAppsSelection =
+                                                    if (isChecked) {
+                                                        val nextSelection = allowedAppsSelection + app.packageName
+                                                        if (app.packageName == FocusLockUtils.GeminiPackageName) {
+                                                            nextSelection + FocusLockUtils.GoogleAppPackageName
+                                                        } else {
+                                                            nextSelection
+                                                        }
                                                     } else {
-                                                        nextSelection
+                                                        val nextSelection = allowedAppsSelection - app.packageName
+                                                        if (app.packageName == FocusLockUtils.GeminiPackageName) {
+                                                            nextSelection - FocusLockUtils.GoogleAppPackageName
+                                                        } else {
+                                                            nextSelection
+                                                        }
                                                     }
-                                                } else {
-                                                    val nextSelection = allowedAppsSelection - app.packageName
-                                                    if (app.packageName == FocusLockUtils.GeminiPackageName) {
-                                                        nextSelection - FocusLockUtils.GoogleAppPackageName
-                                                    } else {
-                                                        nextSelection
-                                                    }
-                                                }
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
