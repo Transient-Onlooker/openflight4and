@@ -389,6 +389,31 @@ fun NewFlightScreen(
 
                 // Controls
                 Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                    if (!isSettingCurrentLocation) {
+                        val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
+                            stringResource(R.string.newflight_unlimited)
+                        } else {
+                            "${searchRadiusKm}km"
+                        }
+                        val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
+                            ""
+                        } else {
+                            " • ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
+                        }
+                        Text(
+                            text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
+                            color = FlightPrimary,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 2.dp)
+                        )
+                        RulerPicker(
+                            initialValue = searchRadiusKm,
+                            minRequest = 100,
+                            maxRequest = NewFlightUnlimitedRadiusKm,
+                            step = NewFlightRadiusStepKm,
+                            onValueChange = { viewModel.updateSearchRadius(it) }
+                        )
+                    }
                     // 검색창
                     OutlinedTextField(
                         value = searchQuery,
@@ -420,7 +445,7 @@ fun NewFlightScreen(
                         )
                     )
 
-                    if (!isSettingCurrentLocation) {
+                    if (false && !isSettingCurrentLocation) {
                         val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) stringResource(R.string.newflight_unlimited) else "${searchRadiusKm}km"
                     val durationText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) "" else " • ${FlightUtils.formatDuration(context, FlightUtils.estimateDurationMinutes(searchRadiusKm.toDouble()))}"
                     Text(

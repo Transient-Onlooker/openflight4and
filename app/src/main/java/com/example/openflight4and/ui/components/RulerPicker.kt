@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -69,20 +69,20 @@ fun RulerPicker(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(72.dp)
     ) {
         val contentInset = (maxWidth / 2) - (stepWidth / 2)
 
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopCenter
         ) {
             LazyRow(
                 state = listState,
                 flingBehavior = snapBehavior,
                 contentPadding = PaddingValues(horizontal = contentInset),
                 modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 items(totalSteps + 1) { index ->
                     val currentValue = minRequest + (index * step)
@@ -92,12 +92,12 @@ fun RulerPicker(
                     Box(
                         modifier = Modifier
                             .width(stepWidth)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.TopCenter
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                            verticalArrangement = Arrangement.Top
                         ) {
                             Canvas(
                                 modifier = Modifier
@@ -128,7 +128,7 @@ fun RulerPicker(
 
             Canvas(
                 modifier = Modifier
-                    .align(Alignment.Center)
+                    .align(Alignment.TopCenter)
                     .size(width = 4.dp, height = 40.dp)
             ) {
                 drawLine(

@@ -497,21 +497,24 @@ fun SettingsScreen(
                                     }
                                 }
                             )
-                            PermissionSettingItem(
-                                title = titleAllowedApps,
-                                description = if (visibleFocusLockAllowedPackages.isEmpty()) {
-                                    stringResource(R.string.settings_focus_lock_allowed_apps_empty)
-                                } else {
-                                    stringResource(
-                                        R.string.settings_focus_lock_allowed_apps_count,
-                                        visibleFocusLockAllowedPackages.size
-                                    )
-                                },
-                                onClick = {
-                                    runProtectedFocusLockAction {
-                                        allowedAppsSelection = visibleFocusLockAllowedPackages
-                                        allowedAppsQuery = ""
-                                        showAllowedAppsDialog = true
+                        PermissionSettingItem(
+                            title = titleAllowedApps,
+                            description = if (restrictInFlightSettings) {
+                                stringResource(R.string.settings_focus_lock_allowed_apps_locked_inflight)
+                            } else if (visibleFocusLockAllowedPackages.isEmpty()) {
+                                stringResource(R.string.settings_focus_lock_allowed_apps_empty)
+                            } else {
+                                stringResource(
+                                    R.string.settings_focus_lock_allowed_apps_count,
+                                    visibleFocusLockAllowedPackages.size
+                                )
+                            },
+                            enabled = !restrictInFlightSettings,
+                            onClick = {
+                                runProtectedFocusLockAction {
+                                    allowedAppsSelection = visibleFocusLockAllowedPackages
+                                    allowedAppsQuery = ""
+                                    showAllowedAppsDialog = true
                                     }
                                 }
                             )
@@ -1634,20 +1637,21 @@ fun ToggleSettingItem(
 fun PermissionSettingItem(
     title: String,
     description: String,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = SettingsItemVerticalPadding)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = if (enabled) Color.White else FlightGray,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1661,7 +1665,7 @@ fun PermissionSettingItem(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color.White
+            tint = if (enabled) Color.White else FlightGray
         )
     }
 }

@@ -88,6 +88,7 @@
     <string name="settings_focus_lock_allowed_apps_manage">허용 앱 관리</string>
     <string name="settings_focus_lock_allowed_apps_count">%1$d개 앱 허용됨</string>
     <string name="settings_focus_lock_allowed_apps_empty">선택된 허용 앱이 없습니다.</string>
+    <string name="settings_focus_lock_allowed_apps_locked_inflight">비행 중에는 허용 앱 목록을 편집할 수 없습니다.</string>
     <string name="settings_focus_lock_allowed_apps_dialog_title">허용 앱</string>
     <string name="settings_focus_lock_allowed_apps_dialog_hint">집중 잠금이 켜진 동안 복귀 패널에서 실행할 수 있는 앱을 선택하세요.</string>
     <string name="settings_focus_lock_allowed_apps_dialog_save">허용 앱 저장</string>
