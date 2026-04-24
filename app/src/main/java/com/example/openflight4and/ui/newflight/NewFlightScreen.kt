@@ -63,6 +63,9 @@ private const val NewFlightRingFilterMarginKm = 300.0
 private const val NewFlightManualSelectionMarkerWidthPx = 56.0
 private const val NewFlightManualSelectionMarkerHeightPx = 32.0
 private const val NewFlightTileSizePx = 256.0
+private const val NewFlightMaxMarkersZoomFar = 40
+private const val NewFlightMaxMarkersZoomMid = 80
+private const val NewFlightMaxMarkersZoomNear = 140
 private const val NewFlightZoomRadius10000 = 10000
 private const val NewFlightZoomRadius5000 = 5000
 private const val NewFlightZoomRadius2000 = 2000
@@ -130,8 +133,10 @@ fun NewFlightScreen(
     }
 
     // 3. Derived Data (정렬된 리스트)
-    val mapCenter = cameraPositionState.position.target
-    val sortedAirports = remember(mapCenter, searchRadiusKm, allAirports, searchQuery) {
+    var settledMapCenter by remember(originAirport.iata) {
+        mutableStateOf(LatLng(originAirport.latitude, originAirport.longitude))
+    }
+    val sortedAirports = remember(settledMapCenter, searchRadiusKm, allAirports, searchQuery) {
         val query = searchQuery.trim().lowercase()
         val targetFlightMinutes = query.toDoubleOrNull()
             ?.takeIf { it > 0.0 }
@@ -139,7 +144,7 @@ fun NewFlightScreen(
         allAirports
             .map { airport ->
                 val distFromCenter = FlightUtils.calculateDistance(
-                    mapCenter.latitude, mapCenter.longitude,
+                    settledMapCenter.latitude, settledMapCenter.longitude,
                     airport.latitude, airport.longitude
                 )
                 val distFromOrigin = FlightUtils.calculateDistance(
@@ -284,6 +289,7 @@ fun NewFlightScreen(
         if (isSettingCurrentLocation) return@LaunchedEffect
         if (!cameraPositionState.isMoving) {
             val center = cameraPositionState.position.target
+            settledMapCenter = center
             val visibleSelectableAirports = displayedAirports.filter { it.iata != originIata }
             val closest = visibleSelectableAirports
                 .minByOrNull { 
@@ -482,7 +488,7 @@ fun NewFlightScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(displayedAirports.size, key = { index -> index }) { index ->
+                    items(displayedAirports.size, key = { index -> displayedAirports[index].iata }) { index ->
                         val airport = displayedAirports[index]
                         val isSelected = airport == selectedDestination
                         val isOrigin = airport.iata == originIata
@@ -1169,6 +1175,11 @@ private fun visibleManualSelectionAirports(
     selectedAirport: Airport?,
     zoomBucket: Int
 ): List<Airport> {
+    val maxMarkers = when {
+        zoomBucket <= 4 -> NewFlightMaxMarkersZoomFar
+        zoomBucket <= 6 -> NewFlightMaxMarkersZoomMid
+        else -> NewFlightMaxMarkersZoomNear
+    }
     val zoomScale = 2.0.pow(zoomBucket.toDouble().coerceAtLeast(0.0))
     val degreesPerPixel = 360.0 / (NewFlightTileSizePx * zoomScale)
     val horizontalThreshold = (degreesPerPixel * NewFlightManualSelectionMarkerWidthPx).coerceAtLeast(0.008)
@@ -1192,7 +1203,18 @@ private fun visibleManualSelectionAirports(
             }
         }
 
-    return kept
+    if (kept.size <= maxMarkers) {
+        return kept
+    }
+
+    val selectedIata = selectedAirport?.iata
+    val limited = kept.take(maxMarkers).toMutableList()
+    if (selectedIata != null && limited.none { it.iata == selectedIata }) {
+        kept.firstOrNull { it.iata == selectedIata }?.let { selected ->
+            limited[limited.lastIndex] = selected
+        }
+    }
+    return limited
 }
 
 @Composable
