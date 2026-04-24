@@ -327,7 +327,7 @@ fun NewFlightScreen(
                 Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 220.dp, max = bottomSheetMaxHeight)
+                    .heightIn(max = bottomSheetMaxHeight)
                 ) {
                 // Handle & Info
                 Column(
@@ -388,7 +388,10 @@ fun NewFlightScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Controls
-                Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                ) {
                     if (!isSettingCurrentLocation) {
                         val radiusText = if (searchRadiusKm >= NewFlightUnlimitedRadiusKm) {
                             stringResource(R.string.newflight_unlimited)
@@ -404,7 +407,8 @@ fun NewFlightScreen(
                             text = stringResource(R.string.newflight_search_radius_format, radiusText, durationText),
                             color = FlightPrimary,
                             style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 2.dp)
+                            modifier = Modifier
+                                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 2.dp)
                         )
                         RulerPicker(
                             initialValue = searchRadiusKm,
