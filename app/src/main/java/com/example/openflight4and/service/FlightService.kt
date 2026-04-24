@@ -28,6 +28,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.edit
+import kotlin.math.ceil
 
 // DataStore Extension
 val android.content.Context.dataStore by preferencesDataStore(name = "settings")
@@ -274,6 +275,7 @@ class FlightService : Service() {
                             focusLockOverlayController.hide()
                         }
                     }
+                    refreshOngoingNotification(force = true)
                 }
             }
         }
@@ -463,11 +465,12 @@ class FlightService : Service() {
             return
         }
 
+        val emergencyUnlockSuffix = getEmergencyUnlockNotificationSuffix()
         val contentText = if (_isPaused) {
-            "$currentOriginIata -> $currentDestinationIata | ${getString(R.string.inflight_paused_title)}"
+            "$currentOriginIata -> $currentDestinationIata | ${getString(R.string.inflight_paused_title)}$emergencyUnlockSuffix"
         } else {
             val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
-            "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}"
+            "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}$emergencyUnlockSuffix"
         }
 
         updateNotification(
@@ -477,6 +480,21 @@ class FlightService : Service() {
                 destinationIata = currentDestinationIata
             )
         )
+    }
+
+    private fun getEmergencyUnlockNotificationSuffix(nowMillis: Long = System.currentTimeMillis()): String {
+        val remainingMinutes = getEmergencyUnlockRemainingMinutes(nowMillis)
+        if (remainingMinutes <= 0) {
+            return ""
+        }
+        return " | " + getString(R.string.flight_notification_emergency_unlock_remaining, remainingMinutes)
+    }
+
+    private fun getEmergencyUnlockRemainingMinutes(nowMillis: Long = System.currentTimeMillis()): Int {
+        if (emergencyUnlockUntilMillis <= nowMillis) {
+            return 0
+        }
+        return ceil((emergencyUnlockUntilMillis - nowMillis) / 60_000.0).toInt()
     }
 
     private suspend fun persistFlightSession(isCompleted: Boolean) {

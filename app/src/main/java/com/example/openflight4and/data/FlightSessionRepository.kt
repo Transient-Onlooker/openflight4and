@@ -17,4 +17,8 @@ class FlightSessionRepository(context: Context) {
     suspend fun saveSession(session: FlightSession) {
         flightDao.insertSession(session)
     }
+
+    suspend fun deleteAllSessions() {
+        flightDao.deleteAllSessions()
+    }
 }

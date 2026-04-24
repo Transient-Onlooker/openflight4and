@@ -16,6 +16,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
+import com.example.openflight4and.focus.FocusLockUtils
 
 private const val FocusLockPanelCornerRadius = 42f
 private const val FocusLockPanelStrokeWidth = 3
@@ -128,6 +129,10 @@ class FocusLockOverlayController(
 
         val allowedApps = allowedPackages
             .filter { packageName -> packageName != context.packageName }
+            .filter { packageName ->
+                !(FocusLockUtils.GeminiPackageName in allowedPackages &&
+                    packageName == FocusLockUtils.GoogleAppPackageName)
+            }
             .mapNotNull { packageName ->
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return@mapNotNull null
                 val icon = runCatching {

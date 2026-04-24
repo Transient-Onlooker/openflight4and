@@ -17,6 +17,8 @@ data class LaunchableApp(
 )
 
 object FocusLockUtils {
+    const val GeminiPackageName = "com.google.android.apps.bard"
+    const val GoogleAppPackageName = "com.google.android.googlequicksearchbox"
 
     fun getDefaultAllowedPackages(context: Context): Set<String> {
         val packageManager = context.packageManager
@@ -38,6 +40,27 @@ object FocusLockUtils {
         )?.activityInfo?.packageName?.let(packageNames::add)
 
         return packageNames.filter { it != context.packageName }.toSet()
+    }
+
+    fun normalizeAllowedPackages(context: Context, packages: Set<String>): Set<String> {
+        val normalized = packages + context.packageName
+        return if (GeminiPackageName in normalized) {
+            normalized + GoogleAppPackageName
+        } else {
+            normalized
+        }
+    }
+
+    fun shouldHideAllowedAppInUi(
+        packageName: String,
+        selectedPackages: Set<String>,
+        selfPackageName: String,
+        applicationId: String
+    ): Boolean {
+        if (packageName == selfPackageName || packageName == applicationId) {
+            return true
+        }
+        return GeminiPackageName in selectedPackages && packageName == GoogleAppPackageName
     }
 
     @Suppress("DEPRECATION")

@@ -15,6 +15,9 @@ interface FlightSessionDao {
     @Insert
     suspend fun insertSession(session: FlightSession)
 
+    @Query("DELETE FROM flight_sessions")
+    suspend fun deleteAllSessions()
+
     @Query("SELECT * FROM flight_sessions ORDER BY startTime DESC")
     fun getAllSessions(): Flow<List<FlightSession>>
 

@@ -318,6 +318,19 @@ class TicketRepository(
         }
         return installationId
     }
+
+    suspend fun resetTicketData() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_TICKETS)
+            preferences.remove(AppPreferenceKeys.KEY_LAST_DAILY_TICKET_DATE)
+            preferences.remove(AppPreferenceKeys.KEY_AD_REWARD_DATE)
+            preferences.remove(AppPreferenceKeys.KEY_AD_WATCH_COUNT_TODAY)
+            preferences.remove(AppPreferenceKeys.KEY_AD_REWARD_PROGRESS)
+            preferences.remove(AppPreferenceKeys.KEY_TICKET_HISTORY)
+            preferences.remove(AppPreferenceKeys.KEY_USED_REDEEM_CODES)
+            preferences.remove(AppPreferenceKeys.KEY_INSTALLATION_ID)
+        }
+    }
 }
 
 @Serializable

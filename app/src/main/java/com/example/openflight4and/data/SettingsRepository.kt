@@ -129,7 +129,7 @@ class SettingsRepository(
     }
 
     private fun normalizeFocusLockAllowedApps(packages: Set<String>): Set<String> {
-        return packages + context.packageName
+        return FocusLockUtils.normalizeAllowedPackages(context, packages)
     }
 
     suspend fun setFocusLockPin(pin: String) {
@@ -225,6 +225,37 @@ class SettingsRepository(
     suspend fun clearEmergencyUnlockActive() {
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] = 0L
+        }
+    }
+
+    suspend fun resetAppSettings() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(AppPreferenceKeys.KEY_UNIT_SYSTEM)
+            preferences.remove(AppPreferenceKeys.KEY_APP_LANGUAGE)
+            preferences.remove(AppPreferenceKeys.KEY_MAP_STYLE)
+            preferences.remove(AppPreferenceKeys.KEY_MAP_OVERLAY_STYLE)
+            preferences.remove(AppPreferenceKeys.KEY_MAP_PERSPECTIVE)
+            preferences.remove(AppPreferenceKeys.KEY_NOTIFICATIONS)
+            preferences.remove(AppPreferenceKeys.KEY_NOTIFICATION_UPDATE_SECONDS)
+            preferences.remove(AppPreferenceKeys.KEY_LOCK_LEVEL)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED)
+            preferences.remove(AppPreferenceKeys.KEY_ADVANCED_LOCK_ENABLED)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT)
+            preferences.remove(AppPreferenceKeys.KEY_SCREEN_ORIENTATION_MODE)
+            preferences.remove(AppPreferenceKeys.KEY_CURRENT_LOCATION)
+            preferences.remove(AppPreferenceKeys.KEY_INITIAL_ORIGIN_SETUP_COMPLETED)
+            preferences.remove(AppPreferenceKeys.KEY_SANDBOX_TIME_SCALE)
+            preferences.remove(AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE)
+            preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE)
+            preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL)
+        }
+    }
+
+    suspend fun resetAllPreferences() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
         }
     }
 }

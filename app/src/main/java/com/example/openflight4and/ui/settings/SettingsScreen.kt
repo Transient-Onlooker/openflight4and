@@ -1,5 +1,7 @@
 package com.example.openflight4and.ui.settings
 
+import android.app.Activity
+import android.content.Intent
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -72,6 +74,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.openflight4and.BuildConfig
+import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
@@ -81,6 +84,8 @@ import com.example.openflight4and.ui.theme.FlightGray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private val SettingsHorizontalPadding = 24.dp
 private val SettingsSectionSpacing = 24.dp
@@ -150,6 +155,10 @@ fun SettingsScreen(
     var showAdvancedLockEnableConfirmDialog by remember { mutableStateOf(false) }
     var protectedAllowedAppPendingRemoval by remember { mutableStateOf<LaunchableApp?>(null) }
     var protectedAllowedAppRemovalConfirmCount by remember { mutableStateOf(0) }
+    var showRestartAppDialog by remember { mutableStateOf(false) }
+    var showResetAppDialog by remember { mutableStateOf(false) }
+    var showFullResetDialog by remember { mutableStateOf(false) }
+    var fullResetConfirmationInput by remember { mutableStateOf("") }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
@@ -163,14 +172,25 @@ fun SettingsScreen(
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
     val titleAdvancedLock = stringResource(R.string.settings_title_advanced_lock)
     val titleAllowedApps = stringResource(R.string.settings_focus_lock_allowed_apps)
+    val todayResetConfirmationDate = remember {
+        LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+    }
+    val todayResetConfirmationText = stringResource(
+        R.string.settings_full_reset_app_confirmation_text,
+        todayResetConfirmationDate
+    )
     val protectedAllowedPackages = remember(context) {
         FocusLockUtils.getDefaultAllowedPackages(context)
     }
-    val hiddenAllowedAppPackages = remember(selfPackageName) {
-        setOf(selfPackageName, BuildConfig.APPLICATION_ID)
-    }
-    val visibleFocusLockAllowedPackages = remember(focusLockAllowedPackages, hiddenAllowedAppPackages) {
-        focusLockAllowedPackages - hiddenAllowedAppPackages
+    val visibleFocusLockAllowedPackages = remember(focusLockAllowedPackages, selfPackageName) {
+        focusLockAllowedPackages.filterNot { packageName ->
+            FocusLockUtils.shouldHideAllowedAppInUi(
+                packageName = packageName,
+                selectedPackages = focusLockAllowedPackages,
+                selfPackageName = selfPackageName,
+                applicationId = BuildConfig.APPLICATION_ID
+            )
+        }.toSet()
     }
     val titleGeneralSection = stringResource(R.string.settings_section_general)
     val titleNotificationSection = stringResource(R.string.settings_section_notifications)
@@ -217,6 +237,14 @@ fun SettingsScreen(
     fun hasValidFocusLockSession(): Boolean {
         val authenticatedAt = focusLockAuthenticatedAtMillis ?: return false
         return SystemClock.elapsedRealtime() - authenticatedAt <= FocusLockPinSessionDurationMillis
+    }
+
+    fun restartApp() {
+        val restartIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        context.startActivity(restartIntent)
+        (context as? Activity)?.finishAffinity()
     }
 
     fun runProtectedFocusLockAction(
@@ -548,6 +576,34 @@ fun SettingsScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
+
+                SettingsCategoryCard(
+                    title = stringResource(R.string.settings_section_reset),
+                    description = stringResource(R.string.settings_section_reset_description)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        PermissionSettingItem(
+                            title = stringResource(R.string.settings_restart_app_title),
+                            description = stringResource(R.string.settings_restart_app_description),
+                            onClick = { showRestartAppDialog = true }
+                        )
+                        PermissionSettingItem(
+                            title = stringResource(R.string.settings_reset_app_title),
+                            description = stringResource(R.string.settings_reset_app_description),
+                            onClick = { showResetAppDialog = true }
+                        )
+                        PermissionSettingItem(
+                            title = stringResource(R.string.settings_full_reset_app_title),
+                            description = stringResource(R.string.settings_full_reset_app_description),
+                            onClick = {
+                                fullResetConfirmationInput = ""
+                                showFullResetDialog = true
+                            }
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.padding(top = SettingsFooterTopSpacing))
 
                 Text(
@@ -564,9 +620,14 @@ fun SettingsScreen(
     }
 
     if (showAllowedAppsDialog) {
-        val visibleLaunchableApps = remember(launchableApps, hiddenAllowedAppPackages, appDisplayName) {
+        val visibleLaunchableApps = remember(launchableApps, allowedAppsSelection, selfPackageName, appDisplayName) {
             launchableApps.filter { app ->
-                app.packageName !in hiddenAllowedAppPackages &&
+                !FocusLockUtils.shouldHideAllowedAppInUi(
+                    packageName = app.packageName,
+                    selectedPackages = allowedAppsSelection,
+                    selfPackageName = selfPackageName,
+                    applicationId = BuildConfig.APPLICATION_ID
+                ) &&
                     !app.label.equals(appDisplayName, ignoreCase = true)
             }
         }
@@ -660,9 +721,19 @@ fun SettingsScreen(
                                         } else {
                                             allowedAppsSelection =
                                                 if (isChecked) {
-                                                    allowedAppsSelection + app.packageName
+                                                    val nextSelection = allowedAppsSelection + app.packageName
+                                                    if (app.packageName == FocusLockUtils.GeminiPackageName) {
+                                                        nextSelection + FocusLockUtils.GoogleAppPackageName
+                                                    } else {
+                                                        nextSelection
+                                                    }
                                                 } else {
-                                                    allowedAppsSelection - app.packageName
+                                                    val nextSelection = allowedAppsSelection - app.packageName
+                                                    if (app.packageName == FocusLockUtils.GeminiPackageName) {
+                                                        nextSelection - FocusLockUtils.GoogleAppPackageName
+                                                    } else {
+                                                        nextSelection
+                                                    }
                                                 }
                                         }
                                     }
@@ -871,6 +942,112 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showAdvancedLockEnableConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showRestartAppDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestartAppDialog = false },
+            title = { Text(stringResource(R.string.settings_restart_app_title)) },
+            text = { Text(stringResource(R.string.settings_restart_app_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestartAppDialog = false
+                        restartApp()
+                    }
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestartAppDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showResetAppDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetAppDialog = false },
+            title = { Text(stringResource(R.string.settings_reset_app_title)) },
+            text = { Text(stringResource(R.string.settings_reset_app_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetAppDialog = false
+                        scope.launch {
+                            repository.resetAppSettings()
+                            restartApp()
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetAppDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showFullResetDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showFullResetDialog = false
+                fullResetConfirmationInput = ""
+            },
+            title = { Text(stringResource(R.string.settings_full_reset_app_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.settings_full_reset_app_confirm_message),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FlightGray
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Text(
+                        text = todayResetConfirmationText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    OutlinedTextField(
+                        value = fullResetConfirmationInput,
+                        onValueChange = { fullResetConfirmationInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.settings_full_reset_app_input_label)) }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = fullResetConfirmationInput == todayResetConfirmationText,
+                    onClick = {
+                        showFullResetDialog = false
+                        scope.launch {
+                            repository.resetAllAppData()
+                            restartApp()
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showFullResetDialog = false
+                        fullResetConfirmationInput = ""
+                    }
+                ) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }

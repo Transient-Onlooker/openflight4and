@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="action_later">나중에</string>
     <string name="version_update_recommended_title">업데이트 권장</string>
     <string name="version_update_recommended_message">현재 버전은 %1$s입니다. 최신 버전 %2$s가 있습니다.\n최신 수정 사항 반영을 위해 업데이트를 권장합니다.</string>
@@ -64,6 +64,8 @@
     <string name="settings_section_focus_lock_description">집중 잠금 권한과 예외 앱을 관리합니다.</string>
     <string name="settings_section_advanced_lock">고급 잠금</string>
     <string name="settings_section_advanced_lock_description">하나의 PIN으로 집중 잠금 설정 변경과 비행 종료를 보호합니다.</string>
+    <string name="settings_section_reset">복구 및 초기화</string>
+    <string name="settings_section_reset_description">앱 동작이 꼬였을 때 UI만 다시 시작하거나 저장된 데이터를 초기화합니다.</string>
     <string name="settings_orientation_auto">자동</string>
     <string name="settings_language_system">시스템</string>
     <string name="settings_language_korean">한국어</string>
@@ -92,6 +94,17 @@
     <string name="settings_focus_lock_allowed_apps_dialog_none">실행 가능한 앱을 찾지 못했습니다.</string>
     <string name="settings_focus_lock_allowed_apps_dialog_search_placeholder">앱 검색</string>
     <string name="settings_focus_lock_allowed_apps_dialog_search_empty">검색 결과가 없습니다.</string>
+    <string name="settings_restart_app_title">앱 재시작하기</string>
+    <string name="settings_restart_app_description">현재 비행은 유지한 채 앱 UI와 내부 리소스만 다시 불러옵니다.</string>
+    <string name="settings_restart_app_confirm_message">앱 UI와 내부 리소스를 다시 시작합니다. 진행 중인 비행은 그대로 이어집니다.</string>
+    <string name="settings_reset_app_title">앱 초기화하기</string>
+    <string name="settings_reset_app_description">설정과 초기 설정만 초기화하고 비행권과 비행 기록은 유지합니다.</string>
+    <string name="settings_reset_app_confirm_message">설정, 포커스 잠금 옵션, 현재 위치를 초기 상태로 되돌립니다. 비행권과 비행 기록은 유지됩니다.</string>
+    <string name="settings_full_reset_app_title">완전히 초기화하기</string>
+    <string name="settings_full_reset_app_description">설정, 비행권, 비행권 내역, 저장된 비행 기록까지 모두 삭제합니다.</string>
+    <string name="settings_full_reset_app_confirm_message">로컬 설정, 비행권, 비행권 내역, 저장된 비행 기록을 모두 삭제합니다. 계속하려면 아래 문장을 정확히 입력하세요.</string>
+    <string name="settings_full_reset_app_input_label">확인 문장 입력</string>
+    <string name="settings_full_reset_app_confirmation_text">초기화하는데 동의했습니다. %1$s</string>
     <string name="settings_focus_lock_pin_title">고급 잠금 비밀번호</string>
     <string name="settings_focus_lock_pin_description_disabled">고급 잠금 보호에 사용할 PIN을 설정합니다.</string>
     <string name="settings_focus_lock_pin_description_enabled">PIN으로 집중 잠금 설정 변경과 비행 종료를 보호합니다.</string>
@@ -297,6 +310,7 @@
     <string name="flight_notification_completed">비행 완료!</string>
     <string name="flight_notification_title_active">현재 비행 중</string>
     <string name="flight_notification_title_completed">비행 완료</string>
+    <string name="flight_notification_emergency_unlock_remaining">긴급 잠금해제 %1$d분 남음</string>
     <string name="flight_notification_channel_name">비행 상태 알림</string>
     <string name="flight_notification_channel_description">비행 중 상태와 남은 시간을 표시합니다.</string>
 

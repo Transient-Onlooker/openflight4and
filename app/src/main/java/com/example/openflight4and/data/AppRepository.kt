@@ -171,6 +171,16 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
         settingsRepository.clearEmergencyUnlockActive()
     }
 
+    suspend fun resetAppSettings() {
+        settingsRepository.resetAppSettings()
+    }
+
+    suspend fun resetAllAppData() {
+        settingsRepository.resetAllPreferences()
+        ticketRepository.resetTicketData()
+        flightSessionRepository.deleteAllSessions()
+    }
+
     override suspend fun claimDailyCheckIn(): DailyCheckInResult = ticketRepository.claimDailyCheckIn()
 
     override suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult =
