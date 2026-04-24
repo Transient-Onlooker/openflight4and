@@ -17,6 +17,7 @@ import android.widget.TextView
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.focus.FocusLockUtils
+import com.example.openflight4and.utils.FlightUtils
 
 private const val FocusLockPanelCornerRadius = 42f
 private const val FocusLockPanelStrokeWidth = 3
@@ -24,8 +25,10 @@ private const val FocusLockPanelHorizontalPadding = 56
 private const val FocusLockPanelVerticalPadding = 72
 private const val FocusLockMessageTopPadding = 28
 private const val FocusLockMessageBottomPadding = 44
+private const val FocusLockSummaryBottomPadding = 40
 private const val FocusLockTitleTextSize = 24f
 private const val FocusLockMessageTextSize = 17f
+private const val FocusLockSummaryTextSize = 16f
 private const val FocusLockPanelHorizontalMargin = 28
 private const val FocusLockPanelVerticalMargin = 52
 private const val FocusLockAllowedAppsColumns = 4
@@ -41,15 +44,20 @@ class FocusLockOverlayController(
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: View? = null
+    private var summaryTextView: TextView? = null
 
     fun show(
         originIata: String,
         destinationIata: String,
         durationMinutes: Int,
+        remainingSeconds: Long,
         allowedPackages: Collection<String> = emptyList(),
         allowAllowedAppsLaunch: Boolean = true
     ) {
-        if (overlayView != null) return
+        if (overlayView != null) {
+            summaryTextView?.text = buildFlightSummary(originIata, destinationIata, remainingSeconds)
+            return
+        }
 
         val root = FrameLayout(context).apply {
             setBackgroundColor(0x00000000)
@@ -109,6 +117,14 @@ class FocusLockOverlayController(
             gravity = Gravity.CENTER
             setTextColor(0xFFE2E2E2.toInt())
             setPadding(0, FocusLockMessageTopPadding, 0, FocusLockMessageBottomPadding)
+        }
+
+        val summary = TextView(context).apply {
+            text = buildFlightSummary(originIata, destinationIata, remainingSeconds)
+            textSize = FocusLockSummaryTextSize
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
+            setPadding(0, 0, 0, FocusLockSummaryBottomPadding)
         }
 
         val button = Button(context).apply {
@@ -217,6 +233,7 @@ class FocusLockOverlayController(
 
         panel.addView(title)
         panel.addView(message)
+        panel.addView(summary)
         panel.addView(button)
         if (allowAllowedAppsLaunch && allowedApps.isNotEmpty()) {
             panel.addView(allowedAppsTitle)
@@ -286,12 +303,27 @@ class FocusLockOverlayController(
 
         windowManager.addView(root, params)
         overlayView = root
+        summaryTextView = summary
+    }
+
+    private fun buildFlightSummary(
+        originIata: String,
+        destinationIata: String,
+        remainingSeconds: Long
+    ): String {
+        return context.getString(
+            R.string.focus_lock_overlay_flight_summary_format,
+            originIata,
+            destinationIata,
+            FlightUtils.formatTimer(remainingSeconds.coerceAtLeast(0L))
+        )
     }
 
     fun hide() {
         val view = overlayView ?: return
         windowManager.removeView(view)
         overlayView = null
+        summaryTextView = null
     }
 
     fun isShowing(): Boolean = overlayView != null

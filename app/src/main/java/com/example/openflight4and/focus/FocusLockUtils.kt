@@ -10,6 +10,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
+import android.telecom.TelecomManager
+import android.provider.Telephony
 
 data class LaunchableApp(
     val packageName: String,
@@ -22,25 +24,47 @@ object FocusLockUtils {
     const val GoogleAppPackageName = "com.google.android.googlequicksearchbox"
 
     fun getDefaultAllowedPackages(context: Context): Set<String> {
-        val packageManager = context.packageManager
         val packageNames = linkedSetOf<String>()
 
-        packageManager.resolveActivity(
-            Intent(Settings.ACTION_SETTINGS),
-            0
-        )?.activityInfo?.packageName?.let(packageNames::add)
+        resolveSettingsPackage(context)?.let(packageNames::add)
+        resolveDefaultDialerPackage(context)?.let(packageNames::add)
+        resolveDefaultSmsPackage(context)?.let(packageNames::add)
 
-        packageManager.resolveActivity(
-            Intent(Intent.ACTION_DIAL),
-            0
-        )?.activityInfo?.packageName?.let(packageNames::add)
+        return packageNames
+            .filter { it.isNotBlank() && it != context.packageName }
+            .toSet()
+    }
 
-        packageManager.resolveActivity(
+    private fun resolveSettingsPackage(context: Context): String? {
+        return context.packageManager.resolveActivity(Intent(Settings.ACTION_SETTINGS), 0)
+            ?.activityInfo
+            ?.packageName
+    }
+
+    private fun resolveDefaultDialerPackage(context: Context): String? {
+        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        val directPackage = telecomManager?.defaultDialerPackage
+        if (!directPackage.isNullOrBlank()) {
+            return directPackage
+        }
+
+        return context.packageManager.resolveActivity(Intent(Intent.ACTION_DIAL), 0)
+            ?.activityInfo
+            ?.packageName
+    }
+
+    private fun resolveDefaultSmsPackage(context: Context): String? {
+        val directPackage = runCatching {
+            Telephony.Sms.getDefaultSmsPackage(context)
+        }.getOrNull()
+        if (!directPackage.isNullOrBlank()) {
+            return directPackage
+        }
+
+        return context.packageManager.resolveActivity(
             Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:123")),
             0
-        )?.activityInfo?.packageName?.let(packageNames::add)
-
-        return packageNames.filter { it != context.packageName }.toSet()
+        )?.activityInfo?.packageName
     }
 
     fun normalizeAllowedPackages(context: Context, packages: Set<String>): Set<String> {

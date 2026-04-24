@@ -307,6 +307,7 @@
     <!-- Focus lock -->
     <string name="focus_lock_overlay_title">집중 비행 중입니다</string>
     <string name="focus_lock_overlay_message">다른 앱으로 이동할 수 없습니다.\nOpenFlight로 돌아가 비행을 이어서 진행하세요.</string>
+    <string name="focus_lock_overlay_flight_summary_format">출발: %1$s\n도착: %2$s\n남은 시간: %3$s</string>
     <string name="focus_lock_overlay_button">비행으로 돌아가기</string>
     <string name="focus_lock_overlay_allowed_apps_title">허용 앱</string>
 

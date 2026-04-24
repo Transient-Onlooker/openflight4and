@@ -316,6 +316,7 @@ class FlightService : Service() {
                             originIata = currentOriginIata,
                             destinationIata = currentDestinationIata,
                             durationMinutes = currentDurationMinutes,
+                            remainingSeconds = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L),
                             allowedPackages = focusLockAllowedPackages,
                             allowAllowedAppsLaunch = !advancedLockEnabled
                         )
