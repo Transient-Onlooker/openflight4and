@@ -23,6 +23,8 @@
     <string name="label_seconds_remaining">%1$d초 남음</string>
     <string name="label_version_format">버전 %1$s</string>
     <string name="message_ticket_insufficient">비행권이 부족합니다.</string>
+    <string name="ticket_insufficient_dialog_title">비행권이 부족합니다</string>
+    <string name="ticket_insufficient_dialog_action">광고로 비행권 얻기</string>
     <string name="sandbox_title">자유 모드</string>
     <string name="sandbox_focus_mode_title">집중모드 설정</string>
     <string name="sandbox_focus_mode_description">집중모드 시작 전에 적용될 설정을 구성하세요.</string>
@@ -236,7 +238,7 @@
 
     <!-- New flight -->
     <string name="newflight_quick_flight_title">빠른 비행</string>
-    <string name="newflight_quick_flight_description">1시간, 2시간, 3시간에 가장 가까운 비행 시간의 공항입니다.</string>
+    <string name="newflight_quick_flight_description">30분, 1시간, 2시간에 가장 가까운 비행 시간의 공항입니다.</string>
     <string name="newflight_quick_flight_recommendation_format">%1$d시간 추천</string>
     <string name="newflight_selected_destination_format">도착: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">지도에서 공항 선택</string>

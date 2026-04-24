@@ -38,6 +38,7 @@ data class MainScreenUiState(
 
 sealed interface MainScreenEvent {
     data class ShowToast(val message: String) : MainScreenEvent
+    data class ShowTicketInsufficientDialog(val message: String) : MainScreenEvent
     data object NavigateToBoardingPass : MainScreenEvent
     data object NavigateToInFlight : MainScreenEvent
 }
@@ -170,7 +171,11 @@ class MainScreenViewModel(
         }
 
         if (ticketBalance <= 0) {
-            _events.tryEmit(MainScreenEvent.ShowToast("\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."))
+            _events.tryEmit(
+                MainScreenEvent.ShowTicketInsufficientDialog(
+                    repository.getString(com.example.openflight4and.R.string.message_ticket_insufficient)
+                )
+            )
             return
         }
 
@@ -187,7 +192,11 @@ class MainScreenViewModel(
             }
 
             ticketBalance <= 0 -> {
-                _events.tryEmit(MainScreenEvent.ShowToast("\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."))
+                _events.tryEmit(
+                    MainScreenEvent.ShowTicketInsufficientDialog(
+                        repository.getString(com.example.openflight4and.R.string.message_ticket_insufficient)
+                    )
+                )
                 false
             }
 
@@ -237,7 +246,7 @@ class MainScreenViewModel(
             val spendResult = repository.canStartFlight(_uiState.value.currentDraft.estimatedMinutes)
             if (!spendResult.success) {
                 _events.emit(
-                    MainScreenEvent.ShowToast(
+                    MainScreenEvent.ShowTicketInsufficientDialog(
                         spendResult.message ?: "\uBE44\uD589\uAD8C\uC774 \uBD80\uC871\uD569\uB2C8\uB2E4."
                     )
                 )

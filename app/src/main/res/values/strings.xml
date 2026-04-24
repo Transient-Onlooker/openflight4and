@@ -18,6 +18,8 @@
     <string name="label_seconds_remaining">%1$d sec left</string>
     <string name="label_version_format">Version %1$s</string>
     <string name="message_ticket_insufficient">Not enough tickets.</string>
+    <string name="ticket_insufficient_dialog_title">Not enough tickets</string>
+    <string name="ticket_insufficient_dialog_action">Get tickets with an ad</string>
     <string name="sandbox_title">Sandbox mode</string>
     <string name="sandbox_focus_mode_title">Focus mode setup</string>
     <string name="sandbox_focus_mode_description">Configure the settings that will be applied before starting focus mode.</string>
@@ -236,7 +238,7 @@
 
     <!-- New flight -->
     <string name="newflight_quick_flight_title">Quick flight</string>
-    <string name="newflight_quick_flight_description">These airports are closest to 1-hour, 2-hour, and 3-hour flight times.</string>
+    <string name="newflight_quick_flight_description">These airports are closest to 30-minute, 1-hour, and 2-hour flight times.</string>
     <string name="newflight_quick_flight_recommendation_format">%1$d-hour pick</string>
     <string name="newflight_selected_destination_format">Arrival: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">Select an airport on the map</string>

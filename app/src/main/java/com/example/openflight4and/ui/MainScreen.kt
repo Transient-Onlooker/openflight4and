@@ -81,6 +81,7 @@ fun MainScreen(
     val uiState by viewModel.uiState.collectAsState()
     var isResolvingInitialLocation by remember { mutableStateOf(false) }
     var hasHandledServiceResumeNavigation by remember { mutableStateOf(false) }
+    var ticketInsufficientMessage by remember { mutableStateOf<String?>(null) }
     val showInitialOriginSetupDialog =
         navBackStackEntry?.destination?.route == Screen.Home.route &&
             !initialOriginSetupCompleted &&
@@ -140,6 +141,10 @@ fun MainScreen(
             when (event) {
                 is MainScreenEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+
+                is MainScreenEvent.ShowTicketInsufficientDialog -> {
+                    ticketInsufficientMessage = event.message
                 }
 
                 MainScreenEvent.NavigateToBoardingPass -> {
@@ -291,7 +296,7 @@ fun MainScreen(
                     },
                     hasTickets = ticketBalance > 0,
                     onTicketRequired = {
-                        Toast.makeText(context, context.getString(R.string.message_ticket_insufficient), Toast.LENGTH_SHORT).show()
+                        ticketInsufficientMessage = context.getString(R.string.message_ticket_insufficient)
                     },
                     onFinish = {
                         if (!viewModel.validateSeatSelection(ticketBalance)) {
@@ -429,6 +434,40 @@ fun MainScreen(
                     "${Screen.NewFlight.route}?sandboxMode=false&isSettingCurrentLocation=true"
                 )
             }
+        )
+    }
+
+    ticketInsufficientMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { ticketInsufficientMessage = null },
+            title = {
+                Text(
+                    text = stringResource(R.string.ticket_insufficient_dialog_title),
+                    color = Color.White
+                )
+            },
+            text = {
+                Text(
+                    text = message,
+                    color = Color.Gray
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        ticketInsufficientMessage = null
+                        navController.navigate(Screen.Tickets.route)
+                    }
+                ) {
+                    Text(stringResource(R.string.ticket_insufficient_dialog_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ticketInsufficientMessage = null }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+            containerColor = Color(0xFF0D0000)
         )
     }
 }

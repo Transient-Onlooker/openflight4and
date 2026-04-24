@@ -41,10 +41,10 @@ val githubReleasesUrl: String = localProperties.getProperty("OPENFLIGHT_RELEASES
     ?: "https://github.com/Transient-Onlooker/openflight4and/releases/latest"
 val releaseChannel: String = localProperties.getProperty("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
-    ?: "stable"
+    ?: "beta"
 val releaseVersionName: String = localProperties.getProperty("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
-    ?: "V2.8.9"
+    ?: "V2.8.9.Beta.0001"
 val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
     ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
 val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
@@ -94,7 +94,7 @@ android {
 
     defaultConfig {
         applicationId = "com.openflight4and.app.android"
-        minSdk = 33
+        minSdk = 28
         targetSdk = 36
         versionCode = releaseVersionName.toVersionCode()
         versionName = releaseVersionName

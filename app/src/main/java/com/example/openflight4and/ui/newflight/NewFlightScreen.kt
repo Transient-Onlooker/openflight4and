@@ -71,7 +71,7 @@ private const val NewFlightZoomRadius1000 = 1000
 private const val NewFlightZoomRadius500 = 500
 private const val NewFlightZoomRadius300 = 300
 private const val NewFlightRadiusStepKm = 100
-private val NewFlightQuickSuggestionMinutes = listOf(60, 120, 180)
+private val NewFlightQuickSuggestionMinutes = listOf(30, 60, 120)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
