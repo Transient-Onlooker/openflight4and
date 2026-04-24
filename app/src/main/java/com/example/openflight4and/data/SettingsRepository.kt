@@ -44,13 +44,13 @@ class SettingsRepository(
     val focusLockAllowedApps: Flow<Set<String>> = context.dataStore.data.map { preferences ->
         val json = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS]
         if (json.isNullOrBlank()) {
-            FocusLockUtils.getDefaultAllowedPackages(context)
+            normalizeFocusLockAllowedApps(FocusLockUtils.getDefaultAllowedPackages(context))
         } else {
             runCatching {
-                Json.decodeFromString<List<String>>(json).toSet()
+                normalizeFocusLockAllowedApps(Json.decodeFromString<List<String>>(json).toSet())
             }.getOrElse {
                 reportDataError("Failed to decode focus lock allowed apps", it)
-                emptySet()
+                normalizeFocusLockAllowedApps(emptySet())
             }
         }
     }
@@ -124,8 +124,12 @@ class SettingsRepository(
     suspend fun setFocusLockAllowedApps(packages: Set<String>) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS] =
-                Json.encodeToString(packages.sorted())
+                Json.encodeToString(normalizeFocusLockAllowedApps(packages).sorted())
         }
+    }
+
+    private fun normalizeFocusLockAllowedApps(packages: Set<String>): Set<String> {
+        return packages + context.packageName
     }
 
     suspend fun setFocusLockPin(pin: String) {

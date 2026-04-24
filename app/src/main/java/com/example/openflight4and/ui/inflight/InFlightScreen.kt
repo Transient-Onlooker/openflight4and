@@ -1166,7 +1166,7 @@ private fun EmbeddedRealFlightMap(
     renderMap: Boolean = true,
     isInteractive: Boolean = true,
     allowRotationGestures: Boolean = false,
-    mapContent: @Composable (() -> Unit)? = null,
+    mapContent: (@Composable @GoogleMapComposable () -> Unit)? = null,
     overlayContent: @Composable (BoxScope.() -> Unit)? = null,
     useDarkOverlay: Boolean = true
 ) {

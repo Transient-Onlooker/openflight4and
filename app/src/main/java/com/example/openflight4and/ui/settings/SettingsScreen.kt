@@ -132,6 +132,8 @@ fun SettingsScreen(
     val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
     val isScreenOrientationLocked = restrictInFlightSettings
     val lifecycleOwner = LocalLifecycleOwner.current
+    val selfPackageName = context.packageName
+    val appDisplayName = stringResource(R.string.app_name)
     var launchableApps by remember { mutableStateOf<List<LaunchableApp>>(emptyList()) }
     var isLoadingLaunchableApps by remember { mutableStateOf(false) }
     var hasUsageAccess by remember { mutableStateOf(FocusLockUtils.hasUsageAccess(context)) }
@@ -146,6 +148,8 @@ fun SettingsScreen(
     var showFocusLockRemovePinDialog by remember { mutableStateOf(false) }
     var showFocusLockForgotPinDialog by remember { mutableStateOf(false) }
     var showAdvancedLockEnableConfirmDialog by remember { mutableStateOf(false) }
+    var protectedAllowedAppPendingRemoval by remember { mutableStateOf<LaunchableApp?>(null) }
+    var protectedAllowedAppRemovalConfirmCount by remember { mutableStateOf(0) }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
@@ -159,6 +163,15 @@ fun SettingsScreen(
     val titleFocusLock = stringResource(R.string.settings_title_focus_lock)
     val titleAdvancedLock = stringResource(R.string.settings_title_advanced_lock)
     val titleAllowedApps = stringResource(R.string.settings_focus_lock_allowed_apps)
+    val protectedAllowedPackages = remember(context) {
+        FocusLockUtils.getDefaultAllowedPackages(context)
+    }
+    val hiddenAllowedAppPackages = remember(selfPackageName) {
+        setOf(selfPackageName, BuildConfig.APPLICATION_ID)
+    }
+    val visibleFocusLockAllowedPackages = remember(focusLockAllowedPackages, hiddenAllowedAppPackages) {
+        focusLockAllowedPackages - hiddenAllowedAppPackages
+    }
     val titleGeneralSection = stringResource(R.string.settings_section_general)
     val titleNotificationSection = stringResource(R.string.settings_section_notifications)
     val titleBackgroundSection = stringResource(R.string.settings_section_background)
@@ -458,17 +471,17 @@ fun SettingsScreen(
                             )
                             PermissionSettingItem(
                                 title = titleAllowedApps,
-                                description = if (focusLockAllowedPackages.isEmpty()) {
+                                description = if (visibleFocusLockAllowedPackages.isEmpty()) {
                                     stringResource(R.string.settings_focus_lock_allowed_apps_empty)
                                 } else {
                                     stringResource(
                                         R.string.settings_focus_lock_allowed_apps_count,
-                                        focusLockAllowedPackages.size
+                                        visibleFocusLockAllowedPackages.size
                                     )
                                 },
                                 onClick = {
                                     runProtectedFocusLockAction {
-                                        allowedAppsSelection = focusLockAllowedPackages
+                                        allowedAppsSelection = visibleFocusLockAllowedPackages
                                         allowedAppsQuery = ""
                                         showAllowedAppsDialog = true
                                     }
@@ -551,12 +564,18 @@ fun SettingsScreen(
     }
 
     if (showAllowedAppsDialog) {
-        val filteredLaunchableApps = remember(launchableApps, allowedAppsQuery) {
+        val visibleLaunchableApps = remember(launchableApps, hiddenAllowedAppPackages, appDisplayName) {
+            launchableApps.filter { app ->
+                app.packageName !in hiddenAllowedAppPackages &&
+                    !app.label.equals(appDisplayName, ignoreCase = true)
+            }
+        }
+        val filteredLaunchableApps = remember(visibleLaunchableApps, allowedAppsQuery) {
             val normalizedQuery = allowedAppsQuery.trim()
             if (normalizedQuery.isEmpty()) {
-                launchableApps
+                visibleLaunchableApps
             } else {
-                launchableApps.filter { app ->
+                visibleLaunchableApps.filter { app ->
                     app.label.contains(normalizedQuery, ignoreCase = true)
                 }
             }
@@ -610,7 +629,7 @@ fun SettingsScreen(
                                 color = FlightGray
                             )
                         }
-                    } else if (launchableApps.isEmpty()) {
+                    } else if (visibleLaunchableApps.isEmpty()) {
                         Text(
                             text = stringResource(R.string.settings_focus_lock_allowed_apps_dialog_none),
                             style = MaterialTheme.typography.bodySmall,
@@ -635,12 +654,17 @@ fun SettingsScreen(
                                     app = app,
                                     checked = checked,
                                     onToggle = { isChecked ->
-                                        allowedAppsSelection =
-                                            if (isChecked) {
-                                                allowedAppsSelection + app.packageName
-                                            } else {
-                                                allowedAppsSelection - app.packageName
-                                            }
+                                        if (!isChecked && app.packageName in protectedAllowedPackages) {
+                                            protectedAllowedAppPendingRemoval = app
+                                            protectedAllowedAppRemovalConfirmCount = 0
+                                        } else {
+                                            allowedAppsSelection =
+                                                if (isChecked) {
+                                                    allowedAppsSelection + app.packageName
+                                                } else {
+                                                    allowedAppsSelection - app.packageName
+                                                }
+                                        }
                                     }
                                 )
                             }
@@ -847,6 +871,50 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showAdvancedLockEnableConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (protectedAllowedAppPendingRemoval != null) {
+        AlertDialog(
+            onDismissRequest = {
+                protectedAllowedAppPendingRemoval = null
+                protectedAllowedAppRemovalConfirmCount = 0
+            },
+            title = { Text(stringResource(R.string.settings_focus_lock_protected_apps_remove_title)) },
+            text = {
+                Text(stringResource(R.string.settings_focus_lock_protected_apps_remove_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        protectedAllowedAppRemovalConfirmCount += 1
+                        if (protectedAllowedAppRemovalConfirmCount >= 3) {
+                            protectedAllowedAppPendingRemoval?.packageName?.let { packageName ->
+                                allowedAppsSelection = allowedAppsSelection - packageName
+                            }
+                            protectedAllowedAppPendingRemoval = null
+                            protectedAllowedAppRemovalConfirmCount = 0
+                        }
+                    }
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.settings_focus_lock_protected_apps_remove_confirm_count,
+                            protectedAllowedAppRemovalConfirmCount + 1
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        protectedAllowedAppPendingRemoval = null
+                        protectedAllowedAppRemovalConfirmCount = 0
+                    }
+                ) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }

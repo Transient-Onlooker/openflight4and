@@ -23,6 +23,11 @@ object FocusLockUtils {
         val packageNames = linkedSetOf<String>()
 
         packageManager.resolveActivity(
+            Intent(Settings.ACTION_SETTINGS),
+            0
+        )?.activityInfo?.packageName?.let(packageNames::add)
+
+        packageManager.resolveActivity(
             Intent(Intent.ACTION_DIAL),
             0
         )?.activityInfo?.packageName?.let(packageNames::add)

@@ -127,6 +127,7 @@ class FocusLockOverlayController(
         }
 
         val allowedApps = allowedPackages
+            .filter { packageName -> packageName != context.packageName }
             .mapNotNull { packageName ->
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return@mapNotNull null
                 val icon = runCatching {

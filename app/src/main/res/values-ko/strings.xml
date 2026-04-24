@@ -112,6 +112,9 @@
     <string name="settings_focus_lock_pin_remove_description">현재 PIN을 입력한 뒤 제거를 확인하세요. 제거 즉시 보호가 해제됩니다.</string>
     <string name="settings_focus_lock_pin_remove_confirm_title">비밀번호를 제거할까요?</string>
     <string name="settings_focus_lock_pin_remove_confirm_message">비밀번호를 제거하면 이 기기를 쓰는 누구나 집중 잠금 설정을 바꾸고 비행을 종료할 수 있습니다.</string>
+    <string name="settings_focus_lock_protected_apps_remove_title">필수 허용 앱을 삭제할까요?</string>
+    <string name="settings_focus_lock_protected_apps_remove_message">위 앱들은 구동에 필수적인 앱으로써, 허용 앱 해제 시 정상적인 이용에 문제가 있을 수 있습니다. 정말로 허용 앱에서 삭제하시겠습니까?</string>
+    <string name="settings_focus_lock_protected_apps_remove_confirm_count">삭제 (%1$d/3)</string>
     <string name="settings_focus_lock_pin_forgot_title">비밀번호 복구 불가</string>
     <string name="settings_focus_lock_pin_forgot_message">보안을 위해 앱 내부에서는 PIN 복구를 제공하지 않습니다. PIN을 잊은 경우 앱 데이터를 삭제하면 현재 위치, 비행권, 비행권 내역, 저장된 비행 기록, 로컬 설정 같은 기기 내 데이터가 초기화될 수 있습니다.</string>
     <string name="settings_focus_lock_pin_step_current">현재 PIN</string>

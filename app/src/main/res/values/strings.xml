@@ -107,6 +107,9 @@
     <string name="settings_focus_lock_pin_remove_description">Enter your current PIN, then confirm removal. Protection will be lifted immediately.</string>
     <string name="settings_focus_lock_pin_remove_confirm_title">Remove PIN?</string>
     <string name="settings_focus_lock_pin_remove_confirm_message">If you remove the PIN, anyone using this device can change focus lock settings and end a flight.</string>
+    <string name="settings_focus_lock_protected_apps_remove_title">Remove essential allowed app?</string>
+    <string name="settings_focus_lock_protected_apps_remove_message">The apps above are essential for core functionality, and removing them from allowed apps may cause problems with normal use. Are you sure you want to delete them from allowed apps?</string>
+    <string name="settings_focus_lock_protected_apps_remove_confirm_count">Remove (%1$d/3)</string>
     <string name="settings_focus_lock_pin_forgot_title">PIN recovery unavailable</string>
     <string name="settings_focus_lock_pin_forgot_message">For security, the app does not provide internal PIN recovery. If you forget your PIN, deleting app data may reset local settings and local app data such as current location, tickets, ticket history, and saved flight history.</string>
     <string name="settings_focus_lock_pin_step_current">Current PIN</string>
