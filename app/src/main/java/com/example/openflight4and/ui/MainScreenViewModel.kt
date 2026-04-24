@@ -166,7 +166,11 @@ class MainScreenViewModel(
     fun requestBoardingPass(ticketBalance: Int) {
         val draft = _uiState.value.currentDraft
         if (draft.destination == null) {
-            _events.tryEmit(MainScreenEvent.ShowToast("\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694."))
+            _events.tryEmit(
+                MainScreenEvent.ShowToast(
+                    repository.getString(com.example.openflight4and.R.string.message_select_destination_first)
+                )
+            )
             return
         }
 
@@ -187,7 +191,11 @@ class MainScreenViewModel(
         val draft = _uiState.value.currentDraft
         return when {
             draft.destination == null -> {
-                _events.tryEmit(MainScreenEvent.ShowToast("\uBAA9\uC801\uC9C0\uB97C \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694."))
+                _events.tryEmit(
+                    MainScreenEvent.ShowToast(
+                        repository.getString(com.example.openflight4and.R.string.message_select_destination_first)
+                    )
+                )
                 false
             }
 

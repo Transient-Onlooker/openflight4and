@@ -334,7 +334,13 @@ fun SettingsScreen(
                                 ) { Text(stringResource(R.string.settings_unit_kilometers)) }
                                 SegmentedButton(
                                     selected = unitSystem == "mi",
-                                    onClick = { scope.launch { repository.setUnitSystem("mi") } },
+                                    onClick = {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.settings_unit_miles_in_progress),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
                                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                                 ) { Text(stringResource(R.string.settings_unit_miles)) }
                             }

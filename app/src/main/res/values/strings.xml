@@ -18,6 +18,7 @@
     <string name="label_seconds_remaining">%1$d sec left</string>
     <string name="label_version_format">Version %1$s</string>
     <string name="message_ticket_insufficient">Not enough tickets.</string>
+    <string name="message_select_destination_first">Select a destination first.</string>
     <string name="ticket_insufficient_dialog_title">Not enough tickets</string>
     <string name="ticket_insufficient_dialog_action">Get tickets with an ad</string>
     <string name="sandbox_title">Sandbox mode</string>
@@ -71,6 +72,7 @@
     <string name="settings_orientation_landscape">Landscape</string>
     <string name="settings_unit_kilometers">Kilometers (km)</string>
     <string name="settings_unit_miles">Miles (mi)</string>
+    <string name="settings_unit_miles_in_progress">This feature is still in progress.</string>
     <string name="settings_inflight_lock_notice">During flight, only screen orientation is locked.</string>
     <string name="settings_screen_orientation_description">Auto follows device rotation, while portrait and landscape stay fixed.</string>
     <string name="settings_map_style_standard">Standard</string>
@@ -238,8 +240,8 @@
 
     <!-- New flight -->
     <string name="newflight_quick_flight_title">Quick flight</string>
-    <string name="newflight_quick_flight_description">These airports are closest to 30-minute, 1-hour, and 2-hour flight times.</string>
-    <string name="newflight_quick_flight_recommendation_format">%1$d-hour pick</string>
+    <string name="newflight_quick_flight_recommendation_hours_format">%1$d-hour pick</string>
+    <string name="newflight_quick_flight_recommendation_minutes_format">%1$d-minute pick</string>
     <string name="newflight_selected_destination_format">Arrival: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">Select an airport on the map</string>
     <string name="newflight_move_map_hint">Move the map or choose from the list below.</string>

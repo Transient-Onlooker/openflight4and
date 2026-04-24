@@ -23,6 +23,7 @@
     <string name="label_seconds_remaining">%1$d초 남음</string>
     <string name="label_version_format">버전 %1$s</string>
     <string name="message_ticket_insufficient">비행권이 부족합니다.</string>
+    <string name="message_select_destination_first">목적지를 먼저 선택하세요.</string>
     <string name="ticket_insufficient_dialog_title">비행권이 부족합니다</string>
     <string name="ticket_insufficient_dialog_action">광고로 비행권 얻기</string>
     <string name="sandbox_title">자유 모드</string>
@@ -76,6 +77,7 @@
     <string name="settings_orientation_landscape">가로</string>
     <string name="settings_unit_kilometers">Kilometers (km)</string>
     <string name="settings_unit_miles">Miles (mi)</string>
+    <string name="settings_unit_miles_in_progress">구현중인 기능입니다.</string>
     <string name="settings_inflight_lock_notice">비행 중에는 화면 방향 설정만 잠깁니다.</string>
     <string name="settings_screen_orientation_description">자동은 기기 회전에 맞춰 바뀌고, 세로와 가로는 해당 방향으로 고정됩니다.</string>
     <string name="settings_map_style_standard">일반</string>
@@ -238,8 +240,8 @@
 
     <!-- New flight -->
     <string name="newflight_quick_flight_title">빠른 비행</string>
-    <string name="newflight_quick_flight_description">30분, 1시간, 2시간에 가장 가까운 비행 시간의 공항입니다.</string>
-    <string name="newflight_quick_flight_recommendation_format">%1$d시간 추천</string>
+    <string name="newflight_quick_flight_recommendation_hours_format">%1$d시간 추천</string>
+    <string name="newflight_quick_flight_recommendation_minutes_format">%1$d분 추천</string>
     <string name="newflight_selected_destination_format">도착: %1$s (%2$s)</string>
     <string name="newflight_select_airport_on_map">지도에서 공항 선택</string>
     <string name="newflight_move_map_hint">지도를 움직이거나 아래 목록에서 선택하세요.</string>

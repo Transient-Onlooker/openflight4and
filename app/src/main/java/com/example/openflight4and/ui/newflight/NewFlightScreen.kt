@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -72,6 +71,15 @@ private const val NewFlightZoomRadius500 = 500
 private const val NewFlightZoomRadius300 = 300
 private const val NewFlightRadiusStepKm = 100
 private val NewFlightQuickSuggestionMinutes = listOf(30, 60, 120)
+
+@Composable
+private fun quickFlightRecommendationLabel(targetMinutes: Int): String {
+    return if (targetMinutes < 60) {
+        stringResource(R.string.newflight_quick_flight_recommendation_minutes_format, targetMinutes)
+    } else {
+        stringResource(R.string.newflight_quick_flight_recommendation_hours_format, targetMinutes / 60)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -318,7 +326,7 @@ fun NewFlightScreen(
     if (showBottomSheet) {
         BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = if (showBottomSheet) 220.dp else 0.dp,
+        sheetPeekHeight = 260.dp,
         sheetContainerColor = FlightDarkGray,
         sheetContentColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -336,10 +344,6 @@ fun NewFlightScreen(
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.DragHandle, contentDescription = null, tint = Color.Gray)
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     // Destination Info
                     Text(
                         text = selectedDestination?.let {
@@ -1220,10 +1224,6 @@ private fun QuickFlightDialogCards(
         title = { Text(stringResource(R.string.newflight_quick_flight_title), color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    stringResource(R.string.newflight_quick_flight_description),
-                    color = FlightGray
-                )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     suggestions.forEach { suggestion ->
                         Surface(
@@ -1239,7 +1239,7 @@ private fun QuickFlightDialogCards(
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Text(
-                                    stringResource(R.string.newflight_quick_flight_recommendation_format, suggestion.targetMinutes / 60),
+                                    quickFlightRecommendationLabel(suggestion.targetMinutes),
                                     color = FlightPrimary,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1505,10 +1505,6 @@ private fun QuickFlightDialog(
         title = { Text(stringResource(R.string.newflight_quick_flight_title), color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    stringResource(R.string.newflight_quick_flight_description),
-                    color = FlightGray
-                )
                 suggestions.forEach { suggestion ->
                     Surface(
                         modifier = Modifier
@@ -1523,7 +1519,7 @@ private fun QuickFlightDialog(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                stringResource(R.string.newflight_quick_flight_recommendation_format, suggestion.targetMinutes / 60),
+                                quickFlightRecommendationLabel(suggestion.targetMinutes),
                                 color = FlightPrimary,
                                 fontWeight = FontWeight.Bold
                             )
