@@ -21,6 +21,8 @@ object AppPreferenceKeys {
     val KEY_FOCUS_LOCK_ENABLED = booleanPreferencesKey("focus_lock_enabled")
     val KEY_ADVANCED_LOCK_ENABLED = booleanPreferencesKey("advanced_lock_enabled")
     val KEY_FOCUS_LOCK_ALLOWED_APPS = stringPreferencesKey("focus_lock_allowed_apps")
+    val KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_APPS = stringPreferencesKey("focus_lock_temporary_allowed_apps")
+    val KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_UNTIL = longPreferencesKey("focus_lock_temporary_allowed_until")
     val KEY_FOCUS_LOCK_PIN_HASH = stringPreferencesKey("focus_lock_pin_hash")
     val KEY_FOCUS_LOCK_PIN_SALT = stringPreferencesKey("focus_lock_pin_salt")
     val KEY_SCREEN_ORIENTATION_MODE = stringPreferencesKey("screen_orientation_mode")

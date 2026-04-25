@@ -47,6 +47,8 @@ class FlightService : Service() {
     private var focusLockEnabled = false
     private var advancedLockEnabled = false
     private var focusLockAllowedPackages = defaultFocusLockAllowedPackages
+    private var temporaryFocusLockAllowedPackages = emptySet<String>()
+    private var temporaryFocusLockAllowedUntilMillis = 0L
     private var emergencyUnlockUntilMillis = 0L
     private var currentDurationMinutes: Int = 0
     private var currentFlightNumber: String = ""
@@ -273,6 +275,16 @@ class FlightService : Service() {
                 }
             }
             launch {
+                repository.focusLockTemporaryAllowedApps.collect { packages ->
+                    temporaryFocusLockAllowedPackages = packages
+                }
+            }
+            launch {
+                repository.focusLockTemporaryAllowedUntilMillis.collect { activeUntil ->
+                    temporaryFocusLockAllowedUntilMillis = activeUntil
+                }
+            }
+            launch {
                 repository.notificationUpdateSeconds.collect { seconds ->
                     currentNotificationUpdateSeconds = seconds.coerceIn(1, 30)
                     refreshOngoingNotification(force = !_isInFlightScreenVisible)
@@ -348,10 +360,15 @@ class FlightService : Service() {
                 }
 
                 val foregroundPackage = FocusLockUtils.getForegroundPackage(applicationContext)
-                val isEmergencyUnlockActive = emergencyUnlockUntilMillis > System.currentTimeMillis()
+                val nowMillis = System.currentTimeMillis()
+                val isEmergencyUnlockActive = emergencyUnlockUntilMillis > nowMillis
+                val isTemporaryAllowed =
+                    foregroundPackage in temporaryFocusLockAllowedPackages &&
+                        temporaryFocusLockAllowedUntilMillis > nowMillis
                 val shouldBlock = when {
                     _isInFlightScreenVisible -> false
                     isEmergencyUnlockActive -> false
+                    isTemporaryAllowed -> false
                     foregroundPackage == null -> focusLockOverlayController.isShowing()
                     foregroundPackage in focusLockAllowedPackages -> false
                     else -> true

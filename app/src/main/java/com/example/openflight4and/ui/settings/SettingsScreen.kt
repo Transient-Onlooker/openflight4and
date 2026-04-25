@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -117,6 +118,7 @@ private val SettingsNotificationRows = listOf(
     listOf(1, 2, 5),
     listOf(10, 20, 30)
 )
+private const val Mp3PickerFocusLockBypassMillis = 2 * 60 * 1000L
 private const val FocusLockPinMinLength = 4
 private const val FocusLockPinMaxLength = 6
 private const val FocusLockPinSessionDurationMillis = 3 * 60 * 1000L
@@ -135,6 +137,15 @@ private enum class FocusLockPinEntryStep {
     CURRENT,
     NEW,
     CONFIRM
+}
+
+private enum class SettingsDetailSection {
+    GENERAL,
+    NOTIFICATIONS,
+    BACKGROUND,
+    FOCUS_LOCK,
+    ADVANCED_LOCK,
+    RESET
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,6 +197,7 @@ fun SettingsScreen(
     var showResetAppDialog by remember { mutableStateOf(false) }
     var showFullResetDialog by remember { mutableStateOf(false) }
     var fullResetConfirmationInput by remember { mutableStateOf("") }
+    var activeSettingsSection by remember { mutableStateOf<SettingsDetailSection?>(null) }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
@@ -235,6 +247,17 @@ fun SettingsScreen(
     val labelLanguageEnglish = stringResource(R.string.settings_language_english)
     val labelPortrait = stringResource(R.string.settings_orientation_portrait)
     val labelLandscape = stringResource(R.string.settings_orientation_landscape)
+    val titleResetSection = stringResource(R.string.settings_section_reset)
+    val descriptionResetSection = stringResource(R.string.settings_section_reset_description)
+    val currentSettingsTitle = when (activeSettingsSection) {
+        SettingsDetailSection.GENERAL -> titleGeneralSection
+        SettingsDetailSection.NOTIFICATIONS -> titleNotificationSection
+        SettingsDetailSection.BACKGROUND -> titleBackgroundSection
+        SettingsDetailSection.FOCUS_LOCK -> titleFocusLockSection
+        SettingsDetailSection.ADVANCED_LOCK -> titleAdvancedLockSection
+        SettingsDetailSection.RESET -> titleResetSection
+        null -> titleSettings
+    }
     val customMp3MissingMessage = stringResource(R.string.settings_flight_background_sound_custom_missing)
     val customMp3PermissionErrorMessage = stringResource(R.string.settings_flight_background_sound_permission_error)
     val mp3PickerLauncher = rememberLauncherForActivityResult(
@@ -259,6 +282,20 @@ fun SettingsScreen(
             repository.setFlightBackgroundSound(FlightBackgroundSound.CUSTOM_MP3)
             repository.setFlightBackgroundSoundEnabled(true)
         }
+    }
+
+    fun launchMp3PickerWithFocusLockBypass() {
+        scope.launch {
+            repository.allowTemporaryFocusLockPackages(
+                packages = FocusLockUtils.getDocumentPickerPackages(context),
+                activeUntilMillis = System.currentTimeMillis() + Mp3PickerFocusLockBypassMillis
+            )
+            mp3PickerLauncher.launch(arrayOf("audio/mpeg", "audio/mp3"))
+        }
+    }
+
+    BackHandler(enabled = activeSettingsSection != null) {
+        activeSettingsSection = null
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -316,9 +353,17 @@ fun SettingsScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text(titleSettings, color = Color.White) },
+                    title = { Text(currentSettingsTitle, color = Color.White) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(
+                            onClick = {
+                                if (activeSettingsSection == null) {
+                                    onNavigateBack()
+                                } else {
+                                    activeSettingsSection = null
+                                }
+                            }
+                        ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back),
@@ -365,6 +410,42 @@ fun SettingsScreen(
                     "hybrid" to stringResource(R.string.settings_map_style_hybrid)
                 )
 
+                if (activeSettingsSection == null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        SettingsMenuCard(
+                            title = titleGeneralSection,
+                            description = descriptionGeneralSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.GENERAL }
+                        )
+                        SettingsMenuCard(
+                            title = titleNotificationSection,
+                            description = descriptionNotificationSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.NOTIFICATIONS }
+                        )
+                        SettingsMenuCard(
+                            title = titleBackgroundSection,
+                            description = descriptionBackgroundSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.BACKGROUND }
+                        )
+                        SettingsMenuCard(
+                            title = titleFocusLockSection,
+                            description = descriptionFocusLockSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.FOCUS_LOCK }
+                        )
+                        SettingsMenuCard(
+                            title = titleAdvancedLockSection,
+                            description = descriptionAdvancedLockSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.ADVANCED_LOCK }
+                        )
+                        SettingsMenuCard(
+                            title = titleResetSection,
+                            description = descriptionResetSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.RESET }
+                        )
+                    }
+                } else {
+
+                if (activeSettingsSection == SettingsDetailSection.GENERAL) {
                 SettingsCategoryCard(
                     title = titleGeneralSection,
                     description = descriptionGeneralSection
@@ -450,9 +531,9 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
+                if (activeSettingsSection == SettingsDetailSection.NOTIFICATIONS) {
                 SettingsCategoryCard(
                     title = titleNotificationSection,
                     description = descriptionNotificationSection
@@ -531,9 +612,9 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
+                if (activeSettingsSection == SettingsDetailSection.BACKGROUND) {
                 SettingsCategoryCard(
                     title = titleBackgroundSection,
                     description = descriptionBackgroundSection
@@ -563,7 +644,7 @@ fun SettingsScreen(
                                 onClick = {
                                     if (flightBackgroundSoundCustomUri.isNullOrBlank()) {
                                         Toast.makeText(context, customMp3MissingMessage, Toast.LENGTH_SHORT).show()
-                                        mp3PickerLauncher.launch(arrayOf("audio/mpeg", "audio/mp3"))
+                                        launchMp3PickerWithFocusLockBypass()
                                     } else {
                                         scope.launch {
                                             repository.setFlightBackgroundSound(FlightBackgroundSound.CUSTOM_MP3)
@@ -601,7 +682,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(
-                                onClick = { mp3PickerLauncher.launch(arrayOf("audio/mpeg", "audio/mp3")) }
+                                onClick = { launchMp3PickerWithFocusLockBypass() }
                             ) {
                                 Text(stringResource(R.string.settings_flight_background_sound_select_mp3))
                             }
@@ -621,9 +702,9 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
                     BatteryOptimizationItem()
                 }
+                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
+                if (activeSettingsSection == SettingsDetailSection.FOCUS_LOCK) {
                 SettingsCategoryCard(
                     title = titleFocusLockSection,
                     description = descriptionFocusLockSection
@@ -696,9 +777,9 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
+                if (activeSettingsSection == SettingsDetailSection.ADVANCED_LOCK) {
                 SettingsCategoryCard(
                     title = titleAdvancedLockSection,
                     description = descriptionAdvancedLockSection
@@ -753,12 +834,12 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
-
+                if (activeSettingsSection == SettingsDetailSection.RESET) {
                 SettingsCategoryCard(
-                    title = stringResource(R.string.settings_section_reset),
-                    description = stringResource(R.string.settings_section_reset_description)
+                    title = titleResetSection,
+                    description = descriptionResetSection
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
                         PermissionSettingItem(
@@ -780,6 +861,8 @@ fun SettingsScreen(
                             }
                         )
                     }
+                }
+                }
                 }
 
                 Spacer(modifier = Modifier.padding(top = SettingsFooterTopSpacing))
@@ -1712,6 +1795,49 @@ private fun SettingsCategoryCard(
             )
             Spacer(modifier = Modifier.size(16.dp))
             content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsMenuCard(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White.copy(alpha = 0.06f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SettingsChevronSpacing)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    color = FlightGray,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = FlightGray
+            )
         }
     }
 }

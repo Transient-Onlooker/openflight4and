@@ -68,6 +68,8 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val advancedLockEnabled: Flow<Boolean> = settingsRepository.advancedLockEnabled
     val focusLockPinEnabled: Flow<Boolean> = settingsRepository.focusLockPinEnabled
     val focusLockAllowedApps: Flow<Set<String>> = settingsRepository.focusLockAllowedApps
+    val focusLockTemporaryAllowedApps: Flow<Set<String>> = settingsRepository.focusLockTemporaryAllowedApps
+    val focusLockTemporaryAllowedUntilMillis: Flow<Long> = settingsRepository.focusLockTemporaryAllowedUntilMillis
     val screenOrientationMode: Flow<String> = settingsRepository.screenOrientationMode
     val initialOriginSetupCompleted: Flow<Boolean> = settingsRepository.initialOriginSetupCompleted
     val emergencyUnlockActiveUntilMillis: Flow<Long> = settingsRepository.emergencyUnlockActiveUntilMillis
@@ -123,6 +125,10 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setFocusLockAllowedApps(packages: Set<String>) {
         settingsRepository.setFocusLockAllowedApps(packages)
+    }
+
+    suspend fun allowTemporaryFocusLockPackages(packages: Set<String>, activeUntilMillis: Long) {
+        settingsRepository.allowTemporaryFocusLockPackages(packages, activeUntilMillis)
     }
 
     suspend fun setFocusLockPin(pin: String) {

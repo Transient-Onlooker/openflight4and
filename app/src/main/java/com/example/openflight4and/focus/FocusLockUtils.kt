@@ -22,6 +22,8 @@ data class LaunchableApp(
 object FocusLockUtils {
     const val GeminiPackageName = "com.google.android.apps.bard"
     const val GoogleAppPackageName = "com.google.android.googlequicksearchbox"
+    private const val AndroidDocumentsUiPackageName = "com.android.documentsui"
+    private const val GoogleDocumentsUiPackageName = "com.google.android.documentsui"
 
     fun getDefaultAllowedPackages(context: Context): Set<String> {
         val packageNames = linkedSetOf<String>()
@@ -65,6 +67,20 @@ object FocusLockUtils {
             Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:123")),
             0
         )?.activityInfo?.packageName
+    }
+
+    fun getDocumentPickerPackages(context: Context): Set<String> {
+        val packageManager = context.packageManager
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/mpeg"
+        }
+        return packageManager.queryIntentActivities(intent, 0)
+            .mapNotNull { it.activityInfo?.packageName }
+            .plus(AndroidDocumentsUiPackageName)
+            .plus(GoogleDocumentsUiPackageName)
+            .filter { it.isNotBlank() && it != context.packageName }
+            .toSet()
     }
 
     fun normalizeAllowedPackages(context: Context, packages: Set<String>): Set<String> {

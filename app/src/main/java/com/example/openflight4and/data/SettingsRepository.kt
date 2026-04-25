@@ -53,6 +53,25 @@ class SettingsRepository(
             }
         }
     }
+    val focusLockTemporaryAllowedApps: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        val activeUntil = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_UNTIL] ?: 0L
+        val json = preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_APPS]
+        if (activeUntil <= System.currentTimeMillis() || json.isNullOrBlank()) {
+            emptySet()
+        } else {
+            runCatching {
+                Json.decodeFromString<List<String>>(json)
+                    .filter { it.isNotBlank() }
+                    .toSet()
+            }.getOrElse {
+                reportDataError("Failed to decode temporary focus lock allowed apps", it)
+                emptySet()
+            }
+        }
+    }
+    val focusLockTemporaryAllowedUntilMillis: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_UNTIL] ?: 0L
+    }
     val screenOrientationMode: Flow<String> = context.dataStore.data.map {
         it[AppPreferenceKeys.KEY_SCREEN_ORIENTATION_MODE] ?: "auto"
     }
@@ -136,6 +155,18 @@ class SettingsRepository(
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS] =
                 Json.encodeToString(normalizeFocusLockAllowedApps(packages).sorted())
+        }
+    }
+
+    suspend fun allowTemporaryFocusLockPackages(packages: Set<String>, activeUntilMillis: Long) {
+        val normalizedPackages = packages.filter { it.isNotBlank() }.toSet()
+        if (normalizedPackages.isEmpty()) {
+            return
+        }
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_APPS] =
+                Json.encodeToString(normalizedPackages.sorted())
+            preferences[AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_UNTIL] = activeUntilMillis
         }
     }
 
@@ -301,6 +332,8 @@ class SettingsRepository(
             preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_ENABLED)
             preferences.remove(AppPreferenceKeys.KEY_ADVANCED_LOCK_ENABLED)
             preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_ALLOWED_APPS)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_APPS)
+            preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_TEMPORARY_ALLOWED_UNTIL)
             preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_HASH)
             preferences.remove(AppPreferenceKeys.KEY_FOCUS_LOCK_PIN_SALT)
             preferences.remove(AppPreferenceKeys.KEY_SCREEN_ORIENTATION_MODE)
