@@ -1,10 +1,13 @@
-package com.example.openflight4and.ui.newflight
+﻿package com.example.openflight4and.ui.newflight
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -328,11 +331,53 @@ fun NewFlightScreen(
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)
     )
+    val isPortraitExpanded = showBottomSheet && scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
+    var showPortraitListOnlyStage by remember(originAirport.iata, isSettingCurrentLocation) {
+        mutableStateOf(false)
+    }
+    var portraitStageDragDelta by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(showPortraitListOnlyStage, scaffoldState.bottomSheetState.currentValue) {
+        if (showPortraitListOnlyStage && scaffoldState.bottomSheetState.currentValue != SheetValue.Expanded) {
+            showPortraitListOnlyStage = false
+            scaffoldState.bottomSheetState.expand()
+        }
+    }
+
+    fun handlePortraitSheetDrag(delta: Float) {
+        when {
+            delta < -12f && showPortraitListOnlyStage -> Unit
+            delta < -12f && isPortraitExpanded -> {
+                showPortraitListOnlyStage = true
+                scope.launch {
+                    scaffoldState.bottomSheetState.expand()
+                }
+            }
+            delta < -12f -> {
+                scope.launch {
+                    scaffoldState.bottomSheetState.expand()
+                }
+            }
+            delta > 12f && showPortraitListOnlyStage -> {
+                showPortraitListOnlyStage = false
+                scope.launch {
+                    scaffoldState.bottomSheetState.expand()
+                }
+            }
+            delta > 12f && isPortraitExpanded -> {
+                scope.launch {
+                    scaffoldState.bottomSheetState.partialExpand()
+                }
+            }
+        }
+    }
 
     if (showBottomSheet) {
         BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = 260.dp,
+        sheetDragHandle = null,
+        sheetSwipeEnabled = !showPortraitListOnlyStage,
         sheetContainerColor = FlightDarkGray,
         sheetContentColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -341,12 +386,36 @@ fun NewFlightScreen(
                 Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = bottomSheetMaxHeight)
+                    .heightIn(max = if (showPortraitListOnlyStage) configuration.screenHeightDp.dp else bottomSheetMaxHeight)
                 ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 44.dp, height = 5.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color.White.copy(alpha = 0.55f))
+                    )
+                }
+
                 // Handle & Info
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                portraitStageDragDelta += delta
+                            },
+                            onDragStopped = {
+                                handlePortraitSheetDrag(portraitStageDragDelta)
+                                portraitStageDragDelta = 0f
+                            }
+                        )
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -389,11 +458,8 @@ fun NewFlightScreen(
                     }
                 }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -428,6 +494,44 @@ fun NewFlightScreen(
                             onValueChange = { viewModel.updateSearchRadius(it) }
                         )
                     }
+
+                    Button(
+                        onClick = {
+                            if (!isSettingCurrentLocation && selectedDestination?.iata == originIata) {
+                                viewModel.showSameAirportDialog()
+                            } else {
+                                if (isSandboxMode) {
+                                    onSandboxAirportSelected(originAirport, selectedDestination)
+                                } else if (isSettingCurrentLocation) {
+                                    selectedDestination?.let(onCurrentLocationSet)
+                                } else {
+                                    onNavigateToBoardingPass()
+                                }
+                            }
+                        },
+                        enabled = selectedDestination != null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FlightPrimary,
+                            disabledContainerColor = FlightGray.copy(alpha = 0.3f),
+                            contentColor = FlightBlack
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                            .height(56.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                isSettingCurrentLocation -> stringResource(R.string.newflight_set_current_location)
+                                isSandboxMode -> stringResource(R.string.newflight_airport_selection_done)
+                                else -> stringResource(R.string.newflight_confirm_destination)
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+
                     // 검색창
                     OutlinedTextField(
                         value = searchQuery,
@@ -484,7 +588,13 @@ fun NewFlightScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = bottomSheetMaxHeight * 0.4f),
+                        .then(
+                            if (showPortraitListOnlyStage || isPortraitExpanded) {
+                                Modifier.weight(1f)
+                            } else {
+                                Modifier.heightIn(max = bottomSheetMaxHeight * 0.4f)
+                            }
+                        ),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -510,51 +620,10 @@ fun NewFlightScreen(
                          )
                     }
                 }
-
-                // CTA Button
-                Button(
-                    onClick = {
-                        // 출발지와 도착지가 같은지 확인
-                        if (!isSettingCurrentLocation && selectedDestination?.iata == originIata) {
-                            // 같은 공항 선택 시 다이얼로그 표시
-                            viewModel.showSameAirportDialog()
-                        } else {
-                            if (isSandboxMode) {
-                                // 샌드박스 모드: 선택된 공항을 SandboxScreen 에 전달
-                                onSandboxAirportSelected(originAirport, selectedDestination)
-                            } else if (isSettingCurrentLocation) {
-                                // 현재 위치 설정 모드: 선택된 공항을 현재 위치로 저장
-                                selectedDestination?.let(onCurrentLocationSet)
-                            } else {
-                                onNavigateToBoardingPass()
-                            }
-                        }
-                    },
-                    enabled = selectedDestination != null,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FlightPrimary,
-                        disabledContainerColor = FlightGray.copy(alpha = 0.3f),
-                        contentColor = FlightBlack
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .height(56.dp)
-                ) {
-                    Text(
-                        text = when {
-                            isSettingCurrentLocation -> stringResource(R.string.newflight_set_current_location)
-                            isSandboxMode -> stringResource(R.string.newflight_airport_selection_done)
-                            else -> stringResource(R.string.newflight_confirm_destination)
-                        },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
             }
-        }
-        ) {
+            }
+        },
+        content = {
         Box(modifier = Modifier.fillMaxSize().background(FlightBlack)) {
             // Map
             GoogleMap(
@@ -725,23 +794,25 @@ fun NewFlightScreen(
             }
 
             // Top Bar
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onNavigateBack,
+            if (!showPortraitListOnlyStage) {
+                Row(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = Color.White)
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = Color.White)
+                    }
                 }
             }
 
-            if (!isSettingCurrentLocation) {
+            if (!isSettingCurrentLocation && !showPortraitListOnlyStage) {
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -820,6 +891,7 @@ fun NewFlightScreen(
             }
         }
         }
+        )
     } else {
         Box(modifier = Modifier.fillMaxSize().background(FlightBlack)) {
             GoogleMap(

@@ -38,4 +38,7 @@ object AppPreferenceKeys {
     val KEY_USED_REDEEM_CODES = stringPreferencesKey("used_redeem_codes")
     val KEY_INSTALLATION_ID = stringPreferencesKey("installation_id")
     val KEY_DEBUG_FLIGHT_MODE = booleanPreferencesKey("debug_flight_mode")
+    val KEY_FLIGHT_BACKGROUND_SOUND_ENABLED = booleanPreferencesKey("flight_background_sound_enabled")
+    val KEY_FLIGHT_BACKGROUND_SOUND = stringPreferencesKey("flight_background_sound")
+    val KEY_FLIGHT_TIME_DISPLAY_MODE = stringPreferencesKey("flight_time_display_mode")
 }

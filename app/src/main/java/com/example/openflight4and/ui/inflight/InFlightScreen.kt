@@ -43,6 +43,7 @@ import com.example.openflight4and.R
 import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightDraft
 import com.example.openflight4and.model.FlightSession
+import com.example.openflight4and.model.FlightTimeDisplayMode
 import com.example.openflight4and.service.FlightService
 import com.example.openflight4and.utils.FlightUtils
 import com.example.openflight4and.utils.MapBitmapUtils
@@ -213,6 +214,8 @@ fun InFlightScreen(
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
+    val flightBackgroundSoundEnabled by repository.flightBackgroundSoundEnabled.collectAsState(initial = true)
+    val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
     val overlayPalette = rememberInFlightOverlayPalette(mapOverlayStyle)
     val inflightPanelBackground = Color.White.copy(alpha = InFlightPanelAlpha)
     val inflightPanelBorder = Color.Black.copy(alpha = InFlightPanelBorderAlpha)
@@ -304,6 +307,18 @@ fun InFlightScreen(
     }
     val progress = if (totalSeconds > 0) (secondsElapsed.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
     val remainingSeconds = (totalSeconds - secondsElapsed).coerceAtLeast(0)
+    val displaySeconds = if (flightTimeDisplayMode == FlightTimeDisplayMode.ELAPSED) {
+        secondsElapsed
+    } else {
+        remainingSeconds
+    }
+    val displayTimeLabel = stringResource(
+        if (flightTimeDisplayMode == FlightTimeDisplayMode.ELAPSED) {
+            R.string.inflight_elapsed_time
+        } else {
+            R.string.inflight_remaining_time
+        }
+    )
     val isFlying = secondsElapsed < totalSeconds
     val emergencyUnlockActive = emergencyUnlockActiveUntilMillis > System.currentTimeMillis()
     val emergencyUnlockRemainingMinutes = if (emergencyUnlockActive) {
@@ -346,6 +361,12 @@ fun InFlightScreen(
         )
         if (!hasServiceRuntimeState) {
             fallbackIsPaused = false
+        }
+    }
+
+    fun toggleBackgroundSound() {
+        scope.launch {
+            repository.setFlightBackgroundSoundEnabled(!flightBackgroundSoundEnabled)
         }
     }
 
@@ -872,7 +893,8 @@ fun InFlightScreen(
                         ) {
                             InFlightStatusPanel(
                                 draft = draft,
-                                remainingSeconds = remainingSeconds,
+                                displayTimeLabel = displayTimeLabel,
+                                displaySeconds = displaySeconds,
                                 zoomLabel = zoomLabel,
                                 timeScaleLabel = draft.timeScale.takeIf { it != 1f }?.let(::formatTimeScale),
                                 destinationIataFallback = "---",
@@ -884,11 +906,13 @@ fun InFlightScreen(
 
                             InFlightFloatingControls(
                                 isAdRewardRunning = inflightUiState.isAdRewardRunning,
+                                isBackgroundSoundEnabled = flightBackgroundSoundEnabled,
                                 mapPerspective = mapPerspective,
                                 isCameraTracking = isCameraTracking,
                                 overlayPalette = overlayPalette,
                                 modifier = Modifier.weight(1f),
                                 onShowReward = { inflightViewModel.showAdRewardDialog() },
+                                onToggleBackgroundSound = { toggleBackgroundSound() },
                                 onToggleStandardPerspective = {
                                     scope.launch {
                                         val nextPerspective = nextStandardMapPerspective(mapPerspective)
@@ -928,7 +952,8 @@ fun InFlightScreen(
                     } else {
                         InFlightStatusPanel(
                             draft = draft,
-                            remainingSeconds = remainingSeconds,
+                            displayTimeLabel = displayTimeLabel,
+                            displaySeconds = displaySeconds,
                             zoomLabel = zoomLabel,
                             timeScaleLabel = draft.timeScale.takeIf { it != 1f }?.let(::formatTimeScale),
                             destinationIataFallback = stringResource(R.string.boardingpass_destination_tbd),
@@ -972,6 +997,7 @@ fun InFlightScreen(
                                     timeScaleLabel = draft.timeScale.takeIf { it != 1f }?.let(::formatTimeScale),
                                     colors = panelColors
                                 )
+
                             }
 
                             InFlightActionRow(
@@ -990,11 +1016,13 @@ fun InFlightScreen(
                         ) {
                             InFlightFloatingControls(
                                 isAdRewardRunning = inflightUiState.isAdRewardRunning,
+                                isBackgroundSoundEnabled = flightBackgroundSoundEnabled,
                                 mapPerspective = mapPerspective,
                                 isCameraTracking = isCameraTracking,
                                 overlayPalette = overlayPalette,
                                 modifier = Modifier.align(Alignment.End),
                                 onShowReward = { inflightViewModel.showAdRewardDialog() },
+                                onToggleBackgroundSound = { toggleBackgroundSound() },
                                 onToggleStandardPerspective = {
                                     scope.launch {
                                         val nextPerspective = nextStandardMapPerspective(mapPerspective)

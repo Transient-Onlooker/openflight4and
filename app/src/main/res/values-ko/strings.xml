@@ -54,6 +54,7 @@
     <string name="settings_title_map_style">지도 스타일</string>
     <string name="settings_title_notifications">알림</string>
     <string name="settings_title_notification_interval">알림 갱신 주기</string>
+    <string name="settings_title_flight_time_display">비행 시간 표시</string>
     <string name="settings_title_focus_lock">집중 잠금</string>
     <string name="settings_title_advanced_lock">고급 잠금</string>
     <string name="settings_title_battery_optimization">배터리 최적화 예외</string>
@@ -85,6 +86,9 @@
     <string name="settings_map_style_hybrid">하이브리드</string>
     <string name="settings_notifications_description">세션 완료 및 중요한 알림을 받습니다.</string>
     <string name="settings_notification_interval_description">기본값은 10초입니다. 비행 중 알림 갱신 주기를 설정합니다.</string>
+    <string name="settings_flight_time_display_description">비행 화면과 집중 잠금 화면에서 남은 시간 또는 지난 시간을 표시합니다.</string>
+    <string name="settings_flight_time_remaining">남은 시간</string>
+    <string name="settings_flight_time_elapsed">지난 시간</string>
     <string name="settings_focus_lock_description">비행 중 다른 앱으로 이동하면 복귀를 유도하는 오버레이를 띄웁니다.</string>
     <string name="settings_focus_lock_requirements">작동 조건: 사용정보 접근 + 다른 앱 위에 표시 권한이 모두 필요합니다.</string>
     <string name="settings_focus_lock_allowed_apps">허용 앱</string>
@@ -272,6 +276,7 @@
     <string name="inflight_3d_fallback_message">3D 지도를 불러오지 못해 2.5D로 전환합니다.</string>
     <string name="inflight_title">비행 중</string>
     <string name="inflight_remaining_time">남은 시간</string>
+    <string name="inflight_elapsed_time">지난 시간</string>
     <string name="inflight_time_scale_format">시간 배율: %1$s</string>
     <string name="inflight_zoom_label">줌: %1$dx</string>
     <string name="inflight_zoom_label_3d">줌: 3D</string>
@@ -279,6 +284,7 @@
     <string name="inflight_debug_elapsed_format">Elapsed: %1$s</string>
     <string name="inflight_debug_apply">Apply</string>
     <string name="inflight_progress_complete_format">%1$d%% 비행 완료</string>
+    <string name="inflight_background_sound_title">배경 소음</string>
     <string name="inflight_pause">일시정지</string>
     <string name="inflight_end_journey">여정 중단</string>
     <string name="inflight_paused_title">일시중지되었습니다.</string>
@@ -308,6 +314,7 @@
     <string name="focus_lock_overlay_title">집중 비행 중입니다</string>
     <string name="focus_lock_overlay_message">다른 앱으로 이동할 수 없습니다.\nOpenFlight로 돌아가 비행을 이어서 진행하세요.</string>
     <string name="focus_lock_overlay_flight_summary_format">출발: %1$s\n도착: %2$s\n남은 시간: %3$s</string>
+    <string name="focus_lock_overlay_flight_summary_elapsed_format">출발: %1$s\n도착: %2$s\n지난 시간: %3$s</string>
     <string name="focus_lock_overlay_button">비행으로 돌아가기</string>
     <string name="focus_lock_overlay_allowed_apps_title">허용 앱</string>
 

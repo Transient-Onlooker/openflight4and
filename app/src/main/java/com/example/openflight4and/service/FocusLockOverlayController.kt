@@ -17,6 +17,7 @@ import android.widget.TextView
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.focus.FocusLockUtils
+import com.example.openflight4and.model.FlightTimeDisplayMode
 import com.example.openflight4and.utils.FlightUtils
 
 private const val FocusLockPanelCornerRadius = 42f
@@ -50,12 +51,14 @@ class FocusLockOverlayController(
         originIata: String,
         destinationIata: String,
         durationMinutes: Int,
+        elapsedSeconds: Long,
         remainingSeconds: Long,
+        timeDisplayMode: String,
         allowedPackages: Collection<String> = emptyList(),
         allowAllowedAppsLaunch: Boolean = true
     ) {
         if (overlayView != null) {
-            summaryTextView?.text = buildFlightSummary(originIata, destinationIata, remainingSeconds)
+            summaryTextView?.text = buildFlightSummary(originIata, destinationIata, elapsedSeconds, remainingSeconds, timeDisplayMode)
             return
         }
 
@@ -120,7 +123,7 @@ class FocusLockOverlayController(
         }
 
         val summary = TextView(context).apply {
-            text = buildFlightSummary(originIata, destinationIata, remainingSeconds)
+            text = buildFlightSummary(originIata, destinationIata, elapsedSeconds, remainingSeconds, timeDisplayMode)
             textSize = FocusLockSummaryTextSize
             gravity = Gravity.CENTER
             setTextColor(0xFFFFFFFF.toInt())
@@ -309,13 +312,20 @@ class FocusLockOverlayController(
     private fun buildFlightSummary(
         originIata: String,
         destinationIata: String,
-        remainingSeconds: Long
+        elapsedSeconds: Long,
+        remainingSeconds: Long,
+        timeDisplayMode: String
     ): String {
+        val useElapsed = timeDisplayMode == FlightTimeDisplayMode.ELAPSED
         return context.getString(
-            R.string.focus_lock_overlay_flight_summary_format,
+            if (useElapsed) {
+                R.string.focus_lock_overlay_flight_summary_elapsed_format
+            } else {
+                R.string.focus_lock_overlay_flight_summary_format
+            },
             originIata,
             destinationIata,
-            FlightUtils.formatTimer(remainingSeconds.coerceAtLeast(0L))
+            FlightUtils.formatTimer(if (useElapsed) elapsedSeconds.coerceAtLeast(0L) else remainingSeconds.coerceAtLeast(0L))
         )
     }
 

@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
+import com.example.openflight4and.model.FlightBackgroundSound
+import com.example.openflight4and.model.FlightTimeDisplayMode
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -79,6 +81,15 @@ class SettingsRepository(
     }
     val debugFlightMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE] ?: false
+    }
+    val flightBackgroundSoundEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED] ?: true
+    }
+    val flightBackgroundSound: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] ?: FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+    }
+    val flightTimeDisplayMode: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE] ?: FlightTimeDisplayMode.REMAINING
     }
     val emergencyUnlockActiveUntilMillis: Flow<Long> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL] ?: 0L
@@ -195,6 +206,24 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setFlightBackgroundSoundEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setFlightBackgroundSound(sound: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] = sound
+        }
+    }
+
+    suspend fun setFlightTimeDisplayMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE] = mode
+        }
+    }
+
     suspend fun startEmergencyUnlock(
         nowMillis: Long = System.currentTimeMillis(),
         durationMinutes: Int = 20
@@ -248,6 +277,9 @@ class SettingsRepository(
             preferences.remove(AppPreferenceKeys.KEY_INITIAL_ORIGIN_SETUP_COMPLETED)
             preferences.remove(AppPreferenceKeys.KEY_SANDBOX_TIME_SCALE)
             preferences.remove(AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE)
             preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE)
             preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL)
         }

@@ -82,6 +82,7 @@ import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
+import com.example.openflight4and.model.FlightTimeDisplayMode
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.theme.FlightGray
@@ -137,6 +138,7 @@ fun SettingsScreen(
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
+    val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
     val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
     val focusLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
@@ -446,6 +448,42 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = FlightGray,
                                 modifier = Modifier.padding(start = SettingsNoticeStartPadding)
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = stringResource(R.string.settings_title_flight_time_display),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(10.dp))
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                SegmentedButton(
+                                    selected = flightTimeDisplayMode == FlightTimeDisplayMode.REMAINING,
+                                    onClick = {
+                                        scope.launch {
+                                            repository.setFlightTimeDisplayMode(FlightTimeDisplayMode.REMAINING)
+                                        }
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                ) { Text(stringResource(R.string.settings_flight_time_remaining)) }
+                                SegmentedButton(
+                                    selected = flightTimeDisplayMode == FlightTimeDisplayMode.ELAPSED,
+                                    onClick = {
+                                        scope.launch {
+                                            repository.setFlightTimeDisplayMode(FlightTimeDisplayMode.ELAPSED)
+                                        }
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                ) { Text(stringResource(R.string.settings_flight_time_elapsed)) }
+                            }
+                            Text(
+                                text = stringResource(R.string.settings_flight_time_display_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FlightGray,
+                                modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
                             )
                         }
                     }

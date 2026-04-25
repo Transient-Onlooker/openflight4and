@@ -19,7 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -97,7 +99,8 @@ fun Window3DIcon(
 @Composable
 fun InFlightStatusPanel(
     draft: FlightDraft,
-    remainingSeconds: Long,
+    displayTimeLabel: String,
+    displaySeconds: Long,
     zoomLabel: String,
     timeScaleLabel: String?,
     destinationIataFallback: String,
@@ -130,12 +133,12 @@ fun InFlightStatusPanel(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = androidx.compose.ui.res.stringResource(R.string.inflight_remaining_time),
+                        text = displayTimeLabel,
                         color = colors.secondaryText,
                         fontSize = 12.sp
                     )
                     Text(
-                        text = com.example.openflight4and.utils.FlightUtils.formatTimer(remainingSeconds),
+                        text = com.example.openflight4and.utils.FlightUtils.formatTimer(displaySeconds),
                         color = colors.primaryText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp
@@ -185,11 +188,13 @@ fun InFlightStatusPanel(
 @Composable
 fun InFlightFloatingControls(
     isAdRewardRunning: Boolean,
+    isBackgroundSoundEnabled: Boolean,
     mapPerspective: String,
     isCameraTracking: Boolean,
     overlayPalette: MapOverlayPalette,
     modifier: Modifier = Modifier,
     onShowReward: () -> Unit,
+    onToggleBackgroundSound: () -> Unit,
     onToggleStandardPerspective: () -> Unit,
     onToggle3dPerspective: () -> Unit,
     onCenterOnPlane: () -> Unit
@@ -215,12 +220,31 @@ fun InFlightFloatingControls(
         }
 
         SmallFloatingActionButton(
+            onClick = onToggleBackgroundSound,
+            containerColor = if (isBackgroundSoundEnabled) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                overlayPalette.floatingButtonContainer
+            },
+            contentColor = if (isBackgroundSoundEnabled) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                overlayPalette.floatingButtonContent
+            }
+        ) {
+            Icon(
+                Icons.Default.MusicNote,
+                contentDescription = androidx.compose.ui.res.stringResource(R.string.inflight_background_sound_title)
+            )
+        }
+
+        SmallFloatingActionButton(
             onClick = onToggleStandardPerspective,
             containerColor = overlayPalette.floatingButtonContainer,
             contentColor = overlayPalette.floatingButtonContent
         ) {
             Text(
-                text = if (mapPerspective == "2d") "2.5D" else "2D",
+                text = if (mapPerspective == "2d") "2D" else "2.5D",
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -238,13 +262,10 @@ fun InFlightFloatingControls(
                 overlayPalette.floatingButtonContent
             }
         ) {
-            Window3DIcon(
-                modifier = Modifier.size(18.dp),
-                tint = if (mapPerspective == "3d") {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    overlayPalette.floatingButtonContent
-                }
+            Icon(
+                Icons.Default.ViewInAr,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
             )
         }
 

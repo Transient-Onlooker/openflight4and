@@ -75,6 +75,9 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     override val currentLocation: Flow<Airport?> = settingsRepository.currentLocation
     val sandboxTimeScale: Flow<Float> = settingsRepository.sandboxTimeScale
     val debugFlightMode: Flow<Boolean> = settingsRepository.debugFlightMode
+    val flightBackgroundSoundEnabled: Flow<Boolean> = settingsRepository.flightBackgroundSoundEnabled
+    val flightBackgroundSound: Flow<String> = settingsRepository.flightBackgroundSound
+    val flightTimeDisplayMode: Flow<String> = settingsRepository.flightTimeDisplayMode
 
     override val flightTickets: Flow<Int> = ticketRepository.flightTickets
     override val hasCheckedInToday: Flow<Boolean> = ticketRepository.hasCheckedInToday
@@ -154,6 +157,18 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setDebugFlightMode(enabled: Boolean) {
         settingsRepository.setDebugFlightMode(enabled)
+    }
+
+    suspend fun setFlightBackgroundSoundEnabled(enabled: Boolean) {
+        settingsRepository.setFlightBackgroundSoundEnabled(enabled)
+    }
+
+    suspend fun setFlightBackgroundSound(sound: String) {
+        settingsRepository.setFlightBackgroundSound(sound)
+    }
+
+    suspend fun setFlightTimeDisplayMode(mode: String) {
+        settingsRepository.setFlightTimeDisplayMode(mode)
     }
 
     suspend fun startEmergencyUnlock(

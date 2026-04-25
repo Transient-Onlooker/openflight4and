@@ -17,6 +17,8 @@ import com.example.openflight4and.data.AppRepository
 import com.example.openflight4and.model.FlightSession
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
+import com.example.openflight4and.model.FlightBackgroundSound
+import com.example.openflight4and.model.FlightTimeDisplayMode
 import com.example.openflight4and.utils.FlightUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
@@ -39,6 +41,7 @@ class FlightService : Service() {
     private var timerJob: Job? = null
     private lateinit var repository: AppRepository
     private lateinit var focusLockOverlayController: FocusLockOverlayController
+    private lateinit var backgroundNoisePlayer: FlightBackgroundNoisePlayer
     private var focusLockSettingsJob: Job? = null
     private var focusLockMonitorJob: Job? = null
     private var focusLockEnabled = false
@@ -54,6 +57,9 @@ class FlightService : Service() {
     private var currentDistanceKm: Int = 0
     private var flightStartedAtMillis: Long = 0L
     private var currentNotificationUpdateSeconds: Int = 10
+    private var backgroundSoundEnabled = true
+    private var selectedBackgroundSound = FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+    private var flightTimeDisplayMode = FlightTimeDisplayMode.REMAINING
 
     companion object {
         const val CHANNEL_ID = "flight_service_channel"
@@ -133,6 +139,8 @@ class FlightService : Service() {
         instance = this
         repository = AppRepository(applicationContext)
         focusLockOverlayController = FocusLockOverlayController(applicationContext)
+        backgroundNoisePlayer = FlightBackgroundNoisePlayer(applicationContext)
+        backgroundNoisePlayer.setSelectedSound(selectedBackgroundSound)
         createNotificationChannel()
         observeFocusLockSettings()
     }
@@ -143,6 +151,7 @@ class FlightService : Service() {
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "Service stop requested")
             timerJob?.cancel()
+            backgroundNoisePlayer.stop()
             _isRunning = false
             _isPaused = false
             publishRuntimeState()
@@ -159,6 +168,7 @@ class FlightService : Service() {
         if (intent?.action == ACTION_PAUSE) {
             Log.d(TAG, "Service pause requested")
             _isPaused = true
+            syncBackgroundNoisePlayback()
             publishRuntimeState()
             refreshOngoingNotification(force = true)
             return START_STICKY
@@ -167,6 +177,7 @@ class FlightService : Service() {
         if (intent?.action == ACTION_RESUME) {
             Log.d(TAG, "Service resume requested")
             _isPaused = false
+            syncBackgroundNoisePlayback()
             publishRuntimeState()
             refreshOngoingNotification(force = true)
             return START_STICKY
@@ -221,11 +232,12 @@ class FlightService : Service() {
         Log.d(TAG, "Foreground service started with notification ID: $NOTIFICATION_ID")
         updateNotification(
             createNotification(
-                "$originIata -> $destinationIata | ${FlightUtils.formatTimer(totalSeconds)}",
+                "$originIata -> $destinationIata | ${formatDisplayedFlightTime()}",
                 originIata,
                 destinationIata
             )
         )
+        syncBackgroundNoisePlayback()
 
         startTimer(
             totalSeconds,
@@ -278,6 +290,34 @@ class FlightService : Service() {
                     refreshOngoingNotification(force = true)
                 }
             }
+            launch {
+                repository.flightBackgroundSoundEnabled.collect { enabled ->
+                    backgroundSoundEnabled = enabled
+                    syncBackgroundNoisePlayback()
+                }
+            }
+            launch {
+                repository.flightBackgroundSound.collect { sound ->
+                    selectedBackgroundSound = sound
+                    backgroundNoisePlayer.setSelectedSound(sound)
+                    syncBackgroundNoisePlayback()
+                }
+            }
+            launch {
+                repository.flightTimeDisplayMode.collect { mode ->
+                    flightTimeDisplayMode = mode
+                    refreshOngoingNotification(force = true)
+                }
+            }
+        }
+    }
+
+    private fun syncBackgroundNoisePlayback() {
+        if (_isRunning && !_isPaused && _totalSeconds > 0L && backgroundSoundEnabled) {
+            backgroundNoisePlayer.setSelectedSound(selectedBackgroundSound)
+            backgroundNoisePlayer.resume()
+        } else {
+            backgroundNoisePlayer.pause()
         }
     }
 
@@ -316,7 +356,9 @@ class FlightService : Service() {
                             originIata = currentOriginIata,
                             destinationIata = currentDestinationIata,
                             durationMinutes = currentDurationMinutes,
+                            elapsedSeconds = _secondsElapsed,
                             remainingSeconds = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L),
+                            timeDisplayMode = flightTimeDisplayMode,
                             allowedPackages = focusLockAllowedPackages,
                             allowAllowedAppsLaunch = !advancedLockEnabled
                         )
@@ -398,6 +440,7 @@ class FlightService : Service() {
                     _isPaused = false
                     _secondsElapsed = totalSeconds
                     publishRuntimeState()
+                    backgroundNoisePlayer.stop()
                     stopFocusLockMonitor()
 
                     // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
@@ -434,6 +477,7 @@ class FlightService : Service() {
             _isPaused = false
             _secondsElapsed = totalSeconds
             publishRuntimeState()
+            backgroundNoisePlayer.stop()
             stopFocusLockMonitor()
 
             // ?뚮┝ ?쒓굅 (?꾨즺 ??5 珥????먮룞 ??젣)
@@ -470,8 +514,7 @@ class FlightService : Service() {
         val contentText = if (_isPaused) {
             "$currentOriginIata -> $currentDestinationIata | ${getString(R.string.inflight_paused_title)}$emergencyUnlockSuffix"
         } else {
-            val remaining = (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
-            "$currentOriginIata -> $currentDestinationIata | ${FlightUtils.formatTimer(remaining)}$emergencyUnlockSuffix"
+            "$currentOriginIata -> $currentDestinationIata | ${formatDisplayedFlightTime()}$emergencyUnlockSuffix"
         }
 
         updateNotification(
@@ -481,6 +524,15 @@ class FlightService : Service() {
                 destinationIata = currentDestinationIata
             )
         )
+    }
+
+    private fun formatDisplayedFlightTime(): String {
+        val seconds = if (flightTimeDisplayMode == FlightTimeDisplayMode.ELAPSED) {
+            _secondsElapsed
+        } else {
+            (_totalSeconds - _secondsElapsed).coerceAtLeast(0L)
+        }
+        return FlightUtils.formatTimer(seconds)
     }
 
     private fun getEmergencyUnlockNotificationSuffix(nowMillis: Long = System.currentTimeMillis()): String {
@@ -632,6 +684,7 @@ class FlightService : Service() {
         stopFocusLockMonitor()
         focusLockSettingsJob?.cancel()
         timerJob?.cancel()
+        backgroundNoisePlayer.stop()
         serviceScope.cancel()
         focusLockOverlayController.destroy()
         super.onDestroy()
