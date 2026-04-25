@@ -3,6 +3,7 @@ package com.example.openflight4and.service
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -29,6 +30,7 @@ class FlightBackgroundNoisePlayer(
     private var nextPlayer: MediaPlayer? = null
     private var lastTrack: Int? = null
     private var selectedSound: String = FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+    private var customSoundUri: String? = null
     private var isActive = false
     private var isPaused = false
     private var crossfadeStarted = false
@@ -47,6 +49,16 @@ class FlightBackgroundNoisePlayer(
             return
         }
         selectedSound = sound
+        if (isActive && !isPaused) {
+            startFreshTrack()
+        }
+    }
+
+    fun setCustomSoundUri(uri: String?) {
+        if (customSoundUri == uri) {
+            return
+        }
+        customSoundUri = uri
         if (isActive && !isPaused) {
             startFreshTrack()
         }
@@ -113,9 +125,7 @@ class FlightBackgroundNoisePlayer(
             return
         }
 
-        val track = pickNextTrack()
-        lastTrack = track
-        currentPlayer = createPreparedPlayer(track, volume = 1f)?.also { player ->
+        currentPlayer = createSelectedPlayer(volume = 1f)?.also { player ->
             runCatching { player.start() }
                 .onFailure { error -> Log.w(TAG, "Failed to start flight background noise", error) }
         }
@@ -126,6 +136,9 @@ class FlightBackgroundNoisePlayer(
         val current = currentPlayer ?: return
         if (!canPlaySelectedSound()) {
             stop()
+            return
+        }
+        if (selectedSound == FlightBackgroundSound.CUSTOM_MP3) {
             return
         }
 
@@ -148,6 +161,9 @@ class FlightBackgroundNoisePlayer(
 
     private fun startCrossfade() {
         val current = currentPlayer ?: return
+        if (selectedSound == FlightBackgroundSound.CUSTOM_MP3) {
+            return
+        }
         if (nextPlayer != null) {
             return
         }
@@ -181,7 +197,22 @@ class FlightBackgroundNoisePlayer(
         }
     }
 
+    private fun createSelectedPlayer(volume: Float): MediaPlayer? {
+        return when (selectedSound) {
+            FlightBackgroundSound.CUSTOM_MP3 -> createPreparedCustomPlayer(volume)
+            else -> {
+                val track = pickNextTrack()
+                lastTrack = track
+                createPreparedRawPlayer(track, volume)
+            }
+        }
+    }
+
     private fun createPreparedPlayer(track: Int, volume: Float): MediaPlayer? {
+        return createPreparedRawPlayer(track, volume)
+    }
+
+    private fun createPreparedRawPlayer(track: Int, volume: Float): MediaPlayer? {
         return runCatching {
             MediaPlayer().apply {
                 setAudioAttributes(
@@ -207,11 +238,40 @@ class FlightBackgroundNoisePlayer(
         }
     }
 
+    private fun createPreparedCustomPlayer(volume: Float): MediaPlayer? {
+        val uri = customSoundUri?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching {
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                setDataSource(appContext, Uri.parse(uri))
+                isLooping = true
+                setOnErrorListener { _, what, extra ->
+                    Log.w(TAG, "Custom flight background sound error: what=$what extra=$extra")
+                    startFreshTrack()
+                    true
+                }
+                prepare()
+                setSafeVolume(volume)
+            }
+        }.getOrElse { error ->
+            Log.w(TAG, "Failed to prepare custom flight background sound", error)
+            null
+        }
+    }
+
     private fun canPlaySelectedSound(): Boolean {
         return isActive &&
             !isPaused &&
-            selectedSound == FlightBackgroundSound.AIRPLANE_WHITE_NOISE &&
-            tracks.isNotEmpty()
+            when (selectedSound) {
+                FlightBackgroundSound.AIRPLANE_WHITE_NOISE -> tracks.isNotEmpty()
+                FlightBackgroundSound.CUSTOM_MP3 -> !customSoundUri.isNullOrBlank()
+                else -> false
+            }
     }
 
     private fun pickNextTrack(): Int {

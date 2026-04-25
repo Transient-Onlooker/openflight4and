@@ -89,6 +89,16 @@
     <string name="settings_flight_time_display_description">비행 화면과 집중 잠금 화면에서 남은 시간 또는 지난 시간을 표시합니다.</string>
     <string name="settings_flight_time_remaining">남은 시간</string>
     <string name="settings_flight_time_elapsed">지난 시간</string>
+    <string name="settings_title_flight_background_sound">비행 배경음</string>
+    <string name="settings_flight_background_sound_default">비행기 소음</string>
+    <string name="settings_flight_background_sound_custom">내 MP3</string>
+    <string name="settings_flight_background_sound_description">비행 중 재생할 소리를 선택합니다. 직접 추가한 MP3는 끝나면 자동으로 반복됩니다.</string>
+    <string name="settings_flight_background_sound_no_custom_file">선택된 MP3가 없습니다.</string>
+    <string name="settings_flight_background_sound_selected_file_format">선택됨: %1$s</string>
+    <string name="settings_flight_background_sound_select_mp3">MP3 선택</string>
+    <string name="settings_flight_background_sound_remove_mp3">삭제</string>
+    <string name="settings_flight_background_sound_custom_missing">먼저 MP3 파일을 선택하세요.</string>
+    <string name="settings_flight_background_sound_permission_error">이 MP3 파일 접근 권한을 유지할 수 없습니다.</string>
     <string name="settings_focus_lock_description">비행 중 다른 앱으로 이동하면 복귀를 유도하는 오버레이를 띄웁니다.</string>
     <string name="settings_focus_lock_requirements">작동 조건: 사용정보 접근 + 다른 앱 위에 표시 권한이 모두 필요합니다.</string>
     <string name="settings_focus_lock_allowed_apps">허용 앱</string>

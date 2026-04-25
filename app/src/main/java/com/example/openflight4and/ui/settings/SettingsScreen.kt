@@ -2,8 +2,12 @@ package com.example.openflight4and.ui.settings
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
+import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -82,6 +86,7 @@ import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
 import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
+import com.example.openflight4and.model.FlightBackgroundSound
 import com.example.openflight4and.model.FlightTimeDisplayMode
 import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
@@ -116,6 +121,16 @@ private const val FocusLockPinMinLength = 4
 private const val FocusLockPinMaxLength = 6
 private const val FocusLockPinSessionDurationMillis = 3 * 60 * 1000L
 
+private fun resolveDocumentDisplayName(context: android.content.Context, uri: Uri): String {
+    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (nameIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(nameIndex)
+        }
+    }
+    return uri.lastPathSegment?.substringAfterLast('/') ?: "custom.mp3"
+}
+
 private enum class FocusLockPinEntryStep {
     CURRENT,
     NEW,
@@ -138,6 +153,9 @@ fun SettingsScreen(
     val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
     val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
     val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
+    val flightBackgroundSound by repository.flightBackgroundSound.collectAsState(initial = FlightBackgroundSound.AIRPLANE_WHITE_NOISE)
+    val flightBackgroundSoundCustomUri by repository.flightBackgroundSoundCustomUri.collectAsState(initial = null)
+    val flightBackgroundSoundCustomName by repository.flightBackgroundSoundCustomName.collectAsState(initial = null)
     val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
     val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
@@ -217,6 +235,31 @@ fun SettingsScreen(
     val labelLanguageEnglish = stringResource(R.string.settings_language_english)
     val labelPortrait = stringResource(R.string.settings_orientation_portrait)
     val labelLandscape = stringResource(R.string.settings_orientation_landscape)
+    val customMp3MissingMessage = stringResource(R.string.settings_flight_background_sound_custom_missing)
+    val customMp3PermissionErrorMessage = stringResource(R.string.settings_flight_background_sound_permission_error)
+    val mp3PickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) {
+            return@rememberLauncherForActivityResult
+        }
+        val permissionResult = runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        if (permissionResult.isFailure) {
+            Toast.makeText(context, customMp3PermissionErrorMessage, Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+        val displayName = resolveDocumentDisplayName(context, uri)
+        scope.launch {
+            repository.setFlightBackgroundSoundCustomFile(uri.toString(), displayName)
+            repository.setFlightBackgroundSound(FlightBackgroundSound.CUSTOM_MP3)
+            repository.setFlightBackgroundSoundEnabled(true)
+        }
+    }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -495,6 +538,87 @@ fun SettingsScreen(
                     title = titleBackgroundSection,
                     description = descriptionBackgroundSection
                 ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.settings_title_flight_background_sound),
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = flightBackgroundSound == FlightBackgroundSound.AIRPLANE_WHITE_NOISE,
+                                onClick = {
+                                    scope.launch {
+                                        repository.setFlightBackgroundSound(FlightBackgroundSound.AIRPLANE_WHITE_NOISE)
+                                    }
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                            ) {
+                                Text(stringResource(R.string.settings_flight_background_sound_default))
+                            }
+                            SegmentedButton(
+                                selected = flightBackgroundSound == FlightBackgroundSound.CUSTOM_MP3,
+                                onClick = {
+                                    if (flightBackgroundSoundCustomUri.isNullOrBlank()) {
+                                        Toast.makeText(context, customMp3MissingMessage, Toast.LENGTH_SHORT).show()
+                                        mp3PickerLauncher.launch(arrayOf("audio/mpeg", "audio/mp3"))
+                                    } else {
+                                        scope.launch {
+                                            repository.setFlightBackgroundSound(FlightBackgroundSound.CUSTOM_MP3)
+                                        }
+                                    }
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                            ) {
+                                Text(stringResource(R.string.settings_flight_background_sound_custom))
+                            }
+                        }
+                        Text(
+                            text = stringResource(R.string.settings_flight_background_sound_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray,
+                            modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
+                        )
+                        Text(
+                            text = if (flightBackgroundSoundCustomUri.isNullOrBlank()) {
+                                stringResource(R.string.settings_flight_background_sound_no_custom_file)
+                            } else {
+                                stringResource(
+                                    R.string.settings_flight_background_sound_selected_file_format,
+                                    flightBackgroundSoundCustomName ?: stringResource(R.string.settings_flight_background_sound_custom)
+                                )
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FlightGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = SettingsNoticeTopPadding, start = SettingsNoticeStartPadding)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = { mp3PickerLauncher.launch(arrayOf("audio/mpeg", "audio/mp3")) }
+                            ) {
+                                Text(stringResource(R.string.settings_flight_background_sound_select_mp3))
+                            }
+                            if (!flightBackgroundSoundCustomUri.isNullOrBlank()) {
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            repository.clearFlightBackgroundSoundCustomFile()
+                                        }
+                                    }
+                                ) {
+                                    Text(stringResource(R.string.settings_flight_background_sound_remove_mp3))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.padding(top = SettingsSectionSpacing))
                     BatteryOptimizationItem()
                 }
 

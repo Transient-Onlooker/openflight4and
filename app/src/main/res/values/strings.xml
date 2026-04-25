@@ -84,6 +84,16 @@
     <string name="settings_flight_time_display_description">Choose whether the flight screen and focus lock show remaining or elapsed time.</string>
     <string name="settings_flight_time_remaining">Remaining</string>
     <string name="settings_flight_time_elapsed">Elapsed</string>
+    <string name="settings_title_flight_background_sound">Flight background sound</string>
+    <string name="settings_flight_background_sound_default">Airplane noise</string>
+    <string name="settings_flight_background_sound_custom">My MP3</string>
+    <string name="settings_flight_background_sound_description">Select the sound played during flights. A custom MP3 loops when it reaches the end.</string>
+    <string name="settings_flight_background_sound_no_custom_file">No custom MP3 selected.</string>
+    <string name="settings_flight_background_sound_selected_file_format">Selected: %1$s</string>
+    <string name="settings_flight_background_sound_select_mp3">Select MP3</string>
+    <string name="settings_flight_background_sound_remove_mp3">Remove</string>
+    <string name="settings_flight_background_sound_custom_missing">Select an MP3 file first.</string>
+    <string name="settings_flight_background_sound_permission_error">Could not keep access to this MP3 file.</string>
     <string name="settings_focus_lock_description">If you leave for another app during a flight, an overlay prompts you to return.</string>
     <string name="settings_focus_lock_requirements">Requirements: both Usage Access and Display over other apps permissions are required.</string>
     <string name="settings_focus_lock_allowed_apps">Allowed apps</string>

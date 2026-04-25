@@ -59,6 +59,7 @@ class FlightService : Service() {
     private var currentNotificationUpdateSeconds: Int = 10
     private var backgroundSoundEnabled = true
     private var selectedBackgroundSound = FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+    private var customBackgroundSoundUri: String? = null
     private var flightTimeDisplayMode = FlightTimeDisplayMode.REMAINING
 
     companion object {
@@ -135,21 +136,22 @@ class FlightService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service onCreate()")
+        debugLog("Service onCreate()")
         instance = this
         repository = AppRepository(applicationContext)
         focusLockOverlayController = FocusLockOverlayController(applicationContext)
         backgroundNoisePlayer = FlightBackgroundNoisePlayer(applicationContext)
         backgroundNoisePlayer.setSelectedSound(selectedBackgroundSound)
+        backgroundNoisePlayer.setCustomSoundUri(customBackgroundSoundUri)
         createNotificationChannel()
         observeFocusLockSettings()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Service onStartCommand()")
+        debugLog("Service onStartCommand()")
 
         if (intent?.action == ACTION_STOP) {
-            Log.d(TAG, "Service stop requested")
+            debugLog("Service stop requested")
             timerJob?.cancel()
             backgroundNoisePlayer.stop()
             _isRunning = false
@@ -166,7 +168,7 @@ class FlightService : Service() {
         }
 
         if (intent?.action == ACTION_PAUSE) {
-            Log.d(TAG, "Service pause requested")
+            debugLog("Service pause requested")
             _isPaused = true
             syncBackgroundNoisePlayback()
             publishRuntimeState()
@@ -175,7 +177,7 @@ class FlightService : Service() {
         }
 
         if (intent?.action == ACTION_RESUME) {
-            Log.d(TAG, "Service resume requested")
+            debugLog("Service resume requested")
             _isPaused = false
             syncBackgroundNoisePlayback()
             publishRuntimeState()
@@ -198,10 +200,7 @@ class FlightService : Service() {
             (intent?.getIntExtra("notification_update_seconds", 10) ?: 10).coerceIn(1, 30)
         currentNotificationUpdateSeconds = notificationUpdateSeconds
 
-        Log.d(
-            TAG,
-            "Starting flight: $originIata -> $destinationIata, Duration: $durationMinutes min, TimeScale: $timeScale, NotificationUpdateSeconds: $notificationUpdateSeconds"
-        )
+        debugLog("Starting flight: $originIata -> $destinationIata, Duration: $durationMinutes min, TimeScale: $timeScale, NotificationUpdateSeconds: $notificationUpdateSeconds")
 
         // ?쒕퉬???곹깭 珥덇린??
         _isRunning = true
@@ -229,7 +228,7 @@ class FlightService : Service() {
         // 珥덇린 ?뚮┝怨??④퍡 ?ш렇?쇱슫???쒖옉
         val initialContent = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_preparing)}"
         startForeground(NOTIFICATION_ID, createNotification(initialContent, originIata, destinationIata))
-        Log.d(TAG, "Foreground service started with notification ID: $NOTIFICATION_ID")
+        debugLog("Foreground service started with notification ID: $NOTIFICATION_ID")
         updateNotification(
             createNotification(
                 "$originIata -> $destinationIata | ${formatDisplayedFlightTime()}",
@@ -304,6 +303,13 @@ class FlightService : Service() {
                 }
             }
             launch {
+                repository.flightBackgroundSoundCustomUri.collect { uri ->
+                    customBackgroundSoundUri = uri
+                    backgroundNoisePlayer.setCustomSoundUri(uri)
+                    syncBackgroundNoisePlayback()
+                }
+            }
+            launch {
                 repository.flightTimeDisplayMode.collect { mode ->
                     flightTimeDisplayMode = mode
                     refreshOngoingNotification(force = true)
@@ -315,6 +321,7 @@ class FlightService : Service() {
     private fun syncBackgroundNoisePlayback() {
         if (_isRunning && !_isPaused && _totalSeconds > 0L && backgroundSoundEnabled) {
             backgroundNoisePlayer.setSelectedSound(selectedBackgroundSound)
+            backgroundNoisePlayer.setCustomSoundUri(customBackgroundSoundUri)
             backgroundNoisePlayer.resume()
         } else {
             backgroundNoisePlayer.pause()
@@ -386,7 +393,7 @@ class FlightService : Service() {
         destinationName: String,
         timeScale: Float = 1f
     ) {
-        Log.d(TAG, "Timer started: $totalSeconds seconds, TimeScale: $timeScale")
+        debugLog("Timer started: $totalSeconds seconds, TimeScale: $timeScale")
 
         timerJob?.cancel()
         timerJob = serviceScope.launch(Dispatchers.Default) {
@@ -429,7 +436,7 @@ class FlightService : Service() {
 
                 // ?⑥? ?쒓컙??0 ?대㈃ 利됱떆 ?꾨즺 泥섎━
                 if (remaining <= 0) {
-                    Log.d(TAG, "Flight completed! Remaining: 0")
+                    debugLog("Flight completed! Remaining: 0")
                     val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
                     updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
@@ -460,13 +467,13 @@ class FlightService : Service() {
                     currentTime - lastNotificationTime >= currentNotificationUpdateSeconds * 1000L
                 ) {
                     refreshOngoingNotification(force = true)
-                    Log.d(TAG, "Notification updated while app is backgrounded")
+                    debugLog("Notification updated while app is backgrounded")
                     lastNotificationTime = currentTime
                 }
             }
 
             // 猷⑦봽 ?꾨즺 ??泥섎━ (?덉쟾?μ튂)
-            Log.d(TAG, "Flight completed! (loop finished)")
+            debugLog("Flight completed! (loop finished)")
             val completedText = "$originIata -> $destinationIata | ${getString(R.string.flight_notification_completed)}"
             updateNotification(createNotification(completedText, originIata, destinationIata, true))
 
@@ -557,7 +564,7 @@ class FlightService : Service() {
 
         val elapsedMinutes = ((System.currentTimeMillis() - flightStartedAtMillis) / 1000 / 60).toInt()
         if (elapsedMinutes < MIN_SESSION_HISTORY_MINUTES) {
-            Log.d(TAG, "Skipping session history save because duration is under $MIN_SESSION_HISTORY_MINUTES minutes")
+            debugLog("Skipping session history save because duration is under $MIN_SESSION_HISTORY_MINUTES minutes")
             return
         }
         val progress = if (_totalSeconds > 0L) {
@@ -600,15 +607,15 @@ class FlightService : Service() {
             if (destinationAirport != null) {
                 // DataStore ?????- AppRepository ? ?숈씪?????ъ슜
                 val key = com.example.openflight4and.data.AppRepository.KEY_CURRENT_LOCATION
-                Log.d(TAG, "Saving current location with key: $key")
+                debugLog("Saving current location with key: $key")
                 applicationContext.dataStore.edit { preferences ->
                     preferences[key] =
                         Json.encodeToString(Airport.serializer(), destinationAirport)
-                    Log.d(TAG, "DataStore updated: ${preferences[key]}")
+                    debugLog("Current location DataStore updated")
                 }
-                Log.d(TAG, "Current location saved to: $destinationIata")
+                debugLog("Current location saved to: $destinationIata")
             } else {
-                Log.d(TAG, "Destination airport not found: $destinationIata")
+                debugLog("Destination airport not found: $destinationIata")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save current location", e)
@@ -672,7 +679,7 @@ class FlightService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        Log.d(TAG, "Service onDestroy()")
+        debugLog("Service onDestroy()")
         _isRunning = false
         _isPaused = false
         _ticketCharged = false
@@ -688,6 +695,12 @@ class FlightService : Service() {
         serviceScope.cancel()
         focusLockOverlayController.destroy()
         super.onDestroy()
+    }
+
+    private fun debugLog(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+        }
     }
 }
 

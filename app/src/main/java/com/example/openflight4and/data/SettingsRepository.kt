@@ -1,7 +1,8 @@
 package com.example.openflight4and.data
 
 import android.content.Context
-import android.util.Log
+import android.content.Intent
+import android.net.Uri
 import androidx.datastore.preferences.core.edit
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.Airport
@@ -18,10 +19,6 @@ class SettingsRepository(
     private val context: Context,
     private val reportDataError: (String, Throwable) -> Unit
 ) {
-    private companion object {
-        private const val TAG = "SettingsRepository"
-    }
-
     val unitSystem: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_UNIT_SYSTEM] ?: "km" }
     val appLanguage: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_APP_LANGUAGE] ?: "system" }
     val mapStyle: Flow<String> = context.dataStore.data.map { it[AppPreferenceKeys.KEY_MAP_STYLE] ?: "standard" }
@@ -64,12 +61,9 @@ class SettingsRepository(
     }
     val currentLocation: Flow<Airport?> = context.dataStore.data.map { preferences ->
         val json = preferences[AppPreferenceKeys.KEY_CURRENT_LOCATION]
-        Log.d(TAG, "Reading current location from DataStore: $json")
         json?.let {
             try {
-                val airport = Json.decodeFromString<Airport>(it)
-                Log.d(TAG, "Decoded airport: ${airport.iata}")
-                airport
+                Json.decodeFromString<Airport>(it)
             } catch (e: Exception) {
                 reportDataError("Failed to decode current location", e)
                 null
@@ -87,6 +81,12 @@ class SettingsRepository(
     }
     val flightBackgroundSound: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] ?: FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+    }
+    val flightBackgroundSoundCustomUri: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI]
+    }
+    val flightBackgroundSoundCustomName: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_NAME]
     }
     val flightTimeDisplayMode: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE] ?: FlightTimeDisplayMode.REMAINING
@@ -218,6 +218,37 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setFlightBackgroundSoundCustomFile(uri: String, name: String) {
+        context.dataStore.edit { preferences ->
+            releasePersistedReadPermission(preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI])
+            preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI] = uri
+            preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_NAME] = name
+        }
+    }
+
+    suspend fun clearFlightBackgroundSoundCustomFile() {
+        context.dataStore.edit { preferences ->
+            releasePersistedReadPermission(preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI])
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_NAME)
+            if (preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] == FlightBackgroundSound.CUSTOM_MP3) {
+                preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] = FlightBackgroundSound.AIRPLANE_WHITE_NOISE
+            }
+        }
+    }
+
+    private fun releasePersistedReadPermission(uri: String?) {
+        if (uri.isNullOrBlank()) {
+            return
+        }
+        runCatching {
+            context.contentResolver.releasePersistableUriPermission(
+                Uri.parse(uri),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+    }
+
     suspend fun setFlightTimeDisplayMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE] = mode
@@ -279,6 +310,8 @@ class SettingsRepository(
             preferences.remove(AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE)
             preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED)
             preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_URI)
+            preferences.remove(AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_CUSTOM_NAME)
             preferences.remove(AppPreferenceKeys.KEY_FLIGHT_TIME_DISPLAY_MODE)
             preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_LAST_USED_DATE)
             preferences.remove(AppPreferenceKeys.KEY_EMERGENCY_UNLOCK_ACTIVE_UNTIL)

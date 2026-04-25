@@ -77,6 +77,8 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     val debugFlightMode: Flow<Boolean> = settingsRepository.debugFlightMode
     val flightBackgroundSoundEnabled: Flow<Boolean> = settingsRepository.flightBackgroundSoundEnabled
     val flightBackgroundSound: Flow<String> = settingsRepository.flightBackgroundSound
+    val flightBackgroundSoundCustomUri: Flow<String?> = settingsRepository.flightBackgroundSoundCustomUri
+    val flightBackgroundSoundCustomName: Flow<String?> = settingsRepository.flightBackgroundSoundCustomName
     val flightTimeDisplayMode: Flow<String> = settingsRepository.flightTimeDisplayMode
 
     override val flightTickets: Flow<Int> = ticketRepository.flightTickets
@@ -165,6 +167,14 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     suspend fun setFlightBackgroundSound(sound: String) {
         settingsRepository.setFlightBackgroundSound(sound)
+    }
+
+    suspend fun setFlightBackgroundSoundCustomFile(uri: String, name: String) {
+        settingsRepository.setFlightBackgroundSoundCustomFile(uri, name)
+    }
+
+    suspend fun clearFlightBackgroundSoundCustomFile() {
+        settingsRepository.clearFlightBackgroundSoundCustomFile()
     }
 
     suspend fun setFlightTimeDisplayMode(mode: String) {
