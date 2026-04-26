@@ -14,7 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -1029,7 +1029,7 @@ fun SettingsScreen(
             properties = DialogProperties(usePlatformDefaultWidth = false),
             title = { Text(stringResource(R.string.settings_focus_lock_allowed_apps_dialog_title)) },
             text = {
-                BoxWithConstraints(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .widthIn(max = 760.dp)

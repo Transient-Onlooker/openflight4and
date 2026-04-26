@@ -36,6 +36,7 @@ class TicketRepository(
     }
 
     suspend fun claimDailyCheckIn(): DailyCheckInResult {
+        syncPendingTicketEventsIfSignedIn()
         var result: DailyCheckInResult = DailyCheckInResult.Error(context.getString(R.string.repo_daily_check_in_already_done))
         val today = LocalDate.now().toString()
 
@@ -86,6 +87,7 @@ class TicketRepository(
     }
 
     suspend fun consumeTicketForLongFlight(): TicketSpendResult {
+        syncPendingTicketEventsIfSignedIn()
         var result = TicketSpendResult(success = false, spent = 0, message = context.getString(R.string.repo_ticket_insufficient))
 
         context.dataStore.edit { preferences ->
@@ -149,6 +151,7 @@ class TicketRepository(
     }
 
     suspend fun redeemCode(code: String): RedeemCodeResult {
+        syncPendingTicketEventsIfSignedIn()
         val normalized = code.trim().lowercase()
         if (normalized.isBlank()) {
             return RedeemCodeResult.Error(context.getString(R.string.repo_redeem_enter_code))
@@ -212,6 +215,7 @@ class TicketRepository(
     }
 
     private suspend fun rewardTicketFromAdInternal(detailResId: Int): AdTicketRewardResult {
+        syncPendingTicketEventsIfSignedIn()
         val today = LocalDate.now().toString()
         var grantedAdsRequired = 0
         var result = AdTicketRewardResult(
@@ -428,8 +432,8 @@ class TicketRepository(
         title: String,
         detail: String
     ) {
+        syncPendingTicketEventsIfSignedIn()
         val idToken = accountRepository.getIdTokenOrNull()
-        if (idToken == null) return
         val event = PendingTicketEvent(
             clientEventId = UUID.randomUUID().toString(),
             eventCode = eventCode,
@@ -438,6 +442,12 @@ class TicketRepository(
             detail = detail,
             createdAt = System.currentTimeMillis()
         )
+        if (idToken == null) {
+            if (hasLinkedAccount()) {
+                queuePendingTicketEvent(event)
+            }
+            return
+        }
         try {
             val response = postTicketEvent(idToken, event)
             if (response.ok && response.ticketCount != null) {
@@ -451,6 +461,17 @@ class TicketRepository(
             reportDataError("Failed to sync ticket event", e)
         }
         queuePendingTicketEvent(event)
+    }
+
+    private suspend fun syncPendingTicketEventsIfSignedIn() {
+        if (!hasLinkedAccount()) return
+        syncPendingTicketEvents()
+    }
+
+    private suspend fun hasLinkedAccount(): Boolean {
+        val preferences = context.dataStore.data.first()
+        return !preferences[AppPreferenceKeys.KEY_ACCOUNT_FIREBASE_UID].isNullOrBlank() &&
+            !preferences[AppPreferenceKeys.KEY_ACCOUNT_USER_CODE].isNullOrBlank()
     }
 
     private suspend fun queuePendingTicketEvent(event: PendingTicketEvent) {

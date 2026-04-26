@@ -7,7 +7,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.datastore.preferences.core.edit
 import com.example.openflight4and.BuildConfig
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.FirebaseApp
@@ -65,9 +65,9 @@ class AccountRepository(
 
         val firebaseAuth = FirebaseAuth.getInstance()
         val credentialManager = CredentialManager.create(activityContext)
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setServerClientId(BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
-            .setFilterByAuthorizedAccounts(false)
+        val googleIdOption = GetSignInWithGoogleOption.Builder(
+            BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID
+        )
             .build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
