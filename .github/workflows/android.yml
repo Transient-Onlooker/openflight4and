@@ -42,6 +42,10 @@ jobs:
           REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
           VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
           OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_SIGN_IN_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_SERVER_CLIENT_ID }}
           OPENFLIGHT_RELEASE_CHANNEL: beta
           OPENFLIGHT_VERSION_NAME: V2.9.1.Beta.0001
         run: ./gradlew assembleDebug
@@ -121,6 +125,10 @@ jobs:
           REDEEM_API_BASE_URL: ${{ secrets.REDEEM_API_BASE_URL }}
           VERSION_API_BASE_URL: ${{ secrets.VERSION_API_BASE_URL }}
           OPENFLIGHT_RELEASES_URL: ${{ secrets.OPENFLIGHT_RELEASES_URL }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_SIGN_IN_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_SERVER_CLIENT_ID }}
           OPENFLIGHT_RELEASE_CHANNEL: ${{ steps.release_meta.outputs.channel }}
           OPENFLIGHT_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
           RELEASE_KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
