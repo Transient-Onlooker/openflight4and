@@ -53,10 +53,10 @@ val googleSignInServerClientId: String = localProperties.getProperty("GOOGLE_SIG
     ?: ""
 val releaseChannel: String = localProperties.getProperty("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
-    ?: "beta"
+    ?: "stable"
 val releaseVersionName: String = localProperties.getProperty("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_VERSION_NAME")?.takeUnless { it.isBlank() }
-    ?: "V2.9.4.Beta.0002"
+    ?: "V2.9.5"
 val releaseKeystorePath: String? = localProperties.getProperty("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
     ?: System.getenv("RELEASE_KEYSTORE_PATH")?.takeUnless { it.isBlank() }
 val releaseKeystorePassword: String? = localProperties.getProperty("KEYSTORE_PASSWORD")?.takeUnless { it.isBlank() }
