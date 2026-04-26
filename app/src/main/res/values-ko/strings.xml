@@ -58,6 +58,8 @@
     <string name="settings_title_focus_lock">집중 잠금</string>
     <string name="settings_title_advanced_lock">고급 잠금</string>
     <string name="settings_title_battery_optimization">배터리 최적화 예외</string>
+    <string name="settings_section_account">계정</string>
+    <string name="settings_section_account_description">Google 로그인, 비행권 백업, 서버 동기화를 관리합니다.</string>
     <string name="settings_section_general">일반</string>
     <string name="settings_section_general_description">언어, 단위, 화면 방향, 지도 표시 방식을 관리합니다.</string>
     <string name="settings_section_notifications">알림</string>
@@ -171,6 +173,18 @@
     <string name="settings_battery_optimization_allowed_description">배터리 최적화 예외가 허용된 상태입니다.</string>
     <string name="settings_battery_optimization_off">꺼짐</string>
     <string name="settings_battery_optimization_off_description">현재 꺼져 있습니다. 백그라운드에서도 비행이 중단되지 않도록 허용하세요.</string>
+    <string name="settings_account_signed_out">로그인하지 않았습니다. 로컬 비행권은 이 기기에서 계속 사용할 수 있습니다.</string>
+    <string name="settings_account_sign_in_google">Google로 로그인</string>
+    <string name="settings_account_sign_in_description">비행권을 백업하고 계정 기반 기능을 준비합니다.</string>
+    <string name="settings_account_signed_in_format">%1$s 계정으로 로그인했습니다.</string>
+    <string name="settings_account_user_code_format">유저 ID: %1$s</string>
+    <string name="settings_account_sync_description">비행권은 계정에 백업됩니다. 오프라인에서 바뀐 비행권은 나중에 동기화됩니다.</string>
+    <string name="settings_account_sync_now">지금 동기화</string>
+    <string name="settings_account_sync_now_description">아직 서버에 반영되지 않은 로컬 비행권 변경을 업로드합니다.</string>
+    <string name="settings_account_sync_done">동기화 요청이 완료되었습니다.</string>
+    <string name="settings_account_sign_out">로그아웃</string>
+    <string name="settings_account_sign_out_description">이 기기의 로컬 캐시는 유지하고 계정 연결만 해제합니다.</string>
+    <string name="settings_account_signed_out_toast">로그아웃했습니다.</string>
 
     <!-- Ticket center -->
     <string name="tickets_title">비행권 센터</string>

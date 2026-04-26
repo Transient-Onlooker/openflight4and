@@ -85,6 +85,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
+import com.example.openflight4and.data.AccountActionResult
+import com.example.openflight4and.data.AccountState
 import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
 import com.example.openflight4and.model.FlightBackgroundSound
@@ -140,6 +142,7 @@ private enum class FocusLockPinEntryStep {
 }
 
 private enum class SettingsDetailSection {
+    ACCOUNT,
     GENERAL,
     NOTIFICATIONS,
     BACKGROUND,
@@ -168,6 +171,7 @@ fun SettingsScreen(
     val flightBackgroundSoundCustomUri by repository.flightBackgroundSoundCustomUri.collectAsState(initial = null)
     val flightBackgroundSoundCustomName by repository.flightBackgroundSoundCustomName.collectAsState(initial = null)
     val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
+    val accountState by repository.accountState.collectAsState(initial = AccountState.SignedOut)
     val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
     val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
     val focusLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
@@ -198,6 +202,7 @@ fun SettingsScreen(
     var showFullResetDialog by remember { mutableStateOf(false) }
     var fullResetConfirmationInput by remember { mutableStateOf("") }
     var activeSettingsSection by remember { mutableStateOf<SettingsDetailSection?>(null) }
+    var isSigningIn by remember { mutableStateOf(false) }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
@@ -232,11 +237,13 @@ fun SettingsScreen(
         }.toSet()
     }
     val titleGeneralSection = stringResource(R.string.settings_section_general)
+    val titleAccountSection = stringResource(R.string.settings_section_account)
     val titleNotificationSection = stringResource(R.string.settings_section_notifications)
     val titleBackgroundSection = stringResource(R.string.settings_section_background)
     val titleFocusLockSection = stringResource(R.string.settings_section_focus_lock)
     val titleAdvancedLockSection = stringResource(R.string.settings_section_advanced_lock)
     val descriptionGeneralSection = stringResource(R.string.settings_section_general_description)
+    val descriptionAccountSection = stringResource(R.string.settings_section_account_description)
     val descriptionNotificationSection = stringResource(R.string.settings_section_notifications_description)
     val descriptionBackgroundSection = stringResource(R.string.settings_section_background_description)
     val descriptionFocusLockSection = stringResource(R.string.settings_section_focus_lock_description)
@@ -250,6 +257,7 @@ fun SettingsScreen(
     val titleResetSection = stringResource(R.string.settings_section_reset)
     val descriptionResetSection = stringResource(R.string.settings_section_reset_description)
     val currentSettingsTitle = when (activeSettingsSection) {
+        SettingsDetailSection.ACCOUNT -> titleAccountSection
         SettingsDetailSection.GENERAL -> titleGeneralSection
         SettingsDetailSection.NOTIFICATIONS -> titleNotificationSection
         SettingsDetailSection.BACKGROUND -> titleBackgroundSection
@@ -413,6 +421,11 @@ fun SettingsScreen(
                 if (activeSettingsSection == null) {
                     Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
                         SettingsMenuCard(
+                            title = titleAccountSection,
+                            description = descriptionAccountSection,
+                            onClick = { activeSettingsSection = SettingsDetailSection.ACCOUNT }
+                        )
+                        SettingsMenuCard(
                             title = titleGeneralSection,
                             description = descriptionGeneralSection,
                             onClick = { activeSettingsSection = SettingsDetailSection.GENERAL }
@@ -444,6 +457,92 @@ fun SettingsScreen(
                         )
                     }
                 } else {
+
+                if (activeSettingsSection == SettingsDetailSection.ACCOUNT) {
+                SettingsCategoryCard(
+                    title = titleAccountSection,
+                    description = descriptionAccountSection
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SettingsCardInnerSpacing)) {
+                        when (val account = accountState) {
+                            AccountState.SignedOut -> {
+                                Text(
+                                    text = stringResource(R.string.settings_account_signed_out),
+                                    color = FlightGray,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                PermissionSettingItem(
+                                    title = stringResource(R.string.settings_account_sign_in_google),
+                                    description = stringResource(R.string.settings_account_sign_in_description),
+                                    enabled = !isSigningIn,
+                                    onClick = {
+                                        isSigningIn = true
+                                        scope.launch {
+                                            when (val result = repository.signInWithGoogle(context)) {
+                                                is AccountActionResult.Success -> {
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(
+                                                            R.string.settings_account_signed_in_format,
+                                                            result.account.userCode
+                                                        ),
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                                is AccountActionResult.Error -> {
+                                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                            isSigningIn = false
+                                        }
+                                    }
+                                )
+                            }
+                            is AccountState.SignedIn -> {
+                                Text(
+                                    text = stringResource(R.string.settings_account_user_code_format, account.userCode),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_account_sync_description),
+                                    color = FlightGray,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                PermissionSettingItem(
+                                    title = stringResource(R.string.settings_account_sync_now),
+                                    description = stringResource(R.string.settings_account_sync_now_description),
+                                    onClick = {
+                                        scope.launch {
+                                            repository.syncPendingTicketEvents()
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.settings_account_sync_done),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                )
+                                PermissionSettingItem(
+                                    title = stringResource(R.string.settings_account_sign_out),
+                                    description = stringResource(R.string.settings_account_sign_out_description),
+                                    onClick = {
+                                        scope.launch {
+                                            repository.signOut()
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.settings_account_signed_out_toast),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                }
 
                 if (activeSettingsSection == SettingsDetailSection.GENERAL) {
                 SettingsCategoryCard(

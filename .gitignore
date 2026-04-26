@@ -27,3 +27,4 @@
 local.properties
 push.bat
 /docs/code-index/
+/worker/.wrangler/

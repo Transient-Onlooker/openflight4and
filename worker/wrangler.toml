@@ -1,0 +1,8 @@
+name = "openflight-redeem-api"
+main = "src/index.js"
+compatibility_date = "2026-04-26"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "openflight-version-db"
+database_id = "ec2873a0-daef-415f-9d44-8c89600382a3"

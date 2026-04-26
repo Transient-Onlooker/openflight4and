@@ -1,6 +1,7 @@
 package com.example.openflight4and
 
 import com.example.openflight4and.data.AdTicketRewardResult
+import com.example.openflight4and.data.AccountState
 import com.example.openflight4and.data.AppRepositoryDataSource
 import com.example.openflight4and.data.DailyCheckInResult
 import com.example.openflight4and.data.RedeemCodeResult
@@ -35,6 +36,7 @@ class FakeAppRepository(
     override val flightTickets = MutableStateFlow(0)
     override val hasCheckedInToday = MutableStateFlow(false)
     override val ticketHistory = MutableStateFlow<List<FlightTicketHistoryEntry>>(emptyList())
+    override val accountState = MutableStateFlow<AccountState>(AccountState.SignedOut)
 
     var nextDailyCheckInResult: DailyCheckInResult = DailyCheckInResult.Success(1)
     var nextStartFlightResult: TicketSpendResult = TicketSpendResult(success = true, spent = 0)

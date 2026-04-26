@@ -20,6 +20,7 @@ import kotlinx.serialization.json.Json
 
 class TicketRepository(
     private val context: Context,
+    private val accountRepository: AccountRepository,
     private val reportDataError: (String, Throwable) -> Unit
 ) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -60,6 +61,14 @@ class TicketRepository(
             result = DailyCheckInResult.Success(1)
         }
 
+        if (result is DailyCheckInResult.Success) {
+            syncOrQueueTicketEvent(
+                eventCode = TicketEventCode.DAILY_CHECK_IN,
+                delta = 1,
+                title = context.getString(R.string.repo_daily_check_in_title),
+                detail = context.getString(R.string.repo_daily_check_in_detail)
+            )
+        }
         return result
     }
 
@@ -104,6 +113,14 @@ class TicketRepository(
             result = TicketSpendResult(success = true, spent = 1)
         }
 
+        if (result.success && result.spent > 0) {
+            syncOrQueueTicketEvent(
+                eventCode = TicketEventCode.FLIGHT_USE,
+                delta = -result.spent,
+                title = context.getString(R.string.repo_ticket_use_title),
+                detail = context.getString(R.string.repo_ticket_use_detail)
+            )
+        }
         return result
     }
 
@@ -151,9 +168,10 @@ class TicketRepository(
         }
 
         val rewardAmount = response.rewardAmount
+        val serverTicketCount = response.ticketCount
         context.dataStore.edit { preferences ->
             val currentBalance = preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] ?: 0
-            val updatedBalance = currentBalance + rewardAmount
+            val updatedBalance = serverTicketCount ?: (currentBalance + rewardAmount)
             preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = updatedBalance
             preferences[AppPreferenceKeys.KEY_TICKET_HISTORY] = appendHistoryEntry(
                 preferences[AppPreferenceKeys.KEY_TICKET_HISTORY],
@@ -195,6 +213,7 @@ class TicketRepository(
 
     private suspend fun rewardTicketFromAdInternal(detailResId: Int): AdTicketRewardResult {
         val today = LocalDate.now().toString()
+        var grantedAdsRequired = 0
         var result = AdTicketRewardResult(
             grantedAmount = 0,
             remainingAdsUntilNextTicket = 1,
@@ -241,6 +260,7 @@ class TicketRepository(
                     remainingAdsUntilNextTicket = nextRequired,
                     currentTierAdsRequired = adsRequired
                 )
+                grantedAdsRequired = adsRequired
             } else {
                 preferences[AppPreferenceKeys.KEY_AD_REWARD_PROGRESS] = updatedProgress
                 result = AdTicketRewardResult(
@@ -251,6 +271,14 @@ class TicketRepository(
             }
         }
 
+        if (result.grantedAmount > 0) {
+            syncOrQueueTicketEvent(
+                eventCode = TicketEventCode.AD_REWARD,
+                delta = result.grantedAmount,
+                title = context.getString(R.string.repo_ad_reward_title),
+                detail = context.getString(detailResId, grantedAdsRequired)
+            )
+        }
         return result
     }
 
@@ -263,6 +291,7 @@ class TicketRepository(
     }
 
     private suspend fun redeemCodeRemote(code: String, installationId: String): RedeemApiResponse = withContext(Dispatchers.IO) {
+        val idToken = accountRepository.getIdTokenOrNull()
         val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/redeem").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10_000
@@ -270,6 +299,9 @@ class TicketRepository(
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
+            if (!idToken.isNullOrBlank()) {
+                setRequestProperty("Authorization", "Bearer $idToken")
+            }
         }
 
         try {
@@ -329,8 +361,166 @@ class TicketRepository(
             preferences.remove(AppPreferenceKeys.KEY_TICKET_HISTORY)
             preferences.remove(AppPreferenceKeys.KEY_USED_REDEEM_CODES)
             preferences.remove(AppPreferenceKeys.KEY_INSTALLATION_ID)
+            preferences.remove(AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS)
         }
     }
+
+    suspend fun syncPendingTicketEvents() {
+        val idToken = accountRepository.getIdTokenOrNull() ?: return
+        val pendingEvents = context.dataStore.data.first()[AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS]
+            ?.let(::decodePendingEvents)
+            .orEmpty()
+        if (pendingEvents.isEmpty()) return
+
+        val remaining = mutableListOf<PendingTicketEvent>()
+        var latestTicketCount: Int? = null
+        pendingEvents.forEach { event ->
+            val response = try {
+                postTicketEvent(idToken, event)
+            } catch (e: Exception) {
+                reportDataError("Failed to sync pending ticket event", e)
+                remaining += event
+                return@forEach
+            }
+            if (response.ok && response.ticketCount != null) {
+                latestTicketCount = response.ticketCount
+            } else {
+                remaining += event
+            }
+        }
+
+        context.dataStore.edit { preferences ->
+            if (latestTicketCount != null) {
+                preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = latestTicketCount!!
+            }
+            if (remaining.isEmpty()) {
+                preferences.remove(AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS)
+            } else {
+                preferences[AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS] = json.encodeToString(remaining)
+            }
+        }
+    }
+
+    suspend fun mergeLocalTicketsWithAccount(serverTicketCount: Int): Int {
+        val localTicketCount = flightTickets.first()
+        val mergedTicketCount = maxOf(serverTicketCount, localTicketCount)
+        val idToken = accountRepository.getIdTokenOrNull()
+        val confirmedTicketCount = if (idToken == null) {
+            mergedTicketCount
+        } else {
+            try {
+                mergeTicketsRemote(idToken, mergedTicketCount).ticketCount ?: mergedTicketCount
+            } catch (e: Exception) {
+                reportDataError("Failed to merge local tickets with account", e)
+                mergedTicketCount
+            }
+        }
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = confirmedTicketCount
+        }
+        syncPendingTicketEvents()
+        return confirmedTicketCount
+    }
+
+    private suspend fun syncOrQueueTicketEvent(
+        eventCode: String,
+        delta: Int,
+        title: String,
+        detail: String
+    ) {
+        val idToken = accountRepository.getIdTokenOrNull()
+        if (idToken == null) return
+        val event = PendingTicketEvent(
+            clientEventId = UUID.randomUUID().toString(),
+            eventCode = eventCode,
+            delta = delta,
+            title = title,
+            detail = detail,
+            createdAt = System.currentTimeMillis()
+        )
+        try {
+            val response = postTicketEvent(idToken, event)
+            if (response.ok && response.ticketCount != null) {
+                context.dataStore.edit { preferences ->
+                    preferences[AppPreferenceKeys.KEY_FLIGHT_TICKETS] = response.ticketCount
+                }
+                syncPendingTicketEvents()
+                return
+            }
+        } catch (e: Exception) {
+            reportDataError("Failed to sync ticket event", e)
+        }
+        queuePendingTicketEvent(event)
+    }
+
+    private suspend fun queuePendingTicketEvent(event: PendingTicketEvent) {
+        context.dataStore.edit { preferences ->
+            val current = decodePendingEvents(preferences[AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS]).toMutableList()
+            current += event
+            preferences[AppPreferenceKeys.KEY_PENDING_TICKET_EVENTS] = json.encodeToString(current.takeLast(200))
+        }
+    }
+
+    private fun decodePendingEvents(value: String?): List<PendingTicketEvent> {
+        return try {
+            if (value.isNullOrBlank()) emptyList() else json.decodeFromString(value)
+        } catch (e: Exception) {
+            reportDataError("Failed to decode pending ticket events", e)
+            emptyList()
+        }
+    }
+
+    private suspend fun postTicketEvent(idToken: String, event: PendingTicketEvent): TicketEventApiResponse =
+        withContext(Dispatchers.IO) {
+            val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/tickets/events").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Authorization", "Bearer $idToken")
+            }
+            try {
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                    writer.write(json.encodeToString(event))
+                }
+                val stream = if (connection.responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream ?: connection.inputStream
+                }
+                json.decodeFromString(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+    private suspend fun mergeTicketsRemote(idToken: String, localTicketCount: Int): TicketEventApiResponse =
+        withContext(Dispatchers.IO) {
+            val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/tickets/merge").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Authorization", "Bearer $idToken")
+            }
+            try {
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                    writer.write(json.encodeToString(TicketMergeRequest(localTicketCount = localTicketCount, strategy = "max")))
+                }
+                val stream = if (connection.responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream ?: connection.inputStream
+                }
+                json.decodeFromString(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+            } finally {
+                connection.disconnect()
+            }
+        }
 }
 
 @Serializable
@@ -343,5 +533,40 @@ private data class RedeemApiRequest(
 private data class RedeemApiResponse(
     val ok: Boolean,
     val error: String? = null,
-    val rewardAmount: Int? = null
+    val rewardAmount: Int? = null,
+    val ticketCount: Int? = null
+)
+
+private object TicketEventCode {
+    const val FLIGHT_USE = "A"
+    const val TRANSFER_SENT = "B1"
+    const val TRANSFER_RECEIVED = "B2"
+    const val REDEEM = "C"
+    const val DAILY_CHECK_IN = "D"
+    const val AD_REWARD = "E"
+    const val CORRECTION = "G"
+    const val LOGIN_MERGE = "I"
+}
+
+@Serializable
+private data class PendingTicketEvent(
+    val clientEventId: String,
+    val eventCode: String,
+    val delta: Int,
+    val title: String,
+    val detail: String,
+    val createdAt: Long
+)
+
+@Serializable
+private data class TicketMergeRequest(
+    val localTicketCount: Int,
+    val strategy: String
+)
+
+@Serializable
+private data class TicketEventApiResponse(
+    val ok: Boolean,
+    val error: String? = null,
+    val ticketCount: Int? = null
 )

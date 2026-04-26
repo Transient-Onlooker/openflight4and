@@ -19,6 +19,7 @@ interface AppRepositoryDataSource {
     val flightTickets: Flow<Int>
     val hasCheckedInToday: Flow<Boolean>
     val ticketHistory: Flow<List<FlightTicketHistoryEntry>>
+    val accountState: Flow<AccountState>
 
     suspend fun claimDailyCheckIn(): DailyCheckInResult
     suspend fun canStartFlight(estimatedMinutes: Int): TicketSpendResult
@@ -36,7 +37,8 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     private val airportRepository = AirportRepository(context, ::reportDataError)
     private val settingsRepository = SettingsRepository(context, ::reportDataError)
-    private val ticketRepository = TicketRepository(context, ::reportDataError)
+    private val accountRepository = AccountRepository(context, ::reportDataError)
+    private val ticketRepository = TicketRepository(context, accountRepository, ::reportDataError)
     private val flightSessionRepository = FlightSessionRepository(context)
     private val versionRepository = VersionRepository(::reportDataError)
 
@@ -86,6 +88,7 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
     override val flightTickets: Flow<Int> = ticketRepository.flightTickets
     override val hasCheckedInToday: Flow<Boolean> = ticketRepository.hasCheckedInToday
     override val ticketHistory: Flow<List<FlightTicketHistoryEntry>> = ticketRepository.ticketHistory
+    override val accountState: Flow<AccountState> = accountRepository.accountState
 
     suspend fun saveSession(session: FlightSession) {
         flightSessionRepository.saveSession(session)
@@ -233,6 +236,23 @@ class AppRepository(private val context: Context) : AppRepositoryDataSource {
 
     override suspend fun fetchVersionStatus(): VersionStatus? =
         versionRepository.fetchVersionStatus()
+
+    suspend fun signInWithGoogle(activityContext: Context): AccountActionResult {
+        val result = accountRepository.signInWithGoogle(activityContext)
+        if (result is AccountActionResult.Success) {
+            val mergedTicketCount = ticketRepository.mergeLocalTicketsWithAccount(result.ticketCount)
+            return result.copy(ticketCount = mergedTicketCount)
+        }
+        return result
+    }
+
+    suspend fun signOut() {
+        accountRepository.signOut()
+    }
+
+    suspend fun syncPendingTicketEvents() {
+        ticketRepository.syncPendingTicketEvents()
+    }
 
     private fun reportDataError(message: String, throwable: Throwable) {
         Log.e(TAG, message, throwable)

@@ -39,6 +39,18 @@ val versionApiBaseUrl: String = localProperties.getProperty("VERSION_API_BASE_UR
 val githubReleasesUrl: String = localProperties.getProperty("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_RELEASES_URL")?.takeUnless { it.isBlank() }
     ?: "https://github.com/Transient-Onlooker/openflight4and/releases/latest"
+val firebaseApiKey: String = localProperties.getProperty("FIREBASE_API_KEY")?.takeUnless { it.isBlank() }
+    ?: System.getenv("FIREBASE_API_KEY")?.takeUnless { it.isBlank() }
+    ?: ""
+val firebaseAppId: String = localProperties.getProperty("FIREBASE_APP_ID")?.takeUnless { it.isBlank() }
+    ?: System.getenv("FIREBASE_APP_ID")?.takeUnless { it.isBlank() }
+    ?: ""
+val firebaseProjectId: String = localProperties.getProperty("FIREBASE_PROJECT_ID")?.takeUnless { it.isBlank() }
+    ?: System.getenv("FIREBASE_PROJECT_ID")?.takeUnless { it.isBlank() }
+    ?: ""
+val googleSignInServerClientId: String = localProperties.getProperty("GOOGLE_SIGN_IN_SERVER_CLIENT_ID")?.takeUnless { it.isBlank() }
+    ?: System.getenv("GOOGLE_SIGN_IN_SERVER_CLIENT_ID")?.takeUnless { it.isBlank() }
+    ?: ""
 val releaseChannel: String = localProperties.getProperty("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
     ?: System.getenv("OPENFLIGHT_RELEASE_CHANNEL")?.takeUnless { it.isBlank() }
     ?: "stable"
@@ -104,6 +116,10 @@ android {
         buildConfigField("String", "VERSION_API_BASE_URL", "\"$versionApiBaseUrl\"")
         buildConfigField("String", "GITHUB_RELEASES_URL", "\"$githubReleasesUrl\"")
         buildConfigField("String", "RELEASE_CHANNEL", "\"$releaseChannel\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"$firebaseAppId\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$firebaseProjectId\"")
+        buildConfigField("String", "GOOGLE_SIGN_IN_SERVER_CLIENT_ID", "\"$googleSignInServerClientId\"")
 
         // Manifest에 API Key 주입
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
@@ -182,6 +198,12 @@ dependencies {
     // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Room
     implementation(libs.androidx.room.runtime)
