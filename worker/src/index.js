@@ -1,4 +1,4 @@
-const GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const GOOGLE_CERTS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const USER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 let cachedGoogleKeys = null;
@@ -18,10 +18,20 @@ export default {
       if (request.method === "POST" && url.pathname === "/redeem") return handleRedeem(request, env);
       return jsonResponse({ ok: false, error: "Not found" }, 404);
     } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonResponse({ ok: false, error: error.message }, error.status);
+      }
       return jsonResponse({ ok: false, error: error.message || "Internal error" }, 500);
     }
   }
 };
+
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
 
 async function handleVersion(env) {
   const row = await env.DB.prepare(
@@ -36,14 +46,22 @@ async function handleVersion(env) {
 }
 
 async function handleSession(request, env) {
-  const uid = await requireFirebaseUid(request, env);
+  const auth = await getFirebaseUidResult(request, env);
+  if (!auth.uid) {
+    return jsonResponse({ ok: false, error: auth.error || "Unauthorized" }, auth.status || 401);
+  }
+  const uid = auth.uid;
   const user = await ensureUser(env, uid);
   const tickets = await ensureTicketRow(env, uid);
   return jsonResponse({ ok: true, firebaseUid: uid, userCode: user.user_code, ticketCount: tickets.ticket_count });
 }
 
 async function handleMe(request, env) {
-  const uid = await requireFirebaseUid(request, env);
+  const auth = await getFirebaseUidResult(request, env);
+  if (!auth.uid) {
+    return jsonResponse({ ok: false, error: auth.error || "Unauthorized" }, auth.status || 401);
+  }
+  const uid = auth.uid;
   const user = await ensureUser(env, uid);
   const tickets = await ensureTicketRow(env, uid);
   return jsonResponse({ ok: true, firebaseUid: uid, userCode: user.user_code, ticketCount: tickets.ticket_count });
@@ -180,31 +198,61 @@ async function ensureTicketRow(env, uid) {
 }
 
 async function requireFirebaseUid(request, env) {
-  const uid = await optionalFirebaseUid(request, env);
-  if (!uid) throw new Error("Unauthorized");
-  return uid;
+  const result = await getFirebaseUidResult(request, env);
+  if (!result.uid) {
+    throw new HttpError(result.status || 401, result.error || "Unauthorized");
+  }
+  return result.uid;
 }
 
 async function optionalFirebaseUid(request, env) {
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) return null;
   const token = header.slice("Bearer ".length).trim();
-  const payload = await verifyFirebaseToken(token, env);
-  return payload?.user_id || payload?.sub || null;
+  const verification = await verifyFirebaseToken(token, env);
+  return verification.payload?.user_id || verification.payload?.sub || null;
+}
+
+async function getFirebaseUidResult(request, env) {
+  const header = request.headers.get("Authorization") || "";
+  if (!header.startsWith("Bearer ")) {
+    return { uid: null, error: "Missing bearer token", status: 401 };
+  }
+  const token = header.slice("Bearer ".length).trim();
+  const verification = await verifyFirebaseToken(token, env);
+  if (!verification.payload) {
+    return { uid: null, error: verification.error || "Invalid Firebase token", status: 401 };
+  }
+  const uid = verification.payload.user_id || verification.payload.sub || null;
+  if (!uid) {
+    return { uid: null, error: "Firebase token has no user id", status: 401 };
+  }
+  return { uid, error: null, status: 200 };
 }
 
 async function verifyFirebaseToken(token, env) {
   const projectId = env.FIREBASE_PROJECT_ID;
-  if (!projectId) throw new Error("FIREBASE_PROJECT_ID is not configured");
+  if (!projectId) throw new HttpError(500, "FIREBASE_PROJECT_ID is not configured");
   const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
-  if (!encodedHeader || !encodedPayload || !encodedSignature) return null;
+  if (!encodedHeader || !encodedPayload || !encodedSignature) {
+    return { payload: null, error: "Malformed Firebase token" };
+  }
   const header = JSON.parse(base64UrlDecodeToString(encodedHeader));
   const payload = JSON.parse(base64UrlDecodeToString(encodedPayload));
-  if (payload.aud !== projectId || payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
-  if (safeInt(payload.exp, 0) * 1000 <= Date.now()) return null;
+  if (payload.aud !== projectId) {
+    return { payload: null, error: `Invalid token audience: ${payload.aud || "missing"}` };
+  }
+  if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
+    return { payload: null, error: `Invalid token issuer: ${payload.iss || "missing"}` };
+  }
+  if (safeInt(payload.exp, 0) * 1000 <= Date.now()) {
+    return { payload: null, error: "Firebase token expired" };
+  }
 
   const jwk = await getGoogleJwk(header.kid);
-  if (!jwk) return null;
+  if (!jwk) {
+    return { payload: null, error: `No Google signing key for kid ${header.kid || "missing"}` };
+  }
   const key = await crypto.subtle.importKey(
     "jwk",
     jwk,
@@ -218,7 +266,9 @@ async function verifyFirebaseToken(token, env) {
     base64UrlToBytes(encodedSignature),
     new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
   );
-  return verified ? payload : null;
+  return verified
+    ? { payload, error: null }
+    : { payload: null, error: "Firebase token signature verification failed" };
 }
 
 async function getGoogleJwk(kid) {
