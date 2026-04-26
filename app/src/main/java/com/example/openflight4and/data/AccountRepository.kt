@@ -57,7 +57,7 @@ class AccountRepository(
 
     suspend fun signInWithGoogle(activityContext: Context): AccountActionResult {
         if (!ensureFirebaseInitialized()) {
-            return AccountActionResult.Error("Firebase 설정이 없습니다.")
+            return AccountActionResult.Error(missingFirebaseConfigMessage())
         }
         if (BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID.isBlank()) {
             return AccountActionResult.Error("Google 로그인 클라이언트 ID가 없습니다.")
@@ -103,7 +103,11 @@ class AccountRepository(
             return AccountActionResult.Error("계정 서버에 연결하지 못했습니다.")
         }
 
-        if (!session.ok || session.firebaseUid.isNullOrBlank() || session.userCode.isNullOrBlank() || session.ticketCount == null) {
+        if (!session.ok) {
+            return AccountActionResult.Error(session.error ?: "계정 서버 응답이 올바르지 않습니다.")
+        }
+
+        if (session.firebaseUid.isNullOrBlank() || session.userCode.isNullOrBlank() || session.ticketCount == null) {
             return AccountActionResult.Error("계정 서버 응답이 올바르지 않습니다.")
         }
 
@@ -164,6 +168,15 @@ class AccountRepository(
         return true
     }
 
+    private fun missingFirebaseConfigMessage(): String {
+        val missing = buildList {
+            if (BuildConfig.FIREBASE_API_KEY.isBlank()) add("FIREBASE_API_KEY")
+            if (BuildConfig.FIREBASE_APP_ID.isBlank()) add("FIREBASE_APP_ID")
+            if (BuildConfig.FIREBASE_PROJECT_ID.isBlank()) add("FIREBASE_PROJECT_ID")
+        }
+        return "Firebase 설정이 없습니다: ${missing.joinToString()}"
+    }
+
     private suspend fun openSession(idToken: String): AccountSessionResponse = withContext(Dispatchers.IO) {
         val connection = (URL("${BuildConfig.REDEEM_API_BASE_URL}/auth/session").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -178,12 +191,26 @@ class AccountRepository(
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
                 writer.write(json.encodeToString(AccountSessionRequest))
             }
+            val statusCode = connection.responseCode
             val stream = if (connection.responseCode in 200..299) {
                 connection.inputStream
             } else {
                 connection.errorStream ?: connection.inputStream
             }
-            json.decodeFromString(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+            val responseBody = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val response = try {
+                json.decodeFromString<AccountSessionResponse>(responseBody)
+            } catch (e: Exception) {
+                throw IllegalStateException(
+                    "Account session API returned unparsable payload. HTTP $statusCode: ${responseBody.take(500)}",
+                    e
+                )
+            }
+            if (statusCode !in 200..299 && response.error.isNullOrBlank()) {
+                response.copy(error = "HTTP $statusCode")
+            } else {
+                response
+            }
         } finally {
             connection.disconnect()
         }
@@ -194,7 +221,7 @@ class AccountRepository(
 
     @Serializable
     private data class AccountSessionResponse(
-        val ok: Boolean,
+        val ok: Boolean = false,
         val error: String? = null,
         @SerialName("firebaseUid") val firebaseUid: String? = null,
         @SerialName("userCode") val userCode: String? = null,

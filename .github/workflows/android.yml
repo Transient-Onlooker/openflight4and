@@ -47,8 +47,13 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           GOOGLE_SIGN_IN_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_SERVER_CLIENT_ID }}
           OPENFLIGHT_RELEASE_CHANNEL: beta
-          OPENFLIGHT_VERSION_NAME: V2.9.1.Beta.0001
-        run: ./gradlew assembleDebug
+          OPENFLIGHT_VERSION_NAME: V2.9.1.Beta.0003
+        run: |
+          test -n "$FIREBASE_API_KEY"
+          test -n "$FIREBASE_APP_ID"
+          test -n "$FIREBASE_PROJECT_ID"
+          test -n "$GOOGLE_SIGN_IN_SERVER_CLIENT_ID"
+          ./gradlew assembleDebug
 
       - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
@@ -135,7 +140,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew ${{ steps.release_meta.outputs.gradle_task }}
+        run: |
+          test -n "$FIREBASE_API_KEY"
+          test -n "$FIREBASE_APP_ID"
+          test -n "$FIREBASE_PROJECT_ID"
+          test -n "$GOOGLE_SIGN_IN_SERVER_CLIENT_ID"
+          ./gradlew ${{ steps.release_meta.outputs.gradle_task }}
 
       - name: Prepare release APK
         run: |
