@@ -269,7 +269,6 @@ fun NewFlightScreen(
 
     fun selectDestination(airport: Airport) {
         viewModel.selectDestination(airport)
-        onAirportSelected(airport)
         scope.launch {
             cameraPositionState.animate(
                 CameraUpdateFactory.newLatLng(LatLng(airport.latitude, airport.longitude))
@@ -303,7 +302,6 @@ fun NewFlightScreen(
                 val dist = FlightUtils.calculateDistance(center.latitude, center.longitude, it.latitude, it.longitude)
                 if (dist < NewFlightSelectionSnapDistanceKm) { 
                      viewModel.selectDestination(it)
-                     onAirportSelected(it)
                 }
             }
         }
@@ -864,6 +862,7 @@ fun NewFlightScreen(
                             } else if (isSettingCurrentLocation) {
                                 selectedDestination?.let(onCurrentLocationSet)
                             } else {
+                                selectedDestination?.let(onAirportSelected)
                                 onNavigateToBoardingPass()
                             }
                         }
@@ -1115,6 +1114,7 @@ fun NewFlightScreen(
                         } else if (isSettingCurrentLocation) {
                             selectedDestination?.let(onCurrentLocationSet)
                         } else {
+                            selectedDestination?.let(onAirportSelected)
                             onNavigateToBoardingPass()
                         }
                     }

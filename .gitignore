@@ -28,3 +28,5 @@ local.properties
 push.bat
 /docs/code-index/
 /worker/.wrangler/
+/worker/worker-tail.err.log
+/worker/worker-tail.out.log

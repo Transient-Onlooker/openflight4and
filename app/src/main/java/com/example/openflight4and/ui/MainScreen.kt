@@ -343,21 +343,8 @@ fun MainScreen(
             }
 
             composable(Screen.Sandbox.route) {
-                val sandboxLocation by repository.currentLocation.collectAsState(initial = null)
-                val currentTimeScale by repository.sandboxTimeScale.collectAsState(initial = 1f)
-
                 com.example.openflight4and.ui.sandbox.SandboxScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToAirportSelection = { isSettingCurrentLocation: Boolean ->
-                        navController.navigate(
-                            "${Screen.NewFlight.route}?sandboxMode=true&isSettingCurrentLocation=$isSettingCurrentLocation"
-                        )
-                    },
-                    currentLocation = sandboxLocation,
-                    timeScale = currentTimeScale,
-                    onTimeScaleChanged = { newScale: Float ->
-                        scope.launch { repository.setSandboxTimeScale(newScale) }
-                    },
                     onSaveCompleted = { navController.popBackStack() }
                 )
             }

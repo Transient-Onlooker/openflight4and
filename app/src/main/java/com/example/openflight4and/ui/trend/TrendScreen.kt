@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.trend
 
+import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -23,12 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,13 +34,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.theme.FlightGray
-import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.utils.FlightUtils
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,37 +48,17 @@ fun TrendScreen(
     onNavigateToSandbox: () -> Unit
 ) {
     val context = LocalContext.current
-    val repository = LocalAppRepository.current
-    val scope = rememberCoroutineScope()
+    val viewModel: TrendViewModel = viewModel(
+        factory = TrendViewModel.Factory(context.applicationContext as Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
 
-    val totalFlights by repository.totalFlights.collectAsState(initial = 0)
-    val totalDistanceKm by repository.totalDistance.collectAsState(initial = 0)
-    val totalFocusMinutes by repository.totalFocusMinutes.collectAsState(initial = 0)
-    val unitSystem by repository.unitSystem.collectAsState(initial = "km")
-    val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
-    val sessions by repository.allSessions.collectAsState(initial = emptyList())
-
-    val visitedAirportsCount = remember(sessions) {
-        sessions.filter { it.isCompleted }
-            .flatMap { listOf(it.originIata, it.destinationIata) }
-            .distinct()
-            .size
-    }
-
-    var distanceClickCount by remember { mutableStateOf(0) }
-    var distanceClickTimestamp by remember { mutableStateOf(0L) }
-    var debugClickCount by remember { mutableStateOf(0) }
-    var debugClickTimestamp by remember { mutableStateOf(0L) }
-
-    fun toggleDebugMode() {
-        val nextValue = !debugFlightMode
-        scope.launch {
-            repository.setDebugFlightMode(nextValue)
-            Toast.makeText(
-                context,
-                context.getString(if (nextValue) R.string.trend_debug_enabled else R.string.trend_debug_disabled),
-                Toast.LENGTH_SHORT
-            ).show()
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is TrendEvent.ShowToast -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                TrendEvent.NavigateToSandbox -> onNavigateToSandbox()
+            }
         }
     }
 
@@ -130,23 +107,13 @@ fun TrendScreen(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     StatCard(
                         label = stringResource(R.string.trend_total_flights),
-                        value = stringResource(R.string.trend_total_flights_format, totalFlights),
-                        modifier = Modifier.weight(1f).clickable {
-                            val now = System.currentTimeMillis()
-                            val elapsed = now - debugClickTimestamp
-                            debugClickCount = if (elapsed < 5000) debugClickCount + 1 else 1
-                            debugClickTimestamp = now
-
-                            if (debugClickCount >= 5) {
-                                debugClickCount = 0
-                                toggleDebugMode()
-                            }
-                        }
+                        value = stringResource(R.string.trend_total_flights_format, uiState.totalFlights),
+                        modifier = Modifier.weight(1f).clickable { viewModel.onDebugTap() }
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     StatCard(
                         label = stringResource(R.string.trend_visited_airports),
-                        value = stringResource(R.string.trend_visited_airports_format, visitedAirportsCount),
+                        value = stringResource(R.string.trend_visited_airports_format, uiState.visitedAirportsCount),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -154,37 +121,17 @@ fun TrendScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    val distVal = FlightUtils.convertDistance(totalDistanceKm ?: 0, unitSystem)
+                    val distVal = FlightUtils.convertDistance(uiState.totalDistanceKm, uiState.unitSystem)
                     StatCard(
                         label = stringResource(R.string.trend_total_distance),
-                        value = "$distVal $unitSystem",
-                        modifier = Modifier.weight(1f).clickable {
-                            val now = System.currentTimeMillis()
-                            val elapsed = now - distanceClickTimestamp
-                            distanceClickCount = if (elapsed < 5000) distanceClickCount + 1 else 1
-                            distanceClickTimestamp = now
-
-                            if (distanceClickCount >= 5) {
-                                distanceClickCount = 0
-                                onNavigateToSandbox()
-                            }
-                        }
+                        value = "$distVal ${uiState.unitSystem}",
+                        modifier = Modifier.weight(1f).clickable { viewModel.onDistanceTap() }
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     StatCard(
                         label = stringResource(R.string.trend_focus_time),
-                        value = FlightUtils.formatDuration(context, totalFocusMinutes ?: 0),
-                        modifier = Modifier.weight(1f).clickable {
-                            val now = System.currentTimeMillis()
-                            val elapsed = now - debugClickTimestamp
-                            debugClickCount = if (elapsed < 5000) debugClickCount + 1 else 1
-                            debugClickTimestamp = now
-
-                            if (debugClickCount >= 5) {
-                                debugClickCount = 0
-                                toggleDebugMode()
-                            }
-                        }
+                        value = FlightUtils.formatDuration(context, uiState.totalFocusMinutes),
+                        modifier = Modifier.weight(1f).clickable { viewModel.onDebugTap() }
                     )
                 }
 

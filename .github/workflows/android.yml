@@ -46,8 +46,6 @@ jobs:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           GOOGLE_SIGN_IN_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SIGN_IN_SERVER_CLIENT_ID }}
-          OPENFLIGHT_RELEASE_CHANNEL: beta
-          OPENFLIGHT_VERSION_NAME: V2.9.1.Beta.0003
         run: |
           test -n "$FIREBASE_API_KEY"
           test -n "$FIREBASE_APP_ID"

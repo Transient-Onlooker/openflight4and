@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.history
 
+import android.app.Application
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,12 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
 import com.example.openflight4and.model.FlightSession
-import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.theme.FlightGray
@@ -53,9 +55,11 @@ import java.util.Locale
 fun HistoryScreen(
     onNavigateBack: () -> Unit
 ) {
-    val repository = LocalAppRepository.current
-    val sessions by repository.allSessions.collectAsState(initial = emptyList())
-    val unitSystem by repository.unitSystem.collectAsState(initial = "km")
+    val context = LocalContext.current
+    val viewModel: HistoryViewModel = viewModel(
+        factory = HistoryViewModel.Factory(context.applicationContext as Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
 
     FlightMapBackground {
         Scaffold(
@@ -76,7 +80,7 @@ fun HistoryScreen(
                 )
             }
         ) { innerPadding ->
-            if (sessions.isEmpty()) {
+            if (uiState.sessions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.history_empty), color = FlightGray)
                 }
@@ -89,8 +93,8 @@ fun HistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(vertical = 24.dp)
                 ) {
-                    items(sessions) { session ->
-                        FlightHistoryItem(session, unitSystem)
+                    items(uiState.sessions) { session ->
+                        FlightHistoryItem(session, uiState.unitSystem)
                     }
                 }
             }

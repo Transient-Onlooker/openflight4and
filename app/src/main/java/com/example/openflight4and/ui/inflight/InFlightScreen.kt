@@ -214,7 +214,7 @@ fun InFlightScreen(
     val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
     var mapPerspective by remember { mutableStateOf(Perspective2_5D) }
     val debugFlightMode by repository.debugFlightMode.collectAsState(initial = false)
-    val flightBackgroundSoundEnabled by repository.flightBackgroundSoundEnabled.collectAsState(initial = true)
+    val flightBackgroundSoundEnabled by repository.flightBackgroundSoundEnabled.collectAsState(initial = false)
     val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
     val overlayPalette = rememberInFlightOverlayPalette(mapOverlayStyle)
     val inflightPanelBackground = Color.White.copy(alpha = InFlightPanelAlpha)

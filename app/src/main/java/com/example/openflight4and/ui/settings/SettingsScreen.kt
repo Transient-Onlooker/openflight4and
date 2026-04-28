@@ -1,6 +1,7 @@
 package com.example.openflight4and.ui.settings
 
 import android.app.Activity
+import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
@@ -82,10 +83,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.BuildConfig
 import com.example.openflight4and.MainActivity
 import com.example.openflight4and.R
-import com.example.openflight4and.data.AccountActionResult
 import com.example.openflight4and.data.AccountState
 import com.example.openflight4and.focus.LaunchableApp
 import com.example.openflight4and.focus.FocusLockUtils
@@ -159,24 +160,28 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val viewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModel.Factory(context.applicationContext as Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
     val repository = LocalAppRepository.current
     val scope = rememberCoroutineScope()
 
-    val unitSystem by repository.unitSystem.collectAsState(initial = "km")
-    val appLanguage by repository.appLanguage.collectAsState(initial = "system")
-    val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
-    val notificationsEnabled by repository.notificationsEnabled.collectAsState(initial = true)
-    val notificationUpdateSeconds by repository.notificationUpdateSeconds.collectAsState(initial = 10)
-    val flightBackgroundSound by repository.flightBackgroundSound.collectAsState(initial = FlightBackgroundSound.AIRPLANE_WHITE_NOISE)
-    val flightBackgroundSoundCustomUri by repository.flightBackgroundSoundCustomUri.collectAsState(initial = null)
-    val flightBackgroundSoundCustomName by repository.flightBackgroundSoundCustomName.collectAsState(initial = null)
-    val flightTimeDisplayMode by repository.flightTimeDisplayMode.collectAsState(initial = FlightTimeDisplayMode.REMAINING)
-    val accountState by repository.accountState.collectAsState(initial = AccountState.SignedOut)
-    val focusLockEnabled by repository.focusLockEnabled.collectAsState(initial = false)
-    val advancedLockEnabled by repository.advancedLockEnabled.collectAsState(initial = false)
-    val focusLockPinEnabled by repository.focusLockPinEnabled.collectAsState(initial = false)
-    val focusLockAllowedPackages by repository.focusLockAllowedApps.collectAsState(initial = emptySet())
-    val screenOrientationMode by repository.screenOrientationMode.collectAsState(initial = "auto")
+    val unitSystem = uiState.unitSystem
+    val appLanguage = uiState.appLanguage
+    val mapStyle = uiState.mapStyle
+    val notificationsEnabled = uiState.notificationsEnabled
+    val notificationUpdateSeconds = uiState.notificationUpdateSeconds
+    val flightBackgroundSound = uiState.flightBackgroundSound
+    val flightBackgroundSoundCustomUri = uiState.flightBackgroundSoundCustomUri
+    val flightBackgroundSoundCustomName = uiState.flightBackgroundSoundCustomName
+    val flightTimeDisplayMode = uiState.flightTimeDisplayMode
+    val accountState = uiState.accountState
+    val focusLockEnabled = uiState.focusLockEnabled
+    val advancedLockEnabled = uiState.advancedLockEnabled
+    val focusLockPinEnabled = uiState.focusLockPinEnabled
+    val focusLockAllowedPackages = uiState.focusLockAllowedPackages
+    val screenOrientationMode = uiState.screenOrientationMode
     val isScreenOrientationLocked = restrictInFlightSettings
     val lifecycleOwner = LocalLifecycleOwner.current
     val selfPackageName = context.packageName
@@ -202,7 +207,6 @@ fun SettingsScreen(
     var showFullResetDialog by remember { mutableStateOf(false) }
     var fullResetConfirmationInput by remember { mutableStateOf("") }
     var activeSettingsSection by remember { mutableStateOf<SettingsDetailSection?>(null) }
-    var isSigningIn by remember { mutableStateOf(false) }
     var focusLockAuthenticatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var pendingProtectedFocusLockAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingEnableAdvancedLockAfterPinSetup by remember { mutableStateOf(false) }
@@ -304,6 +308,16 @@ fun SettingsScreen(
 
     BackHandler(enabled = activeSettingsSection != null) {
         activeSettingsSection = null
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SettingsEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -474,28 +488,8 @@ fun SettingsScreen(
                                 PermissionSettingItem(
                                     title = stringResource(R.string.settings_account_sign_in_google),
                                     description = stringResource(R.string.settings_account_sign_in_description),
-                                    enabled = !isSigningIn,
-                                    onClick = {
-                                        isSigningIn = true
-                                        scope.launch {
-                                            when (val result = repository.signInWithGoogle(context)) {
-                                                is AccountActionResult.Success -> {
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(
-                                                            R.string.settings_account_signed_in_format,
-                                                            result.account.userCode
-                                                        ),
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                                is AccountActionResult.Error -> {
-                                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                            isSigningIn = false
-                                        }
-                                    }
+                                    enabled = !uiState.isSigningIn,
+                                    onClick = { viewModel.signInWithGoogle(context) }
                                 )
                             }
                             is AccountState.SignedIn -> {
@@ -513,30 +507,12 @@ fun SettingsScreen(
                                 PermissionSettingItem(
                                     title = stringResource(R.string.settings_account_sync_now),
                                     description = stringResource(R.string.settings_account_sync_now_description),
-                                    onClick = {
-                                        scope.launch {
-                                            repository.syncPendingTicketEvents()
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.settings_account_sync_done),
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
+                                    onClick = { viewModel.syncPendingTicketEvents() }
                                 )
                                 PermissionSettingItem(
                                     title = stringResource(R.string.settings_account_sign_out),
                                     description = stringResource(R.string.settings_account_sign_out_description),
-                                    onClick = {
-                                        scope.launch {
-                                            repository.signOut()
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.settings_account_signed_out_toast),
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
+                                    onClick = { viewModel.signOut() }
                                 )
                             }
                         }

@@ -96,7 +96,7 @@ class SettingsRepository(
         preferences[AppPreferenceKeys.KEY_DEBUG_FLIGHT_MODE] ?: false
     }
     val flightBackgroundSoundEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED] ?: true
+        preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND_ENABLED] ?: false
     }
     val flightBackgroundSound: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AppPreferenceKeys.KEY_FLIGHT_BACKGROUND_SOUND] ?: FlightBackgroundSound.AIRPLANE_WHITE_NOISE

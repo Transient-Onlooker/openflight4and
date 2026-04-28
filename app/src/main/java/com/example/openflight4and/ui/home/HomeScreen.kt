@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.home
 
+import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,12 +37,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
 import com.example.openflight4and.model.Airport
-import com.example.openflight4and.ui.LocalAppRepository
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.RealFlightMap
 import com.example.openflight4and.ui.components.rememberMapOverlayPalette
@@ -78,16 +80,17 @@ fun HomeScreen(
     ticketBalance: Int,
     onNavigateToTickets: () -> Unit
 ) {
-    val repository = LocalAppRepository.current
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val viewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.Factory(context.applicationContext as Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
-    val mapStyle by repository.mapStyle.collectAsState(initial = "standard")
-    val mapOverlayStyle by repository.mapOverlayStyle.collectAsState(initial = "dark")
-    val totalFlights by repository.totalFlights.collectAsState(initial = 0)
-    val overlayPalette = rememberMapOverlayPalette(mapOverlayStyle)
+    val overlayPalette = rememberMapOverlayPalette(uiState.mapOverlayStyle)
     val labelCurrentLocation = stringResource(R.string.home_current_location)
-    val labelTotalFlights = stringResource(R.string.home_total_flights_format, totalFlights)
+    val labelTotalFlights = stringResource(R.string.home_total_flights_format, uiState.totalFlights)
     val labelTickets = stringResource(R.string.home_tickets)
     val labelStartFlight = stringResource(R.string.home_start_flight)
     val labelFlightHistory = stringResource(R.string.home_flight_history)
@@ -110,7 +113,7 @@ fun HomeScreen(
 
     RealFlightMap(
         cameraPositionState = cameraPositionState,
-        mapStyle = mapStyle,
+        mapStyle = uiState.mapStyle,
         isInteractive = true,
         useDarkOverlay = false,
         overlayContent = {

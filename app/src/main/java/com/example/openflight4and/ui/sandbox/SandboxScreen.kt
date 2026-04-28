@@ -1,5 +1,6 @@
 package com.example.openflight4and.ui.sandbox
 
+import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,16 +23,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.openflight4and.R
-import com.example.openflight4and.model.Airport
 import com.example.openflight4and.ui.components.FlightMapBackground
 import com.example.openflight4and.ui.components.GlassPanel
 import com.example.openflight4and.ui.components.PrimaryFlightButton
@@ -45,12 +49,13 @@ import kotlin.math.ln
 @Composable
 fun SandboxScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToAirportSelection: (Boolean) -> Unit,
-    currentLocation: Airport?,
-    timeScale: Float,
-    onTimeScaleChanged: (Float) -> Unit,
     onSaveCompleted: () -> Unit
 ) {
+    val context = LocalContext.current
+    val viewModel: SandboxViewModel = viewModel(
+        factory = SandboxViewModel.Factory(context.applicationContext as Application)
+    )
+    val uiState by viewModel.uiState.collectAsState()
     val minTimeScale = 0.01f
     val maxTimeScale = 100f
     val minLog = ln(minTimeScale)
@@ -74,9 +79,9 @@ fun SandboxScreen(
         }
     }
 
-    val sliderPosition = remember(timeScale) {
+    val sliderPosition = remember(uiState.timeScale) {
         snapSliderPosition(
-            ((ln(timeScale.coerceIn(minTimeScale, maxTimeScale)) - minLog) / (maxLog - minLog)).toFloat()
+            ((ln(uiState.timeScale.coerceIn(minTimeScale, maxTimeScale)) - minLog) / (maxLog - minLog)).toFloat()
         )
     }
 
@@ -159,14 +164,14 @@ fun SandboxScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                formatTimeScale(timeScale),
+                                formatTimeScale(uiState.timeScale),
                                 color = FlightPrimary,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.headlineMedium
                             )
                             Slider(
                                 value = sliderPosition,
-                                onValueChange = { onTimeScaleChanged(sliderToTimeScale(it)) },
+                                onValueChange = { viewModel.setTimeScale(sliderToTimeScale(it)) },
                                 valueRange = 0f..1f,
                                 modifier = Modifier
                                     .weight(1f)
@@ -183,8 +188,8 @@ fun SandboxScreen(
 
                         Text(
                             text = when {
-                                timeScale < 10f -> stringResource(R.string.sandbox_time_scale_near_realtime)
-                                timeScale < 50f -> stringResource(R.string.sandbox_time_scale_fast)
+                                uiState.timeScale < 10f -> stringResource(R.string.sandbox_time_scale_near_realtime)
+                                uiState.timeScale < 50f -> stringResource(R.string.sandbox_time_scale_fast)
                                 else -> stringResource(R.string.sandbox_time_scale_very_fast)
                             },
                             color = FlightGray,
