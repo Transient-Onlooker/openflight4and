@@ -1,8 +1,8 @@
 # OpenFlight4And
 
-> 비행 시간을 집중 타이머처럼 사용하는 Android 집중 앱
+> 출발지와 목적지를 선택하고 가상 비행을 완주하는 Android 집중 앱
 
-비행 시간을 집중 타이머로 활용한다는 아이디어에서 영감을 받아, 부족하다고 느낀 강제성과 Android 네이티브 경험에 집중해 독자적으로 개발한 안드로이드 앱입니다.
+일반적인 카운트다운 대신 **공항 선택 → 노선·예상 비행시간 계산 → 탑승·비행 → 도착 기록**으로 집중 세션을 구성했습니다. 지도, 보딩패스, 비행권, 집중 잠금 기능을 Android 네이티브 UI와 결합한 개인 개발 프로젝트입니다.
 
 ## 소개 ✈️
 
@@ -25,18 +25,9 @@ OpenFlight4And는 출발지와 목적지를 정하고, 실제 비행 시간에 �
 
 ## 차별점 🛫
 
-유사 가능성을 낮추기 위해, 앱 구조와 사용자 경험을 아래처럼 분명히 다르게 가져가고 있습니다.
+단순 타이머 화면이 아니라 **노선 선택·보딩패스·좌석 선택·비행 진행·도착 기록**을 하나의 집중 흐름으로 설계했습니다. 지도 표시를 2D / 2.5D / 3D로 전환할 수 있으며, 비행권·보상과 집중 잠금을 별도 사용자 경험으로 연결했습니다.
 
-- 비행 시간을 집중 타이머로 활용하는 방향은 같더라도 구현은 독자적으로 설계했습니다.
-- 지도 UI와 지도 스타일이 다릅니다.
-- 비행권 시스템과 광고 보상 흐름이 들어가 있습니다.
-- Desired Focus Time 같은 별도 목표 시간 UI가 없습니다.
-- 홈 메뉴 구조가 다릅니다.
-- 프로필 기능이 없고, `History`와 `Statistics` 중심으로 단순화했습니다.
-- 언어 변경, 진동 같은 범용 옵션 대신 실용적인 설정 위주로 구성했습니다.
-- 공항 선택 UI가 다릅니다.
-- 좌석 모양과 좌석 선택 흐름이 다릅니다.
-- Android 네이티브 경험과 강제성에 더 무게를 두고 있습니다.
+집중 잠금은 Android의 사용 정보 접근 및 다른 앱 위에 표시 권한을 활용합니다. 권한과 기기 제조사별 동작 차이가 있으므로 실제 차단 동작은 해당 기기에서 확인해야 합니다.
 
 ## 아키텍처 🏗️
 
@@ -63,6 +54,16 @@ Android 클라이언트와 Firebase 인증 기반의 서버리스 백엔드로 �
 - Cloudflare Workers
 - Cloudflare D1
 - Firebase Auth
+
+## 설치와 코드 구조 🧪
+
+Android Studio에서 루트 프로젝트를 열고 Gradle 동기화 후 `app` 모듈을 빌드합니다. Firebase 인증이나 서버 연동 기능은 해당 환경 설정을 별도로 준비해야 정상 동작할 수 있습니다. GitHub Actions 빌드 설정은 [워크플로](.github/workflows/android.yml)를 참고하세요.
+
+- 앱 진입점: `app/src/main/java/com/example/openflight4and/MainActivity.kt`
+- 비행 서비스: `app/src/main/java/com/example/openflight4and/service/FlightService.kt`
+- 로컬 데이터: `app/src/main/java/com/example/openflight4and/data/`
+- 집중 잠금: `app/src/main/java/com/example/openflight4and/focus/`
+- Android 테스트: `app/src/androidTest/` (이 문서 갱신 작업에서 실행 결과는 확인하지 않았습니다)
 
 ## API 키 설정 🔑
 
@@ -95,6 +96,10 @@ MAPS3D_API_KEY=your_maps3d_api_key_here
 - 안정판과 베타 빌드를 분리해 배포합니다.
 - 베타 빌드는 `V2.8.7.Beta.0002`처럼 표시되어 쉽게 구분할 수 있습니다.
 - 베타 빌드는 GitHub `Pre-release`로 배포되며, 안정판과 분리되어 관리됩니다.
+
+## 프로젝트 상태
+
+코드에는 릴리스·베타 빌드 구분과 사용자 기능을 위한 구현이 포함되어 있습니다. 다만 저장소의 마지막 코드 업데이트는 2026년 4월이며, 최신 Android/Google Maps SDK 환경에서 앱 전체를 재검증한 것은 아닙니다.
 
 ## 라이선스 📄
 
