@@ -79,6 +79,17 @@ MAPS_API_KEY=your_api_key_here
 MAPS3D_API_KEY=your_maps3d_api_key_here
 ```
 
+Google 로그인과 Firebase 인증을 사용하려면 다음 값도 `local.properties` 또는 같은 이름의 환경 변수로 설정합니다.
+
+```properties
+FIREBASE_API_KEY=your_firebase_api_key
+FIREBASE_APP_ID=your_firebase_app_id
+FIREBASE_PROJECT_ID=your_firebase_project_id
+GOOGLE_SIGN_IN_SERVER_CLIENT_ID=your_google_web_client_id
+```
+
+값이 없으면 로그인할 수 없습니다. `local.properties`와 실제 설정값은 저장소에 올리지 마세요.
+
 ## 최근 추가된 기능 🔐
 
 - 잠금 단계 분리
@@ -92,6 +103,8 @@ MAPS3D_API_KEY=your_maps3d_api_key_here
   - 포기 직후 비행기 위치가 출발지 쪽으로 되감기지 않도록 마지막 진행 위치를 유지
 
 ## 빌드 및 릴리스 정책 🚀
+
+- Android CI는 디버그 APK를 빌드하지만 단위 테스트나 기기 계측 테스트를 실행하지 않습니다.
 
 - 안정판과 베타 빌드를 분리해 배포합니다.
 - 베타 빌드는 `V2.8.7.Beta.0002`처럼 표시되어 쉽게 구분할 수 있습니다.
